@@ -32,7 +32,7 @@ A native macOS client for [Navidrome](https://www.navidrome.org/) and Subsonic-c
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/GatzeStreicheln/Shelv-Desktop.git
+   git clone https://github.com/gatzenga/Shelv-Desktop.git
    ```
 2. Open `Shelv Desktop.xcodeproj` in Xcode.
 3. Select a Mac target and hit **Run** (`⌘R`).
