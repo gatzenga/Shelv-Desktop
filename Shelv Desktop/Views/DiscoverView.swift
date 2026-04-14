@@ -1,0 +1,305 @@
+import SwiftUI
+
+struct DiscoverView: View {
+    @StateObject private var vm = DiscoverViewModel()
+    @EnvironmentObject var appState: AppState
+    @State private var mixLoading: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 32) {
+
+                // MARK: Smart Mix Buttons
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Smart Mixes")
+                        .font(.title2).bold()
+                    VStack(spacing: 10) {
+                        MixButton(
+                            title: "Mix: Neueste Titel",
+                            icon: "sparkles",
+                            color: .blue,
+                            isLoading: mixLoading == "newest"
+                        ) {
+                            mixLoading = "newest"
+                            await vm.playMixNewest()
+                            mixLoading = nil
+                        }
+                        MixButton(
+                            title: "Mix: Häufig gespielt",
+                            icon: "chart.bar.fill",
+                            color: .orange,
+                            isLoading: mixLoading == "frequent"
+                        ) {
+                            mixLoading = "frequent"
+                            await vm.playMixFrequent()
+                            mixLoading = nil
+                        }
+                        MixButton(
+                            title: "Mix: Kürzlich gespielt",
+                            icon: "clock.fill",
+                            color: .green,
+                            isLoading: mixLoading == "recent"
+                        ) {
+                            mixLoading = "recent"
+                            await vm.playMixRecent()
+                            mixLoading = nil
+                        }
+                    }
+                }
+
+                if vm.isLoading {
+                    ProgressView("Laden…")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 40)
+                } else {
+                    // Reihenfolge wie iOS: Kürzlich hinzugefügt → Kürzlich gespielt → Häufig gespielt
+                    if !vm.recentlyAdded.isEmpty {
+                        AlbumShelfSection(title: "Kürzlich hinzugefügt", albums: vm.recentlyAdded)
+                    }
+                    if !vm.recentlyPlayed.isEmpty {
+                        AlbumShelfSection(title: "Kürzlich gespielt", albums: vm.recentlyPlayed)
+                    }
+                    if !vm.frequentlyPlayed.isEmpty {
+                        AlbumShelfSection(title: "Häufig gespielt", albums: vm.frequentlyPlayed)
+                    }
+                }
+
+                if let err = vm.errorMessage {
+                    Label(err, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+            }
+            .padding(24)
+        }
+        .navigationTitle("Entdecken")
+        .toolbar {
+            ToolbarItem(placement: .automatic) {
+                ThemePickerButton()
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { Task { await vm.load() } } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .disabled(vm.isLoading)
+                .help("Neu laden")
+            }
+        }
+        .task { await vm.load() }
+    }
+}
+
+// MARK: - Mix Button
+
+struct MixButton: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let isLoading: Bool
+    let action: () async -> Void
+
+    var body: some View {
+        Button {
+            Task { await action() }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.body.bold())
+                    .frame(width: 24)
+                Text(title)
+                    .font(.body.bold())
+                Spacer()
+                if isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(color)
+                } else {
+                    Image(systemName: "play.fill")
+                        .font(.caption)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 13)
+            .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(color.opacity(0.25), lineWidth: 1))
+            .foregroundStyle(color)
+        }
+        .buttonStyle(.plain)
+        .disabled(isLoading)
+    }
+}
+
+// MARK: - Album Shelf Section (drag-to-scroll, keine Scrollbar)
+
+struct AlbumShelfSection: View {
+    let title: String
+    let albums: [Album]
+
+    private let cardWidth: CGFloat   = 150
+    private let cardSpacing: CGFloat  = 16
+    private let shelfHeight: CGFloat  = 196
+    private let cardsPerStep: Int     = 3
+
+    @State private var firstVisible: Int = 0
+
+    private var atStart: Bool { firstVisible == 0 }
+    private var atEnd: Bool   { firstVisible + cardsPerStep >= albums.count }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center) {
+                Text(title)
+                    .font(.title2).bold()
+                Spacer()
+                HStack(spacing: 6) {
+                    ShelfNavButton(icon: "chevron.left", disabled: atStart) {
+                        firstVisible = max(0, firstVisible - cardsPerStep)
+                    }
+                    ShelfNavButton(icon: "chevron.right", disabled: atEnd) {
+                        firstVisible = min(albums.count - cardsPerStep, firstVisible + cardsPerStep)
+                    }
+                }
+            }
+
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: cardSpacing) {
+                        ForEach(Array(albums.enumerated()), id: \.element.id) { index, album in
+                            NavigationLink(value: album) {
+                                AlbumCard(album: album)
+                            }
+                            .buttonStyle(.plain)
+                            .albumContextMenu(album)
+                            .id(index)
+                        }
+                    }
+                    .padding(.leading, 2)
+                    .padding(.top, 8)
+                }
+                .frame(height: shelfHeight + 8)
+                .clipped()
+                .onChange(of: firstVisible) { _, newValue in
+                    withAnimation(.easeInOut(duration: 0.28)) {
+                        proxy.scrollTo(newValue, anchor: .leading)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Shelf Navigation Button
+
+struct ShelfNavButton: View {
+    let icon: String
+    let disabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.callout.bold())
+                .foregroundStyle(disabled ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+                .frame(width: 28, height: 28)
+                .background(.quaternary, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .disabled(disabled)
+    }
+}
+
+// MARK: - Album Card
+
+struct AlbumCard: View {
+    let album: Album
+    @State private var isHovered = false
+
+    private var coverURL: URL? {
+        guard let id = album.coverArt else { return nil }
+        return SubsonicAPIService.shared.coverArtURL(id: id, size: 200)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            CoverArtView(url: coverURL, size: 150, cornerRadius: 8)
+                .shadow(color: .black.opacity(isHovered ? 0.25 : 0.1), radius: isHovered ? 8 : 4)
+            Text(album.name)
+                .font(.caption.bold())
+                .lineLimit(1)
+                .frame(width: 150, alignment: .leading)
+            if let artist = album.artist {
+                Text(artist)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(width: 150, alignment: .leading)
+            }
+        }
+        .scaleEffect(isHovered ? 1.03 : 1.0, anchor: .bottom)
+        .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: - Theme Picker
+
+struct ThemePickerButton: View {
+    @AppStorage("themeColor") private var themeColorName: String = "violet"
+    @State private var showPicker = false
+
+    var body: some View {
+        Button { showPicker.toggle() } label: {
+            Image(systemName: "paintpalette.fill")
+                .foregroundStyle(AppTheme.color(for: themeColorName))
+        }
+        .help("Farbe wählen")
+        .popover(isPresented: $showPicker, arrowEdge: .top) {
+            ThemePickerPopover(themeColorName: $themeColorName)
+        }
+    }
+}
+
+struct ThemePickerPopover: View {
+    @Binding var themeColorName: String
+
+    private let columns = Array(repeating: GridItem(.fixed(34), spacing: 10), count: 5)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Farbe")
+                .font(.headline)
+
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(AppTheme.options, id: \.name) { option in
+                    Button {
+                        themeColorName = option.name
+                    } label: {
+                        Circle()
+                            .fill(option.color)
+                            .frame(width: 34, height: 34)
+                            .overlay {
+                                if themeColorName == option.name {
+                                    Image(systemName: "checkmark")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(
+                                            option.useDarkCheckmark ? Color.black : Color.white
+                                        )
+                                }
+                            }
+                            .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
+                    }
+                    .buttonStyle(.plain)
+                    .help(option.nameDE)
+                }
+            }
+        }
+        .padding(16)
+        .frame(width: 240)
+    }
+}
+
+#Preview {
+    DiscoverView()
+        .frame(width: 900, height: 700)
+        .environmentObject(AppState.shared)
+}
