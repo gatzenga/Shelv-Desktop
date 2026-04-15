@@ -16,7 +16,8 @@ struct ContentView: View {
         }
         .tint(AppTheme.color(for: themeColorName))
         .environment(\.themeColor, AppTheme.color(for: themeColorName))
-        .preferredColorScheme(storedColorScheme.colorScheme)
+        .onAppear { NSApp.appearance = storedColorScheme.nsAppearance }
+        .onChange(of: storedColorScheme) { _, new in NSApp.appearance = new.nsAppearance }
     }
 }
 

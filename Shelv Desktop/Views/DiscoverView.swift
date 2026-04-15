@@ -62,6 +62,13 @@ struct DiscoverView: View {
                     if !vm.frequentlyPlayed.isEmpty {
                         AlbumShelfSection(title: "Häufig gespielt", albums: vm.frequentlyPlayed)
                     }
+                    if !vm.randomAlbums.isEmpty {
+                        AlbumShelfSection(
+                            title: "Zufällige Alben",
+                            albums: vm.randomAlbums,
+                            refreshAction: { await vm.refreshRandom() }
+                        )
+                    }
                 }
 
                 if let err = vm.errorMessage {
@@ -134,6 +141,7 @@ struct MixButton: View {
 struct AlbumShelfSection: View {
     let title: String
     let albums: [Album]
+    var refreshAction: (() async -> Void)? = nil
 
     private let cardWidth: CGFloat   = 150
     private let cardSpacing: CGFloat  = 16
@@ -141,6 +149,7 @@ struct AlbumShelfSection: View {
     private let cardsPerStep: Int     = 3
 
     @State private var firstVisible: Int = 0
+    @State private var isRefreshing = false
 
     private var atStart: Bool { firstVisible == 0 }
     private var atEnd: Bool   { firstVisible + cardsPerStep >= albums.count }
@@ -152,6 +161,14 @@ struct AlbumShelfSection: View {
                     .font(.title2).bold()
                 Spacer()
                 HStack(spacing: 6) {
+                    if let refreshAction {
+                        ShelfNavButton(icon: isRefreshing ? "arrow.clockwise" : "dice", disabled: isRefreshing) {
+                            isRefreshing = true
+                            firstVisible = 0
+                            await refreshAction()
+                            isRefreshing = false
+                        }
+                    }
                     ShelfNavButton(icon: "chevron.left", disabled: atStart) {
                         firstVisible = max(0, firstVisible - cardsPerStep)
                     }
@@ -193,10 +210,12 @@ struct AlbumShelfSection: View {
 struct ShelfNavButton: View {
     let icon: String
     let disabled: Bool
-    let action: () -> Void
+    let action: () async -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            Task { await action() }
+        } label: {
             Image(systemName: icon)
                 .font(.callout.bold())
                 .foregroundStyle(disabled ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))

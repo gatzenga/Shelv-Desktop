@@ -10,6 +10,8 @@ struct SettingsView: View {
                 .tabItem { Label("Server", systemImage: "server.rack") }
             AppearanceTab(colorScheme: $colorScheme)
                 .tabItem { Label("Darstellung", systemImage: "paintpalette") }
+            CacheTab()
+                .tabItem { Label("Cache", systemImage: "internaldrive") }
             AboutTab()
                 .tabItem { Label("Info", systemImage: "info.circle") }
         }
@@ -69,6 +71,14 @@ enum AppColorScheme: String, CaseIterable {
         case .dark: return .dark
         }
     }
+
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: return nil
+        case .light:  return NSAppearance(named: .aqua)
+        case .dark:   return NSAppearance(named: .darkAqua)
+        }
+    }
 }
 
 struct AppearanceTab: View {
@@ -79,7 +89,7 @@ struct AppearanceTab: View {
             Section("Erscheinungsbild") {
                 Picker("Modus", selection: $colorScheme) {
                     ForEach(AppColorScheme.allCases, id: \.self) { scheme in
-                        Text(scheme.rawValue).tag(scheme)
+                        Text(LocalizedStringKey(scheme.rawValue)).tag(scheme)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -87,6 +97,49 @@ struct AppearanceTab: View {
         }
         .formStyle(.grouped)
         .padding()
+    }
+}
+
+// MARK: - Cache Tab
+
+struct CacheTab: View {
+    @State private var cacheSize = "–"
+    @State private var showClearConfirm = false
+
+    var body: some View {
+        Form {
+            Section("Cover-Bilder") {
+                LabeledContent("Grösse") {
+                    Text(cacheSize).foregroundStyle(.secondary)
+                }
+                Button(role: .destructive) {
+                    showClearConfirm = true
+                } label: {
+                    Label("Cache leeren", systemImage: "trash")
+                }
+                .confirmationDialog("Cache leeren?", isPresented: $showClearConfirm) {
+                    Button("Leeren", role: .destructive) {
+                        Task {
+                            await ImageCacheService.shared.clearAll()
+                            await recalculateCacheSize()
+                        }
+                    }
+                    Button("Abbrechen", role: .cancel) {}
+                } message: {
+                    Text("Alle zwischengespeicherten Cover-Bilder werden gelöscht und beim nächsten Anzeigen neu geladen.")
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+        .task { await recalculateCacheSize() }
+    }
+
+    private func recalculateCacheSize() async {
+        let bytes = await ImageCacheService.shared.diskUsageBytes()
+        cacheSize = bytes > 0
+            ? ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
+            : "0 KB"
     }
 }
 

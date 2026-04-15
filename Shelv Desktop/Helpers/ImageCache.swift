@@ -9,7 +9,6 @@ struct CoverArtView: View {
     var cornerRadius: CGFloat = 8
 
     @State private var image: NSImage?
-    @State private var isLoading = false
 
     var body: some View {
         Group {
@@ -29,55 +28,79 @@ struct CoverArtView: View {
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         .task(id: url?.absoluteString) {
-            await loadImage()
+            guard let url else { return }
+            image = await ImageCacheService.shared.image(url: url)
         }
-    }
-
-    private func loadImage() async {
-        guard let url else { return }
-        if let cached = ImageCacheService.shared.get(url: url) {
-            image = cached
-            return
-        }
-        isLoading = true
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            if let img = NSImage(data: data) {
-                ImageCacheService.shared.set(img, for: url)
-                image = img
-            }
-        } catch {
-            // silently ignore
-        }
-        isLoading = false
     }
 }
 
 // MARK: - Cache Service
 
-final class ImageCacheService {
+actor ImageCacheService {
     static let shared = ImageCacheService()
-    private let cache = NSCache<NSURL, NSImage>()
+
+    private let memory = NSCache<NSString, NSImage>()
+    private let cacheDir: URL
+    private var inflight: [String: Task<NSImage?, Never>] = [:]
 
     private init() {
-        cache.countLimit = 300
-        cache.totalCostLimit = 100 * 1024 * 1024 // 100 MB
+        cacheDir = FileManager.default
+            .urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("shelv_covers", isDirectory: true)
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        memory.countLimit = 300
+        memory.totalCostLimit = 100 * 1024 * 1024
     }
 
-    func get(url: URL) -> NSImage? {
-        cache.object(forKey: url as NSURL)
+    func image(url: URL) async -> NSImage? {
+        let key = cacheKey(for: url)
+
+        if let hit = memory.object(forKey: key as NSString) { return hit }
+
+        if let existing = inflight[key] { return await existing.value }
+
+        let diskURL = cacheDir.appendingPathComponent(key)
+
+        let task = Task.detached(priority: .utility) { () -> NSImage? in
+            if Task.isCancelled { return nil }
+            if let data = try? Data(contentsOf: diskURL),
+               let img = NSImage(data: data) { return img }
+            if Task.isCancelled { return nil }
+            guard let (data, _) = try? await URLSession.shared.data(from: url),
+                  let img = NSImage(data: data) else { return nil }
+            if Task.isCancelled { return nil }
+            try? data.write(to: diskURL, options: .atomic)
+            return img
+        }
+
+        inflight[key] = task
+        let img = await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
+        inflight.removeValue(forKey: key)
+
+        if let img {
+            let cost = Int(img.size.width * img.size.height * 4)
+            memory.setObject(img, forKey: key as NSString, cost: cost)
+        }
+        return img
     }
 
-    func set(_ image: NSImage, for url: URL) {
-        cache.setObject(image, forKey: url as NSURL)
+    func clearAll() {
+        memory.removeAllObjects()
+        inflight.values.forEach { $0.cancel() }
+        inflight.removeAll()
+        try? FileManager.default.removeItem(at: cacheDir)
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
     }
 
-    func clear() {
-        cache.removeAllObjects()
+    func diskUsageBytes() -> Int {
+        FileManager.default.directorySize(at: cacheDir)
     }
 
-    var approximateSize: Int {
-        // NSCache doesn't expose size easily, just return count * estimated avg
-        cache.totalCostLimit
+    private func cacheKey(for url: URL) -> String {
+        String(abs(url.absoluteString.hashValue))
     }
 }

@@ -6,55 +6,67 @@ class DiscoverViewModel: ObservableObject {
     @Published var recentlyAdded: [Album] = []
     @Published var recentlyPlayed: [Album] = []
     @Published var frequentlyPlayed: [Album] = []
+    @Published var randomAlbums: [Album] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
 
     private let api = SubsonicAPIService.shared
     private let player = AudioPlayerService.shared
+    private static let shelfSize = 20
 
     func load(force: Bool = false) async {
         guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
-        async let newest  = api.getAlbumList(type: .newest,         size: 20)
-        async let recent  = api.getAlbumList(type: .recentlyPlayed, size: 20)
-        async let frequent = api.getAlbumList(type: .frequent,      size: 20)
+        async let newest   = api.getAlbumList(type: .newest,         size: Self.shelfSize)
+        async let recent   = api.getAlbumList(type: .recentlyPlayed, size: Self.shelfSize)
+        async let frequent = api.getAlbumList(type: .frequent,       size: Self.shelfSize)
+        async let random   = api.getAlbumList(type: .random,         size: Self.shelfSize)
         do {
-            recentlyAdded   = try await newest
-            recentlyPlayed  = try await recent
+            recentlyAdded    = try await newest
+            recentlyPlayed   = try await recent
             frequentlyPlayed = try await frequent
+            randomAlbums     = try await random
         } catch {
             errorMessage = error.localizedDescription
         }
         isLoading = false
     }
 
-    // MARK: - Smart Mixes (identisch zur iOS App)
+    func refreshRandom() async {
+        do {
+            randomAlbums = try await api.getAlbumList(type: .random, size: Self.shelfSize)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 
-    /// Newest albums → songs shuffled (wie iOS "Mix: Newest Tracks")
+    // MARK: - Smart Mixes
+
+    /// Songs aus den zuletzt hinzugefügten Alben — immer frische Entdeckungen
     func playMixNewest() async {
         do {
-            let songs = try await api.getNewestSongs(albumCount: 10)
+            let songs = try await api.getNewestSongs()
             player.play(songs: songs.shuffled())
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    /// Frequently played albums → songs sortiert nach playCount (wie iOS "Mix: Frequently Played")
+    /// Top 100 meistgespielte Songs laut Navidrome-Statistik — deine Lieblinge
     func playMixFrequent() async {
         do {
-            let songs = try await api.getFrequentSongs(albumCount: 30, limit: 100)
+            let songs = try await api.getFrequentSongs(limit: 100)
             player.play(songs: songs.shuffled())
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
-    /// Recently played albums → songs in Album-Reihenfolge (wie iOS "Mix: Recently Played")
+    /// 100 zuletzt abgespielte Songs — das was du gerade hörst
     func playMixRecent() async {
         do {
-            let songs = try await api.getRecentSongs(albumCount: 30, limit: 100)
+            let songs = try await api.getRecentSongs(limit: 100)
             player.play(songs: songs.shuffled())
         } catch {
             errorMessage = error.localizedDescription

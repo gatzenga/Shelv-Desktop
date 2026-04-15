@@ -86,9 +86,10 @@
 				};
 			};
 			buildConfigurationList = BC9C594A2F8E9FC800FF4D25 /* Build configuration list for PBXProject "Shelv Desktop" */;
-			developmentRegion = en;
+			developmentRegion = de;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				de,
 				en,
 				Base,
 			);

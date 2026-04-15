@@ -240,7 +240,7 @@ class SubsonicAPIService: ObservableObject {
     }
 
     /// Frequently played albums → songs sorted by playCount descending.
-    func getFrequentSongs(albumCount: Int = 30, limit: Int = 100) async throws -> [Song] {
+    func getFrequentSongs(albumCount: Int = 50, limit: Int = 100) async throws -> [Song] {
         let albums = try await getAlbumList(type: .frequent, size: albumCount)
         let allSongs = try await withThrowingTaskGroup(of: [Song].self) { group in
             for album in albums {
@@ -254,7 +254,7 @@ class SubsonicAPIService: ObservableObject {
     }
 
     /// Recently played albums → songs in album order (album order preserved).
-    func getRecentSongs(albumCount: Int = 30, limit: Int = 100) async throws -> [Song] {
+    func getRecentSongs(albumCount: Int = 50, limit: Int = 100) async throws -> [Song] {
         let albums = try await getAlbumList(type: .recentlyPlayed, size: albumCount)
         let indexed = Array(albums.enumerated())
         let songsByIndex = try await withThrowingTaskGroup(of: (Int, [Song]).self) { group in
