@@ -95,6 +95,12 @@ struct AppearanceTab: View {
 struct AboutTab: View {
     @Environment(\.themeColor) private var themeColor
 
+    private var appVersion: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "–"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "–"
+        return "Version \(version) (\(build))"
+    }
+
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "books.vertical.fill")
@@ -102,14 +108,20 @@ struct AboutTab: View {
                 .foregroundStyle(themeColor)
             Text("Shelv Desktop")
                 .font(.title2.bold())
-            Text("Version 1.0")
+            Text(appVersion)
                 .foregroundStyle(.secondary)
             Text("Navidrome / Subsonic Client für macOS")
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Divider()
-            Link("Navidrome Dokumentation", destination: URL(string: "https://www.navidrome.org/docs/developers/subsonic-api/")!)
-                .font(.callout)
+            HStack(spacing: 16) {
+                Link("GitHub", destination: URL(string: "https://github.com/gatzenga/Shelv-Desktop")!)
+                Text("·").foregroundStyle(.secondary)
+                Link("Privacy Policy", destination: URL(string: "https://gatzenga.github.io/Shelv-Desktop/privacy.html")!)
+                Text("·").foregroundStyle(.secondary)
+                Link("Contact", destination: URL(string: "mailto:kontakt@vkugler.ch")!)
+            }
+            .font(.callout)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)

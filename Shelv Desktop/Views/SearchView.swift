@@ -35,6 +35,7 @@ struct SearchView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if vm.isEmpty && !vm.query.isEmpty {
                 ContentUnavailableView.search(text: vm.query)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if vm.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "magnifyingglass")

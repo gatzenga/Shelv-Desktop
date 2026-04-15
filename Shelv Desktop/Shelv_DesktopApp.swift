@@ -4,6 +4,7 @@ import SwiftUI
 struct Shelv_DesktopApp: App {
     @StateObject private var appState = AppState.shared
     @AppStorage("appColorScheme") private var storedColorScheme: AppColorScheme = .system
+    @AppStorage("themeColor") private var themeColorName: String = "violet"
 
     var body: some Scene {
         WindowGroup {
@@ -32,6 +33,14 @@ struct Shelv_DesktopApp: App {
                     appState.logout()
                 }
                 .disabled(!appState.isLoggedIn)
+            }
+
+            CommandGroup(replacing: .help) {
+                Link("Shelv auf GitHub", destination: URL(string: "https://github.com/gatzenga/Shelv-Desktop")!)
+                Link("Navidrome Dokumentation", destination: URL(string: "https://www.navidrome.org/docs/")!)
+                Divider()
+                Link("Privacy Policy", destination: URL(string: "https://gatzenga.github.io/Shelv-Desktop/privacy.html")!)
+                Link("Kontakt", destination: URL(string: "mailto:kontakt@vkugler.ch")!)
             }
 
             CommandMenu("Wiedergabe") {
@@ -63,6 +72,8 @@ struct Shelv_DesktopApp: App {
         Settings {
             SettingsView()
                 .environmentObject(appState)
+                .tint(AppTheme.color(for: themeColorName))
+                .environment(\.themeColor, AppTheme.color(for: themeColorName))
         }
     }
 }
