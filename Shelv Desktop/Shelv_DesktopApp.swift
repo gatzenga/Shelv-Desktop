@@ -4,11 +4,23 @@ import SwiftUI
 let appLang: String = Locale.preferredLanguages.first?.hasPrefix("de") == true ? "de" : "en"
 func tr(_ en: String, _ de: String, _ lang: String = appLang) -> String { lang == "de" ? de : en }
 
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let addSongsToPlaylist = Notification.Name("shelv.addSongsToPlaylist")
+}
+
 @main
 struct Shelv_DesktopApp: App {
     @StateObject private var appState = AppState.shared
     @AppStorage("appColorScheme") private var storedColorScheme: AppColorScheme = .system
     @AppStorage("themeColor") private var themeColorName: String = "violet"
+    @AppStorage("enableFavorites") private var enableFavorites = false
+    @AppStorage("enablePlaylists") private var enablePlaylists = false
+
+    init() {
+        NSWindow.allowsAutomaticWindowTabbing = false
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -66,6 +78,16 @@ struct Shelv_DesktopApp: App {
                     AppState.shared.player.playPrevious()
                 }
                 .keyboardShortcut(.leftArrow, modifiers: .command)
+            }
+
+            CommandGroup(after: .sidebar) {
+                Divider()
+                Toggle(isOn: Binding(get: { enableFavorites }, set: { enableFavorites = $0 })) {
+                    Text("Favoriten anzeigen")
+                }
+                Toggle(isOn: Binding(get: { enablePlaylists }, set: { enablePlaylists = $0 })) {
+                    Text("Wiedergabelisten anzeigen")
+                }
             }
         }
 

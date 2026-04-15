@@ -139,8 +139,30 @@ class AudioPlayerService: ObservableObject {
     }
 
     func playShuffled(songs: [Song]) {
-        play(songs: songs, startIndex: 0)
-        if !isShuffled { toggleShuffle() }
+        guard !songs.isEmpty else { return }
+        let shuffled = songs.shuffled()
+        let shuffledItems = shuffled.map { QueueItem(id: $0.id, song: $0) }
+
+        shuffleSnapshot = nil
+        isShuffled = false
+        isPlayingFromPlayNext = false
+        playNextQueue = []
+        userQueue = []
+        queue = shuffledItems
+        currentIndex = 0
+        isShuffled = true
+
+        // Snapshot speichert die gemischte Reihenfolge als Referenz —
+        // beim Deaktivieren von Shuffle bleibt diese zufällige Reihenfolge erhalten
+        // (kein Zurückspringen auf die originale Album-Reihenfolge, kein Titelverlust).
+        shuffleSnapshot = ShuffleSnapshot(
+            playNextQueue: [],
+            queue: shuffledItems,
+            currentIndex: 0,
+            userQueue: []
+        )
+
+        playCurrent()
     }
 
     func playSong(_ song: Song) {

@@ -318,6 +318,50 @@ class SubsonicAPIService: ObservableObject {
         let indices = try await getArtists()
         return indices.flatMap { $0.artist }
     }
+
+    // MARK: - Playlists
+
+    func getPlaylists() async throws -> [Playlist] {
+        let body = try await fetchSubsonic(endpoint: "getPlaylists")
+        return body.playlists?.playlist ?? []
+    }
+
+    func getPlaylist(id: String) async throws -> PlaylistDetail {
+        let body = try await fetchSubsonic(endpoint: "getPlaylist", params: [
+            URLQueryItem(name: "id", value: id)
+        ])
+        guard let detail = body.playlist else { throw APIError.missingData }
+        return detail
+    }
+
+    func createPlaylist(name: String, songIds: [String] = []) async throws -> Playlist {
+        var params: [URLQueryItem] = [URLQueryItem(name: "name", value: name)]
+        for id in songIds {
+            params.append(URLQueryItem(name: "songId", value: id))
+        }
+        let body = try await fetchSubsonic(endpoint: "createPlaylist", params: params)
+        guard let detail = body.playlist else { throw APIError.missingData }
+        return Playlist(id: detail.id, name: detail.name, comment: detail.comment,
+                        songCount: detail.songCount, duration: detail.duration, coverArt: detail.coverArt)
+    }
+
+    func updatePlaylist(id: String, name: String? = nil, songIdsToAdd: [String] = [], songIndicesToRemove: [Int] = []) async throws {
+        var params: [URLQueryItem] = [URLQueryItem(name: "playlistId", value: id)]
+        if let name { params.append(URLQueryItem(name: "name", value: name)) }
+        for songId in songIdsToAdd {
+            params.append(URLQueryItem(name: "songIdToAdd", value: songId))
+        }
+        for index in songIndicesToRemove {
+            params.append(URLQueryItem(name: "songIndexToRemove", value: "\(index)"))
+        }
+        _ = try await fetchSubsonic(endpoint: "updatePlaylist", params: params)
+    }
+
+    func deletePlaylist(id: String) async throws {
+        _ = try await fetchSubsonic(endpoint: "deletePlaylist", params: [
+            URLQueryItem(name: "id", value: id)
+        ])
+    }
 }
 
 // MARK: - Server Info

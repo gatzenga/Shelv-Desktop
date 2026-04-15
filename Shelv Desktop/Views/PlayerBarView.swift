@@ -2,9 +2,12 @@ import SwiftUI
 
 struct PlayerBarView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var libraryStore: LibraryViewModel
     // @ObservedObject direkt auf den Service: AppState.objectWillChange feuert bei Player-Änderungen NICHT.
     @ObservedObject private var player = AudioPlayerService.shared
     @Environment(\.themeColor) private var themeColor
+    @AppStorage("enableFavorites") private var enableFavorites = false
+    @AppStorage("enablePlaylists") private var enablePlaylists = false
     @State private var isDragging: Bool = false
     @State private var dragValue: Double = 0
     @State private var showQueue: Bool = false
@@ -73,6 +76,37 @@ struct PlayerBarView: View {
                         Text(tr("No track", "Kein Titel"))
                             .font(.body)
                             .foregroundStyle(.secondary)
+                    }
+
+                    // Favorites / Playlist buttons next to song info
+                    if let song = player.currentSong {
+                        HStack(spacing: 10) {
+                            if enableFavorites {
+                                let isStarred = libraryStore.isSongStarred(song)
+                                Button {
+                                    Task { await libraryStore.toggleStarSong(song) }
+                                } label: {
+                                    Image(systemName: isStarred ? "heart.fill" : "heart")
+                                        .font(.body)
+                                        .foregroundStyle(isStarred ? .red : .secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .help(isStarred
+                                      ? tr("Remove from Favorites", "Aus Favoriten entfernen")
+                                      : tr("Add to Favorites", "Zu Favoriten hinzufügen"))
+                            }
+                            if enablePlaylists {
+                                Button {
+                                    NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
+                                } label: {
+                                    Image(systemName: "music.note.list")
+                                        .font(.body)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                .help(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…"))
+                            }
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -368,5 +402,6 @@ struct QueueSongRow: View {
 #Preview {
     PlayerBarView()
         .environmentObject(AppState.shared)
+        .environmentObject(LibraryViewModel())
         .frame(width: 1000)
 }

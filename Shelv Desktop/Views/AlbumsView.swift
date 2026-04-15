@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AlbumsView: View {
     @EnvironmentObject var appState: AppState
-    @StateObject private var vm = LibraryViewModel()
+    @EnvironmentObject private var vm: LibraryViewModel
     @State private var searchText: String = ""
 
     private var filteredAlbums: [Album] {
@@ -112,4 +112,6 @@ struct AlbumGridItem: View {
 #Preview {
     AlbumsView()
         .frame(width: 900, height: 700)
+        .environmentObject(AppState.shared)
+        .environmentObject(LibraryViewModel())
 }

@@ -10,6 +10,16 @@ class LibraryViewModel: ObservableObject {
     @Published var isLoadingArtists: Bool = false
     @Published var errorMessage: String?
 
+    // MARK: - Favorites
+    @Published var starredSongs: [Song] = []
+    @Published var starredAlbums: [Album] = []
+    @Published var starredArtists: [Artist] = []
+    @Published var isLoadingStarred: Bool = false
+
+    // MARK: - Playlists
+    @Published var playlists: [Playlist] = []
+    @Published var isLoadingPlaylists: Bool = false
+
     private let api = SubsonicAPIService.shared
 
     // MARK: - Albums
@@ -70,6 +80,189 @@ class LibraryViewModel: ObservableObject {
             break // already sorted by server
         case .year:
             albums = albums.sorted { ($0.year ?? 0) > ($1.year ?? 0) }
+        }
+    }
+
+    // MARK: - Starred / Favorites
+
+    func loadStarred() async {
+        isLoadingStarred = true
+        do {
+            let result = try await api.getStarred()
+            starredSongs = result.song ?? []
+            starredAlbums = result.album ?? []
+            starredArtists = result.artist ?? []
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoadingStarred = false
+    }
+
+    func isSongStarred(_ song: Song) -> Bool {
+        starredSongs.contains { $0.id == song.id }
+    }
+
+    func isAlbumStarred(_ album: Album) -> Bool {
+        starredAlbums.contains { $0.id == album.id }
+    }
+
+    func isArtistStarred(_ artist: Artist) -> Bool {
+        starredArtists.contains { $0.id == artist.id }
+    }
+
+    func toggleStarSong(_ song: Song) async {
+        let wasStarred = isSongStarred(song)
+        // Optimistic update
+        if wasStarred {
+            starredSongs.removeAll { $0.id == song.id }
+        } else {
+            starredSongs.append(song)
+        }
+        do {
+            if wasStarred {
+                try await api.unstar(songId: song.id)
+            } else {
+                try await api.star(songId: song.id)
+            }
+        } catch {
+            // Rollback
+            if wasStarred {
+                starredSongs.append(song)
+            } else {
+                starredSongs.removeAll { $0.id == song.id }
+            }
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func toggleStarAlbum(_ album: Album) async {
+        let wasStarred = isAlbumStarred(album)
+        if wasStarred {
+            starredAlbums.removeAll { $0.id == album.id }
+        } else {
+            starredAlbums.append(album)
+        }
+        do {
+            if wasStarred {
+                try await api.unstar(albumId: album.id)
+            } else {
+                try await api.star(albumId: album.id)
+            }
+        } catch {
+            if wasStarred {
+                starredAlbums.append(album)
+            } else {
+                starredAlbums.removeAll { $0.id == album.id }
+            }
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func toggleStarArtist(_ artist: Artist) async {
+        let wasStarred = isArtistStarred(artist)
+        if wasStarred {
+            starredArtists.removeAll { $0.id == artist.id }
+        } else {
+            starredArtists.append(artist)
+        }
+        do {
+            if wasStarred {
+                try await api.unstar(artistId: artist.id)
+            } else {
+                try await api.star(artistId: artist.id)
+            }
+        } catch {
+            if wasStarred {
+                starredArtists.append(artist)
+            } else {
+                starredArtists.removeAll { $0.id == artist.id }
+            }
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Playlists
+
+    func loadPlaylists() async {
+        isLoadingPlaylists = true
+        do {
+            playlists = try await api.getPlaylists()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoadingPlaylists = false
+    }
+
+    func loadPlaylistDetail(id: String) async -> PlaylistDetail? {
+        do {
+            return try await api.getPlaylist(id: id)
+        } catch {
+            errorMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    func createPlaylist(name: String) async {
+        do {
+            let created = try await api.createPlaylist(name: name)
+            playlists.append(created)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func deletePlaylist(_ playlist: Playlist) async {
+        do {
+            try await api.deletePlaylist(id: playlist.id)
+            playlists.removeAll { $0.id == playlist.id }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func renamePlaylist(_ playlist: Playlist, newName: String) async {
+        do {
+            try await api.updatePlaylist(id: playlist.id, name: newName)
+            if let idx = playlists.firstIndex(where: { $0.id == playlist.id }) {
+                playlists[idx] = Playlist(id: playlist.id, name: newName, comment: playlist.comment,
+                                          songCount: playlist.songCount, duration: playlist.duration,
+                                          coverArt: playlist.coverArt)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func addSongsToPlaylist(_ playlist: Playlist, songIds: [String]) async {
+        do {
+            try await api.updatePlaylist(id: playlist.id, songIdsToAdd: songIds)
+            // Refresh the playlist in the list
+            if let refreshed = try? await api.getPlaylists() {
+                playlists = refreshed
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func removeSongsFromPlaylist(_ playlist: Playlist, indices: [Int]) async {
+        do {
+            try await api.updatePlaylist(id: playlist.id, songIndicesToRemove: indices)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func syncPlaylistOrder(_ playlist: Playlist, songs: [Song]) async {
+        // Remove all songs and re-add in desired order
+        let count = songs.count
+        guard count > 0 else { return }
+        let removeIndices = Array(0..<count)
+        do {
+            try await api.updatePlaylist(id: playlist.id, songIndicesToRemove: removeIndices)
+            try await api.updatePlaylist(id: playlist.id, songIdsToAdd: songs.map(\.id))
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }

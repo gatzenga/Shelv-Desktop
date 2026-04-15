@@ -1,15 +1,19 @@
 import SwiftUI
-import Combine
 
-struct AlbumDetailView: View {
-    let albumId: String
-    let albumName: String
-    @StateObject private var vm = AlbumDetailViewModel()
-    @EnvironmentObject var appState: AppState
+struct PlaylistDetailView: View {
+    let playlist: Playlist
     @EnvironmentObject var libraryStore: LibraryViewModel
-    @ObservedObject private var player = AudioPlayerService.shared
+    @EnvironmentObject var appState: AppState
     @AppStorage("enableFavorites") private var enableFavorites = false
     @AppStorage("enablePlaylists") private var enablePlaylists = false
+    @Environment(\.themeColor) private var themeColor
+
+    @State private var detail: PlaylistDetail?
+    @State private var songs: [Song] = []
+    @State private var isLoading = true
+    @State private var showRenameAlert = false
+    @State private var newName = ""
+    @State private var showDeleteConfirm = false
 
     var body: some View {
         ScrollView {
@@ -17,25 +21,32 @@ struct AlbumDetailView: View {
 
                 // MARK: Header
                 HStack(alignment: .top, spacing: 24) {
-                    CoverArtView(url: coverURL, size: 160, cornerRadius: 12)
-                        .shadow(color: .black.opacity(0.25), radius: 14)
+                    CoverArtView(
+                        url: playlist.coverArt.flatMap { SubsonicAPIService.shared.coverArtURL(id: $0, size: 320) },
+                        size: 160,
+                        cornerRadius: 12
+                    )
+                    .shadow(color: .black.opacity(0.25), radius: 14)
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(vm.album?.name ?? albumName)
+                        Text(playlist.name)
                             .font(.title.bold())
                             .lineLimit(2)
 
-                        if let artist = vm.album?.artist {
-                            Text(artist)
-                                .font(.title3)
+                        if let comment = playlist.comment, !comment.isEmpty {
+                            Text(comment)
+                                .font(.body)
                                 .foregroundStyle(.secondary)
                         }
 
                         HStack(spacing: 10) {
-                            if let year  = vm.album?.year     { Text(String(year)) }
-                            if let genre = vm.album?.genre    { Text("·"); Text(genre) }
-                            if let count = vm.album?.songCount { Text("·"); Text(String(format: NSLocalizedString("%lld Titel", comment: ""), count)) }
-                            if let dur   = vm.album?.duration  { Text("·"); Text(formatDuration(dur)) }
+                            if let count = playlist.songCount {
+                                Text(String(format: NSLocalizedString("%lld Titel", comment: ""), count))
+                            }
+                            if let dur = playlist.duration, dur > 0 {
+                                Text("·")
+                                Text(formatDuration(dur))
+                            }
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -45,52 +56,24 @@ struct AlbumDetailView: View {
 
                         HStack(spacing: 10) {
                             Button {
-                                if let songs = vm.album?.song { appState.player.play(songs: songs) }
+                                if !songs.isEmpty { appState.player.play(songs: songs) }
                             } label: {
                                 Label(tr("Play", "Abspielen"), systemImage: "play.fill")
                                     .frame(minWidth: 110)
                             }
                             .buttonStyle(.borderedProminent)
                             .controlSize(.large)
-                            .disabled(vm.isLoading)
+                            .disabled(isLoading || songs.isEmpty)
 
                             Button {
-                                if let songs = vm.album?.song {
-                                    appState.player.playShuffled(songs: songs)
-                                }
+                                if !songs.isEmpty { appState.player.playShuffled(songs: songs) }
                             } label: {
                                 Label(tr("Shuffle", "Zufall"), systemImage: "shuffle")
                                     .frame(minWidth: 100)
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.large)
-                            .disabled(vm.isLoading)
-
-                            if enableFavorites, let album = vm.album {
-                                let isStarred = libraryStore.isAlbumStarred(
-                                    Album(id: album.id, name: album.name, artist: album.artist,
-                                          artistId: album.artistId, coverArt: album.coverArt,
-                                          songCount: album.songCount, duration: album.duration,
-                                          year: album.year, genre: album.genre,
-                                          starred: album.starred, playCount: nil)
-                                )
-                                Button {
-                                    let a = Album(id: album.id, name: album.name, artist: album.artist,
-                                                  artistId: album.artistId, coverArt: album.coverArt,
-                                                  songCount: album.songCount, duration: album.duration,
-                                                  year: album.year, genre: album.genre,
-                                                  starred: album.starred, playCount: nil)
-                                    Task { await libraryStore.toggleStarAlbum(a) }
-                                } label: {
-                                    Image(systemName: isStarred ? "heart.fill" : "heart")
-                                        .font(.title3)
-                                        .foregroundStyle(isStarred ? .red : .secondary)
-                                }
-                                .buttonStyle(.plain)
-                                .help(isStarred
-                                      ? tr("Remove from Favorites", "Aus Favoriten entfernen")
-                                      : tr("Add to Favorites", "Zu Favoriten hinzufügen"))
-                            }
+                            .disabled(isLoading || songs.isEmpty)
                         }
                     }
 
@@ -103,21 +86,30 @@ struct AlbumDetailView: View {
                     .padding(.bottom, 8)
 
                 // MARK: Track List
-                if vm.isLoading {
+                if isLoading {
                     ProgressView("Titel laden…")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 60)
+                } else if songs.isEmpty {
+                    ContentUnavailableView(
+                        tr("Empty Playlist", "Leere Wiedergabeliste"),
+                        systemImage: "music.note.list",
+                        description: Text(tr("Add songs to this playlist.", "Füge Titel zu dieser Wiedergabeliste hinzu."))
+                    )
+                    .padding(.vertical, 40)
                 } else {
                     VStack(spacing: 0) {
-                        ForEach(Array(vm.songs.enumerated()), id: \.element.id) { index, song in
-                            TrackRow(
+                        ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
+                            PlaylistTrackRow(
                                 song: song,
-                                isPlaying: player.currentSong?.id == song.id,
+                                index: index,
+                                isPlaying: appState.player.currentSong?.id == song.id,
                                 showFavorite: enableFavorites,
                                 showPlaylist: enablePlaylists,
-                                isStarred: libraryStore.isSongStarred(song)
+                                isStarred: libraryStore.isSongStarred(song),
+                                themeColor: themeColor
                             ) {
-                                appState.player.play(songs: vm.songs, startIndex: index)
+                                appState.player.play(songs: songs, startIndex: index)
                             } onPlayNext: {
                                 appState.player.addPlayNext(song)
                             } onAddToQueue: {
@@ -126,26 +118,73 @@ struct AlbumDetailView: View {
                                 Task { await libraryStore.toggleStarSong(song) }
                             } onAddToPlaylist: {
                                 NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
+                            } onRemoveFromPlaylist: {
+                                Task {
+                                    await libraryStore.removeSongsFromPlaylist(playlist, indices: [index])
+                                    songs.remove(at: index)
+                                }
                             }
                         }
                     }
                     .padding(.bottom, 20)
                 }
-
-                if let err = vm.errorMessage {
-                    Label(err, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red)
-                        .padding(28)
-                }
             }
         }
-        .navigationTitle(vm.album?.name ?? albumName)
-        .task { await vm.load(albumId: albumId) }
+        .navigationTitle(playlist.name)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    newName = playlist.name
+                    showRenameAlert = true
+                } label: {
+                    Label(tr("Rename", "Umbenennen"), systemImage: "pencil")
+                }
+                .help(tr("Rename Playlist", "Wiedergabeliste umbenennen"))
+
+                Button(role: .destructive) {
+                    showDeleteConfirm = true
+                } label: {
+                    Label(tr("Delete", "Löschen"), systemImage: "trash")
+                }
+                .help(tr("Delete Playlist", "Wiedergabeliste löschen"))
+                .tint(.red)
+            }
+        }
+        .alert(tr("Rename Playlist", "Wiedergabeliste umbenennen"), isPresented: $showRenameAlert) {
+            TextField(tr("Name", "Name"), text: $newName)
+            Button(tr("Rename", "Umbenennen")) {
+                let name = newName.trimmingCharacters(in: .whitespaces)
+                guard !name.isEmpty else { return }
+                Task { await libraryStore.renamePlaylist(playlist, newName: name) }
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) { }
+        }
+        .alert(tr("Delete Playlist?", "Wiedergabeliste löschen?"), isPresented: $showDeleteConfirm) {
+            Button(tr("Delete", "Löschen"), role: .destructive) {
+                Task {
+                    await libraryStore.deletePlaylist(playlist)
+                    appState.selectedPlaylist = nil
+                }
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) { }
+        } message: {
+            Text(tr("This action cannot be undone.", "Diese Aktion kann nicht rückgängig gemacht werden."))
+        }
+        .task {
+            await loadDetail()
+        }
+        .refreshable {
+            await loadDetail()
+        }
     }
 
-    private var coverURL: URL? {
-        guard let id = vm.album?.coverArt ?? albumId as String? else { return nil }
-        return SubsonicAPIService.shared.coverArtURL(id: id, size: 320)
+    private func loadDetail() async {
+        isLoading = true
+        if let loaded = await libraryStore.loadPlaylistDetail(id: playlist.id) {
+            detail = loaded
+            songs = loaded.songs ?? []
+        }
+        isLoading = false
     }
 
     private func formatDuration(_ seconds: Int) -> String {
@@ -155,33 +194,34 @@ struct AlbumDetailView: View {
     }
 }
 
-// MARK: - Track Row
+// MARK: - Playlist Track Row
 
-struct TrackRow: View {
+struct PlaylistTrackRow: View {
     let song: Song
+    let index: Int
     let isPlaying: Bool
     var showFavorite: Bool = false
     var showPlaylist: Bool = false
     var isStarred: Bool = false
+    let themeColor: Color
     let onPlay: () -> Void
     let onPlayNext: () -> Void
     let onAddToQueue: () -> Void
-    var onFavorite: (() -> Void)? = nil
-    var onAddToPlaylist: (() -> Void)? = nil
+    let onFavorite: () -> Void
+    let onAddToPlaylist: () -> Void
+    let onRemoveFromPlaylist: () -> Void
 
-    @Environment(\.themeColor) private var themeColor
     @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 0) {
-            // Track number / waveform
             Group {
                 if isPlaying {
                     Image(systemName: "waveform")
                         .foregroundStyle(themeColor)
                         .symbolEffect(.variableColor.iterative)
                 } else {
-                    Text(song.displayTrack)
+                    Text("\(index + 1)")
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -189,7 +229,6 @@ struct TrackRow: View {
             .frame(width: 36, alignment: .trailing)
             .padding(.leading, 20)
 
-            // Title + Artist
             VStack(alignment: .leading, spacing: 2) {
                 Text(song.title)
                     .font(.body)
@@ -207,7 +246,6 @@ struct TrackRow: View {
 
             Spacer()
 
-            // Duration
             Text(song.durationString)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -229,16 +267,20 @@ struct TrackRow: View {
         .contextMenu {
             Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
             Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) { onAddToQueue() }
+            Divider()
+            Button(tr("Remove from Playlist", "Aus Wiedergabeliste entfernen"), role: .destructive) {
+                onRemoveFromPlaylist()
+            }
             if showFavorite || showPlaylist {
                 Divider()
-                if showFavorite, let onFavorite {
+                if showFavorite {
                     Button(isStarred
                            ? tr("Remove from Favorites", "Aus Favoriten entfernen")
                            : tr("Add to Favorites", "Zu Favoriten hinzufügen")) {
                         onFavorite()
                     }
                 }
-                if showPlaylist, let onAddToPlaylist {
+                if showPlaylist {
                     Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) {
                         onAddToPlaylist()
                     }
@@ -246,38 +288,4 @@ struct TrackRow: View {
             }
         }
     }
-}
-
-// MARK: - ViewModel
-
-@MainActor
-class AlbumDetailViewModel: ObservableObject {
-    @Published var album: AlbumDetail?
-    @Published var songs: [Song] = []
-    @Published var isLoading: Bool = false
-    @Published var errorMessage: String?
-
-    private let api = SubsonicAPIService.shared
-
-    func load(albumId: String) async {
-        isLoading = true
-        errorMessage = nil
-        do {
-            let detail = try await api.getAlbum(id: albumId)
-            album = detail
-            songs = detail.song
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-        isLoading = false
-    }
-}
-
-#Preview {
-    NavigationStack {
-        AlbumDetailView(albumId: "1", albumName: "Vorschau Album")
-    }
-    .frame(width: 700, height: 600)
-    .environmentObject(AppState.shared)
-    .environmentObject(LibraryViewModel())
 }

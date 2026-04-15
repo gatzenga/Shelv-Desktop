@@ -3,8 +3,11 @@ import Combine
 
 struct SearchView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var libraryStore: LibraryViewModel
     @StateObject private var vm = SearchViewModel()
     @FocusState private var isSearchFocused: Bool
+    @AppStorage("enableFavorites") private var enableFavorites = false
+    @AppStorage("enablePlaylists") private var enablePlaylists = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -56,6 +59,7 @@ struct SearchView: View {
                                         SearchArtistRow(artist: artist)
                                     }
                                     .buttonStyle(.plain)
+                                    .artistContextMenu(artist)
                                 }
                             }
                         }
@@ -68,6 +72,7 @@ struct SearchView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .albumContextMenu(album)
+                                    .environmentObject(libraryStore)
                                 }
                             }
                         }
@@ -75,9 +80,22 @@ struct SearchView: View {
                         if !vm.songs.isEmpty {
                             SearchSection(title: "Titel") {
                                 ForEach(vm.songs) { song in
-                                    SearchSongRow(song: song) {
+                                    SearchSongRow(
+                                        song: song,
+                                        showFavorite: enableFavorites,
+                                        showPlaylist: enablePlaylists,
+                                        isStarred: libraryStore.isSongStarred(song)
+                                    ) {
                                         let idx = vm.songs.firstIndex(where: { $0.id == song.id }) ?? 0
                                         appState.player.play(songs: vm.songs, startIndex: idx)
+                                    } onPlayNext: {
+                                        appState.player.addPlayNext(song)
+                                    } onAddToQueue: {
+                                        appState.player.addToUserQueue(song)
+                                    } onFavorite: {
+                                        Task { await libraryStore.toggleStarSong(song) }
+                                    } onAddToPlaylist: {
+                                        NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
                                     }
                                 }
                             }
@@ -155,7 +173,14 @@ struct SearchAlbumRow: View {
 
 struct SearchSongRow: View {
     let song: Song
+    var showFavorite: Bool = false
+    var showPlaylist: Bool = false
+    var isStarred: Bool = false
     let onPlay: () -> Void
+    var onPlayNext: (() -> Void)? = nil
+    var onAddToQueue: (() -> Void)? = nil
+    var onFavorite: (() -> Void)? = nil
+    var onAddToPlaylist: (() -> Void)? = nil
 
     @Environment(\.themeColor) private var themeColor
 
@@ -178,6 +203,30 @@ struct SearchSongRow: View {
         .padding(.vertical, 4)
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { onPlay() }
+        .contextMenu {
+            Button(tr("Play", "Abspielen")) { onPlay() }
+            if let onPlayNext {
+                Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
+            }
+            if let onAddToQueue {
+                Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) { onAddToQueue() }
+            }
+            if showFavorite || showPlaylist {
+                Divider()
+                if showFavorite, let onFavorite {
+                    Button(isStarred
+                           ? tr("Remove from Favorites", "Aus Favoriten entfernen")
+                           : tr("Add to Favorites", "Zu Favoriten hinzufügen")) {
+                        onFavorite()
+                    }
+                }
+                if showPlaylist, let onAddToPlaylist {
+                    Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) {
+                        onAddToPlaylist()
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -224,4 +273,5 @@ class SearchViewModel: ObservableObject {
     SearchView()
         .frame(width: 700, height: 600)
         .environmentObject(AppState.shared)
+        .environmentObject(LibraryViewModel())
 }

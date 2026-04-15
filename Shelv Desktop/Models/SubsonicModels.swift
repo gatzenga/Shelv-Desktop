@@ -37,6 +37,8 @@ struct SubsonicResponseBody: Codable {
     let searchResult3: SearchResult3?
     let starred2: Starred2Result?
     let scanStatus: ScanStatusBody?
+    let playlists: PlaylistsResult?
+    let playlist: PlaylistDetail?
 }
 
 // MARK: - Scan Status
@@ -190,12 +192,43 @@ struct Starred2Result: Codable {
     let song: [Song]?
 }
 
+// MARK: - Playlists
+
+struct Playlist: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let comment: String?
+    let songCount: Int?
+    let duration: Int?
+    let coverArt: String?
+}
+
+struct PlaylistDetail: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let comment: String?
+    let songCount: Int?
+    let duration: Int?
+    let coverArt: String?
+    let songs: [Song]?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, comment, songCount, duration, coverArt
+        case songs = "entry"
+    }
+}
+
+struct PlaylistsResult: Codable {
+    let playlist: [Playlist]
+}
+
 // MARK: - Sidebar Navigation
 
 enum SidebarItem: String, CaseIterable, Identifiable {
     case discover = "Entdecken"
     case albums = "Alben"
     case artists = "Künstler"
+    case favorites = "Favoriten"
     case search = "Suche"
 
     var id: String { rawValue }
@@ -205,6 +238,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .discover: return "sparkles"
         case .albums: return "square.grid.2x2"
         case .artists: return "music.mic"
+        case .favorites: return "heart"
         case .search: return "magnifyingglass"
         }
     }

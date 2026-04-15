@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ArtistsView: View {
-    @StateObject private var vm = LibraryViewModel()
+    @EnvironmentObject private var vm: LibraryViewModel
     @State private var searchText: String = ""
 
     private var filteredArtists: [Artist] {
@@ -40,6 +40,7 @@ struct ArtistsView: View {
                                 ArtistGridItem(artist: artist)
                             }
                             .buttonStyle(.plain)
+                            .artistContextMenu(artist)
                         }
                     }
                     .padding(20)
@@ -92,4 +93,5 @@ struct ArtistGridItem: View {
 #Preview {
     ArtistsView()
         .frame(width: 900, height: 700)
+        .environmentObject(LibraryViewModel())
 }

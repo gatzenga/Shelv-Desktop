@@ -9,6 +9,7 @@ class AppState: ObservableObject {
 
     @Published var isLoggedIn: Bool = false
     @Published var selectedSidebar: SidebarItem? = .discover
+    @Published var selectedPlaylist: Playlist? = nil
     @Published var navigationPath = NavigationPath()
     @Published var errorMessage: String?
 
