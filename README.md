@@ -57,24 +57,6 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 ### Cover Art
 - Actor-isolated image cache (NSCache + disk) with concurrent deduplication — `AsyncImage` is never used directly
 
-## Screenshots
-
-<p align="center">
-  <img src="Screenshots/home.png" width="48%" alt="Home / Discover"/>
-  <img src="Screenshots/albums.png" width="48%" alt="Alben"/>
-</p>
-<p align="center">
-  <img src="Screenshots/album.png" width="48%" alt="Album-Detail"/>
-  <img src="Screenshots/artists.png" width="48%" alt="Künstler"/>
-</p>
-<p align="center">
-  <img src="Screenshots/artist_overview.png" width="48%" alt="Künstler-Detail"/>
-  <img src="Screenshots/favourites.png" width="48%" alt="Favoriten"/>
-</p>
-<p align="center">
-  <img src="Screenshots/search.png" width="48%" alt="Suche"/>
-</p>
-
 ## Requirements
 
 - macOS 14 (Sonoma) or later
@@ -138,4 +120,22 @@ Pull requests are welcome. For larger changes, please open an issue first to dis
 ## License
 
 See [LICENSE](LICENSE) for details.
+
+## Screenshots
+
+<p align="center">
+  <img src="Screenshots/home.png" width="48%" alt="Home / Discover"/>
+  <img src="Screenshots/albums.png" width="48%" alt="Alben"/>
+</p>
+<p align="center">
+  <img src="Screenshots/album.png" width="48%" alt="Album-Detail"/>
+  <img src="Screenshots/artists.png" width="48%" alt="Künstler"/>
+</p>
+<p align="center">
+  <img src="Screenshots/artist_overview.png" width="48%" alt="Künstler-Detail"/>
+  <img src="Screenshots/favourites.png" width="48%" alt="Favoriten"/>
+</p>
+<p align="center">
+  <img src="Screenshots/search.png" width="48%" alt="Suche"/>
+</p>
 
