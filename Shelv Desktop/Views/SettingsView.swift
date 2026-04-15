@@ -179,24 +179,29 @@ struct AddServerSheet: View {
 
     @ViewBuilder
     private var serverForm: some View {
-        VStack(spacing: 12) {
-            LabeledContent(tr("Name", "Name")) {
-                TextField(tr("My Navidrome", "Mein Navidrome"), text: $name)
-                    .textFieldStyle(.roundedBorder).autocorrectionDisabled()
-            }
-            LabeledContent("URL") {
-                TextField("https://music.example.com", text: $url)
-                    .textFieldStyle(.roundedBorder).autocorrectionDisabled()
-            }
-            LabeledContent(tr("Username", "Benutzername")) {
-                TextField(tr("Username", "Benutzername"), text: $username)
-                    .textFieldStyle(.roundedBorder).autocorrectionDisabled()
-            }
-            LabeledContent(tr("Password", "Passwort")) {
-                SecureField(tr("Password", "Passwort"), text: $password)
-                    .textFieldStyle(.roundedBorder)
-            }
+        VStack(alignment: .leading, spacing: 10) {
+            fieldLabel(tr("Server Name", "Servername"))
+            TextField(tr("My Navidrome", "Mein Navidrome"), text: $name)
+                .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+
+            fieldLabel("URL")
+            TextField("https://music.example.com", text: $url)
+                .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+
+            fieldLabel(tr("Username", "Benutzername"))
+            TextField(tr("Username", "Benutzername"), text: $username)
+                .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+
+            fieldLabel(tr("Password", "Passwort"))
+            SecureField(tr("Password", "Passwort"), text: $password)
+                .textFieldStyle(.roundedBorder)
         }
+    }
+
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.callout.weight(.medium))
+            .foregroundStyle(.secondary)
     }
 
     private func connect() async {
@@ -240,23 +245,22 @@ struct EditServerSheet: View {
             Text(tr("Edit Server", "Server bearbeiten"))
                 .font(.title2.bold())
 
-            VStack(spacing: 12) {
-                LabeledContent(tr("Name", "Name")) {
-                    TextField(tr("My Navidrome", "Mein Navidrome"), text: $name)
-                        .textFieldStyle(.roundedBorder).autocorrectionDisabled()
-                }
-                LabeledContent("URL") {
-                    TextField("https://music.example.com", text: $url)
-                        .textFieldStyle(.roundedBorder).autocorrectionDisabled()
-                }
-                LabeledContent(tr("Username", "Benutzername")) {
-                    TextField(tr("Username", "Benutzername"), text: $username)
-                        .textFieldStyle(.roundedBorder).autocorrectionDisabled()
-                }
-                LabeledContent(tr("Password", "Passwort")) {
-                    SecureField(tr("Leave blank to keep current", "Leer lassen zum Beibehalten"), text: $password)
-                        .textFieldStyle(.roundedBorder)
-                }
+            VStack(alignment: .leading, spacing: 10) {
+                editFieldLabel(tr("Server Name", "Servername"))
+                TextField(tr("My Navidrome", "Mein Navidrome"), text: $name)
+                    .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+
+                editFieldLabel("URL")
+                TextField("https://music.example.com", text: $url)
+                    .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+
+                editFieldLabel(tr("Username", "Benutzername"))
+                TextField(tr("Username", "Benutzername"), text: $username)
+                    .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+
+                editFieldLabel(tr("Password", "Passwort"))
+                SecureField(tr("Leave blank to keep current", "Leer lassen zum Beibehalten"), text: $password)
+                    .textFieldStyle(.roundedBorder)
             }
 
             HStack {
@@ -281,6 +285,12 @@ struct EditServerSheet: View {
         }
         .padding(24)
         .frame(width: 420)
+    }
+
+    private func editFieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.callout.weight(.medium))
+            .foregroundStyle(.secondary)
     }
 }
 

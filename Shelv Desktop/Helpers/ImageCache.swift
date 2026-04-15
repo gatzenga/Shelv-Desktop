@@ -1,7 +1,7 @@
 import SwiftUI
 import AppKit
 
-// MARK: - Async Cover Art Image View
+// MARK: - Cover Art View
 
 struct CoverArtView: View {
     let url: URL?
@@ -27,14 +27,34 @@ struct CoverArtView: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-        .task(id: url?.absoluteString) {
-            guard let url else { return }
-            image = await ImageCacheService.shared.image(url: url)
+        // onAppear: zuverlässiger Fallback für LazyVGrid auf macOS,
+        // das .task manchmal erst bei Hover triggert.
+        .onAppear { triggerLoad() }
+        // task(id: stableKey): lädt neu wenn sich das Cover ändert,
+        // aber NICHT bei jedem Auth-Token-Wechsel in der URL.
+        .task(id: stableKey) { await loadImage() }
+    }
+
+    // Stabiler Schlüssel aus Cover-ID + Größe + Host — ohne rotierende Auth-Tokens.
+    private var stableKey: String {
+        guard let url else { return "" }
+        return ImageCacheService.stableCacheKey(for: url)
+    }
+
+    private func triggerLoad() {
+        guard image == nil, url != nil else { return }
+        Task { await loadImage() }
+    }
+
+    private func loadImage() async {
+        guard let url else { return }
+        if let img = await ImageCacheService.shared.image(url: url) {
+            image = img
         }
     }
 }
 
-// MARK: - Cache Service
+// MARK: - Image Cache Service
 
 actor ImageCacheService {
     static let shared = ImageCacheService()
@@ -43,47 +63,53 @@ actor ImageCacheService {
     private let cacheDir: URL
     private var inflight: [String: Task<NSImage?, Never>] = [:]
 
+    private static let session: URLSession = {
+        let cfg = URLSessionConfiguration.default
+        cfg.httpMaximumConnectionsPerHost = 6
+        cfg.timeoutIntervalForRequest = 15
+        return URLSession(configuration: cfg)
+    }()
+
     private init() {
         cacheDir = FileManager.default
             .urls(for: .cachesDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("shelv_covers", isDirectory: true)
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-        memory.countLimit = 300
-        memory.totalCostLimit = 100 * 1024 * 1024
+        memory.countLimit = 400
+        memory.totalCostLimit = 150 * 1024 * 1024
     }
 
     func image(url: URL) async -> NSImage? {
-        let key = cacheKey(for: url)
+        let key = Self.stableCacheKey(for: url)
+        let nsKey = key as NSString
 
-        if let hit = memory.object(forKey: key as NSString) { return hit }
+        // 1. Speicher-Treffer — sofortige Rückgabe
+        if let hit = memory.object(forKey: nsKey) { return hit }
 
+        // 2. Laufende Anfrage deuplizieren
         if let existing = inflight[key] { return await existing.value }
 
+        // 3. Neuen Download starten (detached → wird nicht abgebrochen wenn View verschwindet)
         let diskURL = cacheDir.appendingPathComponent(key)
-
-        let task = Task.detached(priority: .utility) { () -> NSImage? in
-            if Task.isCancelled { return nil }
+        let task = Task.detached(priority: .userInitiated) { [diskURL] () -> NSImage? in
+            // Disk-Cache prüfen
             if let data = try? Data(contentsOf: diskURL),
-               let img = NSImage(data: data) { return img }
-            if Task.isCancelled { return nil }
-            guard let (data, _) = try? await URLSession.shared.data(from: url),
-                  let img = NSImage(data: data) else { return nil }
-            if Task.isCancelled { return nil }
-            try? data.write(to: diskURL, options: .atomic)
-            return img
+               let img = NSImage(data: data) {
+                return img
+            }
+            // Netzwerk mit 3 Versuchen
+            return await Self.fetchWithRetry(url: url, diskURL: diskURL)
         }
 
         inflight[key] = task
-        let img = await withTaskCancellationHandler {
-            await task.value
-        } onCancel: {
-            task.cancel()
-        }
+        // Kein withTaskCancellationHandler — der Download läuft durch,
+        // auch wenn der aufrufende View-Task abgebrochen wird.
+        let img = await task.value
         inflight.removeValue(forKey: key)
 
         if let img {
             let cost = Int(img.size.width * img.size.height * 4)
-            memory.setObject(img, forKey: key as NSString, cost: cost)
+            memory.setObject(img, forKey: nsKey, cost: cost)
         }
         return img
     }
@@ -100,7 +126,33 @@ actor ImageCacheService {
         FileManager.default.directorySize(at: cacheDir)
     }
 
-    private func cacheKey(for url: URL) -> String {
-        String(abs(url.absoluteString.hashValue))
+    // MARK: - Stabiler Cache-Schlüssel
+
+    /// Extrahiert `host_id_size` aus der URL — ignoriert rotierende Auth-Token (t, s).
+    /// Stabil über App-Neustarts hinweg (kein hashValue).
+    static func stableCacheKey(for url: URL) -> String {
+        let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        let id   = components?.queryItems?.first(where: { $0.name == "id"   })?.value ?? ""
+        let size = components?.queryItems?.first(where: { $0.name == "size" })?.value ?? "0"
+        let host = url.host ?? "local"
+        // Nur alphanumerische Zeichen → sicherer Dateiname
+        let safeId = id.replacingOccurrences(of: "[^a-zA-Z0-9_-]", with: "_", options: .regularExpression)
+        return "\(host)_\(safeId)_\(size)"
+    }
+
+    // MARK: - Netzwerk mit Retry
+
+    private static func fetchWithRetry(url: URL, diskURL: URL) async -> NSImage? {
+        for attempt in 0..<3 {
+            if attempt > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(500_000_000) * UInt64(attempt))
+            }
+            guard let (data, response) = try? await session.data(from: url),
+                  (response as? HTTPURLResponse)?.statusCode == 200,
+                  let img = NSImage(data: data) else { continue }
+            try? data.write(to: diskURL, options: .atomic)
+            return img
+        }
+        return nil
     }
 }

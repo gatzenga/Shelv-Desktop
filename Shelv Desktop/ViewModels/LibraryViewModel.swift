@@ -22,6 +22,18 @@ class LibraryViewModel: ObservableObject {
 
     private let api = SubsonicAPIService.shared
 
+    // MARK: - Reset (bei Serverwechsel)
+
+    func reset() {
+        albums = []
+        artists = []
+        starredSongs = []
+        starredAlbums = []
+        starredArtists = []
+        playlists = []
+        errorMessage = nil
+    }
+
     // MARK: - Albums
 
     func loadAlbums() async {

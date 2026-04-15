@@ -76,6 +76,7 @@
       }
     },
     "Abmelden" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -242,6 +243,7 @@
       }
     },
     "Benutzername" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -360,6 +362,7 @@
       }
     },
     "Die Server-Verbindung wird getrennt und alle gespeicherten Zugangsdaten werden gelöscht." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -876,9 +879,6 @@
         }
       }
     },
-    "Navidrome Desktop Client" : {
-
-    },
     "Navidrome Dokumentation" : {
       "localizations" : {
         "de" : {
@@ -912,6 +912,7 @@
       }
     },
     "Nicht angemeldet" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -944,6 +945,7 @@
       }
     },
     "Passwort" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1014,6 +1016,7 @@
       }
     },
     "Server-URL" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1202,6 +1205,7 @@
 
     },
     "Verbinden" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1408,6 +1412,7 @@
       }
     },
     "Wirklich abmelden?" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {

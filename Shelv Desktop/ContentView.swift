@@ -73,6 +73,9 @@ struct MainWindowView: View {
                 appState.navigationPath = NavigationPath()
                 appState.selectedPlaylist = nil
             }
+            .onChange(of: appState.serverStore.activeServerID) { _, _ in
+                libraryStore.reset()
+            }
             .background(Color(NSColor.windowBackgroundColor))
 
             PlayerBarView()
