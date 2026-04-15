@@ -4,8 +4,6 @@ import MediaPlayer
 import Combine
 import SwiftUI
 
-// MARK: - Audio Player Service
-
 @MainActor
 class AudioPlayerService: ObservableObject {
     static let shared = AudioPlayerService()
@@ -24,7 +22,6 @@ class AudioPlayerService: ObservableObject {
     }
     @Published var isSeeking: Bool = false
 
-    // MARK: Shuffle & Repeat
     @Published var isShuffled: Bool = false
     @Published var repeatMode: RepeatMode = .off
 
@@ -51,8 +48,6 @@ class AudioPlayerService: ObservableObject {
     private var hasScrobbledCurrent: Bool = false
     private var resumeTime: Double = 0
 
-    // MARK: - State Persistence Keys
-
     private enum StateKey {
         static let queue         = "shelv_mac_queue"
         static let currentIndex  = "shelv_mac_currentIndex"
@@ -75,8 +70,6 @@ class AudioPlayerService: ObservableObject {
             Task { @MainActor [self] in self.saveState() }
         }
     }
-
-    // MARK: - Save / Restore
 
     private func saveState() {
         let encoder = JSONEncoder()
@@ -125,8 +118,6 @@ class AudioPlayerService: ObservableObject {
         repeatMode = repeatStr == "one" ? .one : repeatStr == "all" ? .all : .off
     }
 
-    // MARK: - Queue Management
-
     func play(songs: [Song], startIndex: Int = 0) {
         shuffleSnapshot = nil
         isShuffled = false
@@ -152,9 +143,6 @@ class AudioPlayerService: ObservableObject {
         currentIndex = 0
         isShuffled = true
 
-        // Snapshot speichert die gemischte Reihenfolge als Referenz —
-        // beim Deaktivieren von Shuffle bleibt diese zufällige Reihenfolge erhalten
-        // (kein Zurückspringen auf die originale Album-Reihenfolge, kein Titelverlust).
         shuffleSnapshot = ShuffleSnapshot(
             playNextQueue: [],
             queue: shuffledItems,
@@ -267,8 +255,6 @@ class AudioPlayerService: ObservableObject {
         saveState()
     }
 
-    // MARK: Play Next Queue
-
     func addPlayNext(_ song: Song) {
         shuffleSnapshot?.playNextQueue.append(song)
         if isShuffled {
@@ -308,8 +294,6 @@ class AudioPlayerService: ObservableObject {
         saveState()
     }
 
-    // MARK: User Queue
-
     func addToUserQueue(_ song: Song) {
         shuffleSnapshot?.userQueue.append(song)
         if isShuffled {
@@ -345,8 +329,6 @@ class AudioPlayerService: ObservableObject {
         saveState()
     }
 
-    // MARK: Album Queue
-
     func removeFromQueue(at index: Int) {
         guard queue.indices.contains(index), index != currentIndex else { return }
         queue.remove(at: index)
@@ -381,6 +363,7 @@ class AudioPlayerService: ObservableObject {
     func pause() {
         player?.pause()
         isPlaying = false
+        MPNowPlayingInfoCenter.default().playbackState = .paused
         saveState()
     }
 
@@ -393,6 +376,7 @@ class AudioPlayerService: ObservableObject {
         } else {
             player?.play()
             isPlaying = true
+            MPNowPlayingInfoCenter.default().playbackState = .playing
         }
     }
 
@@ -412,8 +396,6 @@ class AudioPlayerService: ObservableObject {
         updateNowPlayingInfo()
         clearSavedState()
     }
-
-    // MARK: - Shuffle
 
     func toggleShuffle() {
         if isShuffled {
@@ -457,17 +439,12 @@ class AudioPlayerService: ObservableObject {
         saveState()
     }
 
-    // MARK: - Repeat
-
     func cycleRepeatMode() {
         repeatMode = repeatMode.nextMode
     }
 
-    // MARK: - Seeking
-
     func seek(to time: Double) {
         guard let player = player else { return }
-        // Sofort setzen → verhindert visuelles Zurückspringen der Progressanzeige
         currentTime = time
         let cmTime = CMTime(seconds: time, preferredTimescale: 1000)
         isSeeking = true
@@ -480,8 +457,6 @@ class AudioPlayerService: ObservableObject {
         }
     }
 
-    // MARK: - Star State
-
     func setCurrentSongStarred(_ starred: Bool) {
         guard var song = currentSong else { return }
         song.starred = starred ? "starred" : nil
@@ -491,8 +466,6 @@ class AudioPlayerService: ObservableObject {
         }
         updateNowPlayingInfo()
     }
-
-    // MARK: - Private Playback
 
     private func playCurrent() {
         guard currentIndex >= 0 && currentIndex < queue.count else { return }
@@ -517,12 +490,12 @@ class AudioPlayerService: ObservableObject {
         let seekTo = resumeTime
         resumeTime = 0
 
-        // AVAsset with Range-Request options for Cloudflare compatibility
         let headers: [String: String] = ["Range": "bytes=0-"]
         let asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
         playerItem = AVPlayerItem(asset: asset)
         playerItem?.preferredForwardBufferDuration = 10
         player = AVPlayer(playerItem: playerItem)
+        player?.allowsExternalPlayback = false
         player?.automaticallyWaitsToMinimizeStalling = false
         player?.volume = volume
 
@@ -542,12 +515,14 @@ class AudioPlayerService: ObservableObject {
                                 self.player?.play()
                                 self.isPlaying = true
                                 self.isBuffering = false
+                                MPNowPlayingInfoCenter.default().playbackState = .playing
                             }
                         }
                     } else {
                         self.player?.play()
                         self.isPlaying = true
                         self.isBuffering = false
+                        MPNowPlayingInfoCenter.default().playbackState = .playing
                     }
                     Task { try? await self.apiService.scrobble(songId: song.id, submission: false) }
                 } else if item.status == .failed {
@@ -605,36 +580,30 @@ class AudioPlayerService: ObservableObject {
         playerItem = nil
     }
 
-    // MARK: - Scrobble
-
     private func scrobbleIfNeeded(songId: String) {
         guard !hasScrobbledCurrent else { return }
-        let threshold = min(duration * 0.5, 240)   // 50% or 4 min
+        let threshold = min(duration * 0.5, 240)
         guard threshold > 0, currentTime >= threshold else { return }
         hasScrobbledCurrent = true
         Task { try? await apiService.scrobble(songId: songId, submission: true) }
     }
 
-    // MARK: - Artwork Loading (async, non-blocking)
-
     private func loadArtworkAsync(for song: Song) {
         artworkLoadTask?.cancel()
         guard let coverID = song.coverArt,
-              let artURL = apiService.coverArtURL(id: coverID, size: 300) else { return }
+              let artURL = apiService.coverArtURL(id: coverID, size: 600) else { return }
 
         artworkLoadTask = Task.detached(priority: .utility) { [weak self] in
             guard let (data, _) = try? await URLSession.shared.data(from: artURL),
                   !Task.isCancelled,
                   let nsImage = NSImage(data: data) else { return }
-            let artwork = MPMediaItemArtwork(boundsSize: CGSize(width: 300, height: 300)) { _ in nsImage }
+            let artwork = MPMediaItemArtwork(boundsSize: CGSize(width: 600, height: 600)) { _ in nsImage }
             await MainActor.run { [weak self] in
                 self?.currentArtwork = artwork
                 self?.updateNowPlayingInfo()
             }
         }
     }
-
-    // MARK: - Now Playing & Remote Controls (macOS media keys)
 
     private func setupRemoteControls() {
         let center = MPRemoteCommandCenter.shared()
@@ -691,7 +660,8 @@ class AudioPlayerService: ObservableObject {
             MPMediaItemPropertyAlbumTitle: s.album ?? "",
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
             MPMediaItemPropertyPlaybackDuration: duration,
-            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.audio.rawValue as NSNumber
         ]
 
         if let artwork = currentArtwork {
