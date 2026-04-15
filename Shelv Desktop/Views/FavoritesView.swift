@@ -12,7 +12,7 @@ struct FavoritesView: View {
                 && libraryStore.starredArtists.isEmpty
                 && libraryStore.starredAlbums.isEmpty
                 && libraryStore.starredSongs.isEmpty {
-                ProgressView("Favoriten laden…")
+                ProgressView(tr("Loading favorites…", "Favoriten laden…"))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 60)
             } else if libraryStore.starredArtists.isEmpty

@@ -41,7 +41,7 @@ struct PlaylistDetailView: View {
 
                         HStack(spacing: 10) {
                             if let count = playlist.songCount {
-                                Text(String(format: NSLocalizedString("%lld Titel", comment: ""), count))
+                                Text(tr("\(count) Tracks", "\(count) Titel"))
                             }
                             if let dur = playlist.duration, dur > 0 {
                                 Text("·")
@@ -87,7 +87,7 @@ struct PlaylistDetailView: View {
 
                 // MARK: Track List
                 if isLoading {
-                    ProgressView("Titel laden…")
+                    ProgressView(tr("Loading tracks…", "Titel laden…"))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 60)
                 } else if songs.isEmpty {

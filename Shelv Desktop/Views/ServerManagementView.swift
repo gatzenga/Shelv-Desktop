@@ -19,23 +19,23 @@ struct ServerManagementView: View {
     var body: some View {
         Form {
             // MARK: Server Info
-            Section("Verbundener Server") {
+            Section(tr("Connected Server", "Verbundener Server")) {
                 LabeledContent("URL") {
                     Text(appState.serverDisplayName)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                 }
-                LabeledContent("Benutzer") {
+                LabeledContent(tr("User", "Benutzer")) {
                     Text(appState.username)
                         .foregroundStyle(.secondary)
                 }
                 if isLoadingInfo {
-                    LabeledContent("Version") {
+                    LabeledContent(tr("Version", "Version")) {
                         ProgressView().controlSize(.small)
                     }
                 } else if let info = serverInfo {
                     if let sv = info.serverVersion {
-                        LabeledContent("Version") {
+                        LabeledContent(tr("Version", "Version")) {
                             Text(sv + (info.serverType.map { " (\($0))" } ?? ""))
                                 .foregroundStyle(.secondary)
                         }
@@ -48,32 +48,32 @@ struct ServerManagementView: View {
             }
 
             // MARK: Bibliothek
-            Section("Bibliothek") {
+            Section(tr("Library", "Bibliothek")) {
                 if isLoadingInfo {
-                    LabeledContent("Alben")  { ProgressView().controlSize(.small) }
-                    LabeledContent("Künstler") { ProgressView().controlSize(.small) }
-                    LabeledContent("Titel")  { ProgressView().controlSize(.small) }
+                    LabeledContent(tr("Albums", "Alben"))   { ProgressView().controlSize(.small) }
+                    LabeledContent(tr("Artists", "Künstler")) { ProgressView().controlSize(.small) }
+                    LabeledContent(tr("Tracks", "Titel"))   { ProgressView().controlSize(.small) }
                 } else {
                     if let c = albumCount {
-                        LabeledContent("Alben")   { Text(String(c)).foregroundStyle(.secondary) }
+                        LabeledContent(tr("Albums", "Alben"))   { Text(String(c)).foregroundStyle(.secondary) }
                     }
                     if let c = artistCount {
-                        LabeledContent("Künstler") { Text(String(c)).foregroundStyle(.secondary) }
+                        LabeledContent(tr("Artists", "Künstler")) { Text(String(c)).foregroundStyle(.secondary) }
                     }
                     if let c = scanStatus?.count, c > 0 {
-                        LabeledContent("Titel")   { Text(String(c)).foregroundStyle(.secondary) }
+                        LabeledContent(tr("Tracks", "Titel"))   { Text(String(c)).foregroundStyle(.secondary) }
                     }
                 }
             }
 
             // MARK: Synchronisation
-            Section("Synchronisation") {
-                LabeledContent("Letzte Synchronisation") {
+            Section(tr("Synchronisation", "Synchronisation")) {
+                LabeledContent(tr("Last Sync", "Letzte Synchronisation")) {
                     if let date = lastSyncDate {
                         Text(date, style: .relative)
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("Noch nie")
+                        Text(tr("Never", "Noch nie"))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -81,11 +81,11 @@ struct ServerManagementView: View {
                 if isScanning {
                     HStack(spacing: 8) {
                         ProgressView().controlSize(.small)
-                        Text("Bibliothek wird gescannt…")
+                        Text(tr("Scanning library…", "Bibliothek wird gescannt…"))
                             .foregroundStyle(.secondary)
                     }
                 } else if scanDone {
-                    Label("Synchronisation abgeschlossen", systemImage: "checkmark.circle.fill")
+                    Label(tr("Sync complete", "Synchronisation abgeschlossen"), systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                 }
 
@@ -98,7 +98,7 @@ struct ServerManagementView: View {
                 Button {
                     Task { await runFullSync() }
                 } label: {
-                    Label("Vollständig synchronisieren", systemImage: "arrow.triangle.2.circlepath")
+                    Label(tr("Full Sync", "Vollständig synchronisieren"), systemImage: "arrow.triangle.2.circlepath")
                 }
                 .disabled(isScanning || !appState.isLoggedIn)
             }

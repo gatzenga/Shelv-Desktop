@@ -11,11 +11,11 @@ struct DiscoverView: View {
 
                 // MARK: Smart Mix Buttons
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Smart Mixes")
+                    Text(tr("Smart Mixes", "Smart Mixes"))
                         .font(.title2).bold()
                     VStack(spacing: 10) {
                         MixButton(
-                            title: "Mix: Neueste Titel",
+                            title: tr("Mix: Newest Tracks", "Mix: Neueste Titel"),
                             icon: "sparkles",
                             color: .blue,
                             isLoading: mixLoading == "newest"
@@ -25,7 +25,7 @@ struct DiscoverView: View {
                             mixLoading = nil
                         }
                         MixButton(
-                            title: "Mix: Häufig gespielt",
+                            title: tr("Mix: Most Played", "Mix: Häufig gespielt"),
                             icon: "chart.bar.fill",
                             color: .orange,
                             isLoading: mixLoading == "frequent"
@@ -35,7 +35,7 @@ struct DiscoverView: View {
                             mixLoading = nil
                         }
                         MixButton(
-                            title: "Mix: Kürzlich gespielt",
+                            title: tr("Mix: Recently Played", "Mix: Kürzlich gespielt"),
                             icon: "clock.fill",
                             color: .green,
                             isLoading: mixLoading == "recent"
@@ -48,23 +48,23 @@ struct DiscoverView: View {
                 }
 
                 if vm.isLoading {
-                    ProgressView("Laden…")
+                    ProgressView(tr("Loading…", "Laden…"))
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 40)
                 } else {
                     // Reihenfolge wie iOS: Kürzlich hinzugefügt → Kürzlich gespielt → Häufig gespielt
                     if !vm.recentlyAdded.isEmpty {
-                        AlbumShelfSection(title: "Kürzlich hinzugefügt", albums: vm.recentlyAdded)
+                        AlbumShelfSection(title: tr("Recently Added", "Kürzlich hinzugefügt"), albums: vm.recentlyAdded)
                     }
                     if !vm.recentlyPlayed.isEmpty {
-                        AlbumShelfSection(title: "Kürzlich gespielt", albums: vm.recentlyPlayed)
+                        AlbumShelfSection(title: tr("Recently Played", "Kürzlich gespielt"), albums: vm.recentlyPlayed)
                     }
                     if !vm.frequentlyPlayed.isEmpty {
-                        AlbumShelfSection(title: "Häufig gespielt", albums: vm.frequentlyPlayed)
+                        AlbumShelfSection(title: tr("Frequently Played", "Häufig gespielt"), albums: vm.frequentlyPlayed)
                     }
                     if !vm.randomAlbums.isEmpty {
                         AlbumShelfSection(
-                            title: "Zufällige Alben",
+                            title: tr("Random Albums", "Zufällige Alben"),
                             albums: vm.randomAlbums,
                             refreshAction: { await vm.refreshRandom() }
                         )
@@ -79,7 +79,7 @@ struct DiscoverView: View {
             }
             .padding(24)
         }
-        .navigationTitle("Entdecken")
+        .navigationTitle(tr("Discover", "Entdecken"))
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 ThemePickerButton()
@@ -89,7 +89,7 @@ struct DiscoverView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .disabled(vm.isLoading)
-                .help("Neu laden")
+                .help(tr("Reload", "Neu laden"))
             }
         }
         .task { await vm.load() }
@@ -99,7 +99,7 @@ struct DiscoverView: View {
 // MARK: - Mix Button
 
 struct MixButton: View {
-    let title: LocalizedStringKey
+    let title: String
     let icon: String
     let color: Color
     let isLoading: Bool
@@ -139,7 +139,7 @@ struct MixButton: View {
 // MARK: - Album Shelf Section (drag-to-scroll, keine Scrollbar)
 
 struct AlbumShelfSection: View {
-    let title: LocalizedStringKey
+    let title: String
     let albums: [Album]
     var refreshAction: (() async -> Void)? = nil
 
@@ -271,7 +271,7 @@ struct ThemePickerButton: View {
             Image(systemName: "paintpalette.fill")
                 .foregroundStyle(AppTheme.color(for: themeColorName))
         }
-        .help("Farbe wählen")
+        .help(tr("Choose color", "Farbe wählen"))
         .popover(isPresented: $showPicker, arrowEdge: .top) {
             ThemePickerPopover(themeColorName: $themeColorName)
         }
@@ -285,7 +285,7 @@ struct ThemePickerPopover: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Farbe")
+            Text(tr("Color", "Farbe"))
                 .font(.headline)
 
             LazyVGrid(columns: columns, spacing: 10) {

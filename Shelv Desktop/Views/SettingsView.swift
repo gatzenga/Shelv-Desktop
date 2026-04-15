@@ -7,13 +7,13 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             ServerTab()
-                .tabItem { Label("Server", systemImage: "server.rack") }
+                .tabItem { Label(tr("Server", "Server"), systemImage: "server.rack") }
             AppearanceTab(colorScheme: $colorScheme)
-                .tabItem { Label("Darstellung", systemImage: "paintpalette") }
+                .tabItem { Label(tr("Appearance", "Darstellung"), systemImage: "paintpalette") }
             CacheTab()
-                .tabItem { Label("Cache", systemImage: "internaldrive") }
+                .tabItem { Label(tr("Cache", "Cache"), systemImage: "internaldrive") }
             AboutTab()
-                .tabItem { Label("Info", systemImage: "info.circle") }
+                .tabItem { Label(tr("Info", "Info"), systemImage: "info.circle") }
         }
         .frame(width: 520, height: 420)
         .environmentObject(appState)
@@ -180,40 +180,32 @@ struct AddServerSheet: View {
     @ViewBuilder
     private var serverForm: some View {
         VStack(alignment: .leading, spacing: 10) {
-            fieldLabel(tr("Server Name", "Servername"))
+            formFieldLabel(tr("Server Name", "Servername"))
             TextField(tr("My Navidrome", "Mein Navidrome"), text: $name)
                 .textFieldStyle(.roundedBorder).autocorrectionDisabled()
 
-            fieldLabel("URL")
+            formFieldLabel("URL")
             TextField("https://music.example.com", text: $url)
                 .textFieldStyle(.roundedBorder).autocorrectionDisabled()
 
-            fieldLabel(tr("Username", "Benutzername"))
+            formFieldLabel(tr("Username", "Benutzername"))
             TextField(tr("Username", "Benutzername"), text: $username)
                 .textFieldStyle(.roundedBorder).autocorrectionDisabled()
 
-            fieldLabel(tr("Password", "Passwort"))
+            formFieldLabel(tr("Password", "Passwort"))
             SecureField(tr("Password", "Passwort"), text: $password)
                 .textFieldStyle(.roundedBorder)
         }
     }
 
-    private func fieldLabel(_ text: String) -> some View {
-        Text(text)
-            .font(.callout.weight(.medium))
-            .foregroundStyle(.secondary)
-    }
-
     private func connect() async {
         isLoading = true
         errorMessage = nil
-        var normalized = url.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !normalized.hasPrefix("http://") && !normalized.hasPrefix("https://") {
-            normalized = "https://" + normalized
-        }
         let success = await appState.addServer(
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-            serverURL: normalized, username: username, password: password
+            serverURL: url.trimmingCharacters(in: .whitespacesAndNewlines),
+            username: username,
+            password: password
         )
         if success { dismiss() }
         else { errorMessage = appState.errorMessage ?? tr("Connection failed.", "Verbindung fehlgeschlagen.") }
@@ -301,6 +293,14 @@ enum AppColorScheme: String, CaseIterable {
     case light = "Hell"
     case dark = "Dunkel"
 
+    var displayName: String {
+        switch self {
+        case .system: return tr("System", "System")
+        case .light:  return tr("Light", "Hell")
+        case .dark:   return tr("Dark", "Dunkel")
+        }
+    }
+
     var colorScheme: ColorScheme? {
         switch self {
         case .system: return nil
@@ -323,10 +323,10 @@ struct AppearanceTab: View {
 
     var body: some View {
         Form {
-            Section("Erscheinungsbild") {
-                Picker("Modus", selection: $colorScheme) {
+            Section(tr("Appearance", "Erscheinungsbild")) {
+                Picker(tr("Mode", "Modus"), selection: $colorScheme) {
                     ForEach(AppColorScheme.allCases, id: \.self) { scheme in
-                        Text(LocalizedStringKey(scheme.rawValue)).tag(scheme)
+                        Text(scheme.displayName).tag(scheme)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -345,25 +345,28 @@ struct CacheTab: View {
 
     var body: some View {
         Form {
-            Section("Cover-Bilder") {
-                LabeledContent("Grösse") {
+            Section(tr("Cover Images", "Cover-Bilder")) {
+                LabeledContent(tr("Size", "Grösse")) {
                     Text(cacheSize).foregroundStyle(.secondary)
                 }
                 Button(role: .destructive) {
                     showClearConfirm = true
                 } label: {
-                    Label("Cache leeren", systemImage: "trash")
+                    Label(tr("Clear Cache", "Cache leeren"), systemImage: "trash")
                 }
-                .confirmationDialog("Cache leeren?", isPresented: $showClearConfirm) {
-                    Button("Leeren", role: .destructive) {
+                .confirmationDialog(tr("Clear Cache?", "Cache leeren?"), isPresented: $showClearConfirm) {
+                    Button(tr("Clear", "Leeren"), role: .destructive) {
                         Task {
                             await ImageCacheService.shared.clearAll()
                             await recalculateCacheSize()
                         }
                     }
-                    Button("Abbrechen", role: .cancel) {}
+                    Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
                 } message: {
-                    Text("Alle zwischengespeicherten Cover-Bilder werden gelöscht und beim nächsten Anzeigen neu geladen.")
+                    Text(tr(
+                        "All cached cover images will be deleted and reloaded next time they are displayed.",
+                        "Alle zwischengespeicherten Cover-Bilder werden gelöscht und beim nächsten Anzeigen neu geladen."
+                    ))
                 }
             }
         }
@@ -400,16 +403,16 @@ struct AboutTab: View {
                 .font(.title2.bold())
             Text(appVersion)
                 .foregroundStyle(.secondary)
-            Text("Navidrome / Subsonic Client für macOS")
+            Text(tr("Navidrome / Subsonic Client for macOS", "Navidrome / Subsonic Client für macOS"))
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Divider()
             HStack(spacing: 16) {
                 Link("GitHub", destination: URL(string: "https://github.com/gatzenga/Shelv-Desktop")!)
                 Text("·").foregroundStyle(.secondary)
-                Link("Privacy Policy", destination: URL(string: "https://gatzenga.github.io/Shelv-Desktop/privacy.html")!)
+                Link(tr("Privacy Policy", "Datenschutz"), destination: URL(string: "https://gatzenga.github.io/Shelv-Desktop/privacy.html")!)
                 Text("·").foregroundStyle(.secondary)
-                Link("Contact", destination: URL(string: "mailto:kontakt@vkugler.ch")!)
+                Link(tr("Contact", "Kontakt"), destination: URL(string: "mailto:kontakt@vkugler.ch")!)
             }
             .font(.callout)
         }

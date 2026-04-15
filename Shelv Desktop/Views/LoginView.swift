@@ -34,22 +34,22 @@ struct LoginView: View {
 
                 // Form
                 VStack(alignment: .leading, spacing: 10) {
-                    fieldLabel(tr("Server Name", "Servername"))
+                    formFieldLabel(tr("Server Name", "Servername"))
                     TextField(tr("My Navidrome", "Mein Navidrome"), text: $serverName)
                         .textFieldStyle(.roundedBorder)
                         .autocorrectionDisabled()
 
-                    fieldLabel(tr("Server URL", "Server-URL"))
+                    formFieldLabel(tr("Server URL", "Server-URL"))
                     TextField("https://music.example.com", text: $serverURL)
                         .textFieldStyle(.roundedBorder)
                         .autocorrectionDisabled()
 
-                    fieldLabel(tr("Username", "Benutzername"))
+                    formFieldLabel(tr("Username", "Benutzername"))
                     TextField(tr("Username", "Benutzername"), text: $username)
                         .textFieldStyle(.roundedBorder)
                         .autocorrectionDisabled()
 
-                    fieldLabel(tr("Password", "Passwort"))
+                    formFieldLabel(tr("Password", "Passwort"))
                     SecureField(tr("Password", "Passwort"), text: $password)
                         .textFieldStyle(.roundedBorder)
                 }
@@ -91,22 +91,15 @@ struct LoginView: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    @ViewBuilder
-    private func fieldLabel(_ text: String) -> some View {
-        Text(text)
-            .font(.callout.weight(.medium))
-            .foregroundStyle(.secondary)
-    }
-
     private func connect() async {
         isLoading = true
         errorMessage = nil
-        var url = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !url.hasPrefix("http://") && !url.hasPrefix("https://") {
-            url = "https://" + url
-        }
-        let name = serverName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let success = await appState.addServer(name: name, serverURL: url, username: username, password: password)
+        let success = await appState.addServer(
+            name: serverName.trimmingCharacters(in: .whitespacesAndNewlines),
+            serverURL: serverURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            username: username,
+            password: password
+        )
         if !success {
             errorMessage = appState.errorMessage ?? tr("Connection failed.", "Verbindung fehlgeschlagen.")
         }

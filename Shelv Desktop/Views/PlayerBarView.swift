@@ -34,6 +34,15 @@ struct PlayerBarView: View {
                             .frame(width: 62, height: 62)
                         }
                     }
+                    .overlay(alignment: .bottomTrailing) {
+                        if player.isBuffering || player.isPlaying {
+                            Circle()
+                                .fill(player.isBuffering ? Color.orange : Color.green)
+                                .frame(width: 10, height: 10)
+                                .overlay(Circle().stroke(Color(NSColor.windowBackgroundColor), lineWidth: 2))
+                                .offset(x: 3, y: 3)
+                        }
+                    }
 
                     if let song = player.currentSong {
                         VStack(alignment: .leading, spacing: 4) {

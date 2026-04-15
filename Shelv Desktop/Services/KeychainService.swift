@@ -2,8 +2,12 @@ import Foundation
 import Security
 
 enum KeychainService {
+    private static func key(for serverID: UUID) -> String {
+        "shelv_server_\(serverID.uuidString)"
+    }
+
     static func save(password: String, for serverID: UUID) {
-        let key = "shelv_server_\(serverID.uuidString)"
+        let key = key(for: serverID)
         let data = Data(password.utf8)
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
@@ -15,7 +19,7 @@ enum KeychainService {
     }
 
     static func load(for serverID: UUID) -> String? {
-        let key = "shelv_server_\(serverID.uuidString)"
+        let key = key(for: serverID)
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrAccount: key,
@@ -29,7 +33,7 @@ enum KeychainService {
     }
 
     static func delete(for serverID: UUID) {
-        let key = "shelv_server_\(serverID.uuidString)"
+        let key = key(for: serverID)
         let query: [CFString: Any] = [
             kSecClass: kSecClassGenericPassword,
             kSecAttrAccount: key

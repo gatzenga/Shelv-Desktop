@@ -34,7 +34,7 @@ struct AlbumDetailView: View {
                         HStack(spacing: 10) {
                             if let year  = vm.album?.year     { Text(String(year)) }
                             if let genre = vm.album?.genre    { Text("·"); Text(genre) }
-                            if let count = vm.album?.songCount { Text("·"); Text(String(format: NSLocalizedString("%lld Titel", comment: ""), count)) }
+                            if let count = vm.album?.songCount { Text("·"); Text(tr("\(count) Tracks", "\(count) Titel")) }
                             if let dur   = vm.album?.duration  { Text("·"); Text(formatDuration(dur)) }
                         }
                         .font(.caption)
@@ -67,20 +67,14 @@ struct AlbumDetailView: View {
                             .disabled(vm.isLoading)
 
                             if enableFavorites, let album = vm.album {
-                                let isStarred = libraryStore.isAlbumStarred(
-                                    Album(id: album.id, name: album.name, artist: album.artist,
-                                          artistId: album.artistId, coverArt: album.coverArt,
-                                          songCount: album.songCount, duration: album.duration,
-                                          year: album.year, genre: album.genre,
-                                          starred: album.starred, playCount: nil)
-                                )
+                                let albumModel = Album(id: album.id, name: album.name, artist: album.artist,
+                                                       artistId: album.artistId, coverArt: album.coverArt,
+                                                       songCount: album.songCount, duration: album.duration,
+                                                       year: album.year, genre: album.genre,
+                                                       starred: album.starred, playCount: nil)
+                                let isStarred = libraryStore.isAlbumStarred(albumModel)
                                 Button {
-                                    let a = Album(id: album.id, name: album.name, artist: album.artist,
-                                                  artistId: album.artistId, coverArt: album.coverArt,
-                                                  songCount: album.songCount, duration: album.duration,
-                                                  year: album.year, genre: album.genre,
-                                                  starred: album.starred, playCount: nil)
-                                    Task { await libraryStore.toggleStarAlbum(a) }
+                                    Task { await libraryStore.toggleStarAlbum(albumModel) }
                                 } label: {
                                     Image(systemName: isStarred ? "heart.fill" : "heart")
                                         .font(.title3)
@@ -104,7 +98,7 @@ struct AlbumDetailView: View {
 
                 // MARK: Track List
                 if vm.isLoading {
-                    ProgressView("Titel laden…")
+                    ProgressView(tr("Loading tracks…", "Titel laden…"))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 60)
                 } else {

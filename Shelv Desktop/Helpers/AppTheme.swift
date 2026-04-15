@@ -69,3 +69,12 @@ extension EnvironmentValues {
         set { self[ThemeColorKey.self] = newValue }
     }
 }
+
+// MARK: - Shared Form Helpers
+
+/// Einheitliches Feldlabel für Formulare (grau, medium weight).
+func formFieldLabel(_ text: String) -> some View {
+    Text(text)
+        .font(.callout.weight(.medium))
+        .foregroundStyle(.secondary)
+}

@@ -17,13 +17,13 @@ struct AlbumsView: View {
         VStack(spacing: 0) {
             // Toolbar
             HStack {
-                TextField("Filter…", text: $searchText)
+                TextField(tr("Filter…", "Filtern…"), text: $searchText)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 220)
                 Spacer()
-                Picker("Sortieren", selection: $vm.sortOption) {
+                Picker(tr("Sort", "Sortieren"), selection: $vm.sortOption) {
                     ForEach(LibrarySortOption.allCases, id: \.self) { opt in
-                        Text(LocalizedStringKey(opt.rawValue)).tag(opt)
+                        Text(opt.label).tag(opt)
                     }
                 }
                 .pickerStyle(.menu)
@@ -39,7 +39,7 @@ struct AlbumsView: View {
             Divider()
 
             if vm.isLoadingAlbums {
-                ProgressView("Alben laden…")
+                ProgressView(tr("Loading albums…", "Alben laden…"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
@@ -67,7 +67,7 @@ struct AlbumsView: View {
                     .padding()
             }
         }
-        .navigationTitle(String(format: NSLocalizedString("Alben (%lld)", comment: ""), vm.albums.count))
+        .navigationTitle(tr("Albums (\(vm.albums.count))", "Alben (\(vm.albums.count))"))
         .task { await vm.loadAlbums() }
     }
 }

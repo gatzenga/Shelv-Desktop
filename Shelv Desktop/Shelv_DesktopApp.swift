@@ -35,7 +35,7 @@ struct Shelv_DesktopApp: App {
             SidebarCommands()
 
             CommandGroup(replacing: .appInfo) {
-                Button("Über Shelv") {
+                Button(tr("About Shelv", "Über Shelv")) {
                     NSApp.orderFrontStandardAboutPanel(nil)
                 }
             }
@@ -59,24 +59,24 @@ struct Shelv_DesktopApp: App {
             }
 
             CommandGroup(replacing: .help) {
-                Link("Shelv auf GitHub", destination: URL(string: "https://github.com/gatzenga/Shelv-Desktop")!)
-                Link("Navidrome Dokumentation", destination: URL(string: "https://www.navidrome.org/docs/")!)
+                Link(tr("Shelv on GitHub", "Shelv auf GitHub"), destination: URL(string: "https://github.com/gatzenga/Shelv-Desktop")!)
+                Link(tr("Navidrome Documentation", "Navidrome Dokumentation"), destination: URL(string: "https://www.navidrome.org/docs/")!)
                 Divider()
-                Link("Privacy Policy", destination: URL(string: "https://gatzenga.github.io/Shelv-Desktop/privacy.html")!)
-                Link("Kontakt", destination: URL(string: "mailto:kontakt@vkugler.ch")!)
+                Link(tr("Privacy Policy", "Datenschutz"), destination: URL(string: "https://gatzenga.github.io/Shelv-Desktop/privacy.html")!)
+                Link(tr("Contact", "Kontakt"), destination: URL(string: "mailto:kontakt@vkugler.ch")!)
             }
 
-            CommandMenu("Wiedergabe") {
-                Button("Abspielen / Pause") {
+            CommandMenu(tr("Playback", "Wiedergabe")) {
+                Button(tr("Play / Pause", "Abspielen / Pause")) {
                     AppState.shared.player.togglePlayPause()
                 }
                 .keyboardShortcut(.space, modifiers: [])
                 Divider()
-                Button("Nächster Titel") {
+                Button(tr("Next Track", "Nächster Titel")) {
                     AppState.shared.player.playNext()
                 }
                 .keyboardShortcut(.rightArrow, modifiers: .command)
-                Button("Vorheriger Titel") {
+                Button(tr("Previous Track", "Vorheriger Titel")) {
                     AppState.shared.player.playPrevious()
                 }
                 .keyboardShortcut(.leftArrow, modifiers: .command)
@@ -85,16 +85,16 @@ struct Shelv_DesktopApp: App {
             CommandGroup(after: .sidebar) {
                 Divider()
                 Toggle(isOn: Binding(get: { enableFavorites }, set: { enableFavorites = $0 })) {
-                    Text("Favoriten anzeigen")
+                    Text(tr("Show Favorites", "Favoriten anzeigen"))
                 }
                 Toggle(isOn: Binding(get: { enablePlaylists }, set: { enablePlaylists = $0 })) {
-                    Text("Wiedergabelisten anzeigen")
+                    Text(tr("Show Playlists", "Wiedergabelisten anzeigen"))
                 }
             }
         }
 
         // Server management window (via Profil menu)
-        Window("Server verwalten", id: "server-management") {
+        Window(tr("Manage Servers", "Server verwalten"), id: "server-management") {
             ServerManagementView()
                 .environmentObject(appState)
         }
@@ -117,7 +117,7 @@ struct ServerManagementMenuItem: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button("Server verwalten…") {
+        Button(tr("Manage Servers…", "Server verwalten…")) {
             openWindow(id: "server-management")
         }
     }

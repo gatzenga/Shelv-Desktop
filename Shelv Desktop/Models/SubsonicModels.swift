@@ -267,10 +267,19 @@ enum SidebarItem: String, CaseIterable, Identifiable {
 // MARK: - Sort Options
 
 enum LibrarySortOption: String, CaseIterable {
-    case name = "Name"
-    case mostPlayed = "Meist gespielt"
-    case recentlyAdded = "Zuletzt hinzugefügt"
-    case year = "Jahr"
+    case name = "name"
+    case mostPlayed = "mostPlayed"
+    case recentlyAdded = "recentlyAdded"
+    case year = "year"
+
+    var label: String {
+        switch self {
+        case .name:          return tr("Name (A–Z)", "Name (A–Z)")
+        case .mostPlayed:    return tr("Most Played", "Meist gespielt")
+        case .recentlyAdded: return tr("Recently Added", "Zuletzt hinzugefügt")
+        case .year:          return tr("Year (newest)", "Jahr (neueste zuerst)")
+        }
+    }
 }
 
 // MARK: - Queue

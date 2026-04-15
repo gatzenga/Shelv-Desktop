@@ -25,11 +25,13 @@ class AppState: ObservableObject {
 
     /// Testet die Verbindung und fügt den Server zur Liste hinzu.
     func addServer(name: String, serverURL: String, username: String, password: String) async -> Bool {
-        let config = ServerConfig(serverURL: serverURL, username: username, password: password)
+        let normalizedURL = serverURL.hasPrefix("http://") || serverURL.hasPrefix("https://")
+            ? serverURL : "https://" + serverURL
+        let config = ServerConfig(serverURL: normalizedURL, username: username, password: password)
         api.setConfig(config)
         do {
             try await api.ping()
-            let server = SubsonicServer(name: name, baseURL: serverURL, username: username)
+            let server = SubsonicServer(name: name, baseURL: normalizedURL, username: username)
             serverStore.add(server: server, password: password)
             isLoggedIn = true
             return true
@@ -44,9 +46,7 @@ class AppState: ObservableObject {
     func switchServer(_ server: SubsonicServer) {
         serverStore.activate(server: server)
         isLoggedIn = api.hasConfig
-        navigationPath = NavigationPath()
-        selectedSidebar = .discover
-        selectedPlaylist = nil
+        resetNavigation()
     }
 
     /// Entfernt einen Server. Wenn es der letzte war, wird der Nutzer abgemeldet.
@@ -59,10 +59,14 @@ class AppState: ObservableObject {
             isLoggedIn = false
         } else if wasActive {
             isLoggedIn = api.hasConfig
-            navigationPath = NavigationPath()
-            selectedSidebar = .discover
-            selectedPlaylist = nil
+            resetNavigation()
         }
+    }
+
+    private func resetNavigation() {
+        navigationPath = NavigationPath()
+        selectedSidebar = .discover
+        selectedPlaylist = nil
     }
 
     /// Meldet vollständig ab und löscht alle Server.

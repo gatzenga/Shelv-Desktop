@@ -13,11 +13,11 @@ struct ArtistsView: View {
         VStack(spacing: 0) {
             // Toolbar
             HStack {
-                TextField("Filter…", text: $searchText)
+                TextField(tr("Filter…", "Filtern…"), text: $searchText)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 220)
                 Spacer()
-                Text(String(format: NSLocalizedString("%lld Künstler", comment: ""), vm.artists.count))
+                Text(tr("\(vm.artists.count) Artists", "\(vm.artists.count) Künstler"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -28,7 +28,7 @@ struct ArtistsView: View {
             Divider()
 
             if vm.isLoadingArtists {
-                ProgressView("Künstler laden…")
+                ProgressView(tr("Loading artists…", "Künstler laden…"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if filteredArtists.isEmpty && !vm.artists.isEmpty {
                 ContentUnavailableView.search(text: searchText)
@@ -53,7 +53,7 @@ struct ArtistsView: View {
                     .padding()
             }
         }
-        .navigationTitle("Künstler")
+        .navigationTitle(tr("Artists", "Künstler"))
         .task { await vm.loadArtists() }
     }
 }
@@ -80,7 +80,7 @@ struct ArtistGridItem: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
             if let count = artist.albumCount {
-                Text(String(format: NSLocalizedString("%lld Alben", comment: ""), count))
+                Text(tr("\(count) Albums", "\(count) Alben"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

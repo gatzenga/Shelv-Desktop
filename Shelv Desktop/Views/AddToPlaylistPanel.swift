@@ -51,7 +51,7 @@ struct AddToPlaylistPanel: View {
                                             .font(.callout)
                                             .foregroundStyle(.primary)
                                         if let count = playlist.songCount {
-                                            Text(String(format: NSLocalizedString("%lld Titel", comment: ""), count))
+                                            Text(tr("\(count) Tracks", "\(count) Titel"))
                                                 .font(.caption2)
                                                 .foregroundStyle(.secondary)
                                         }

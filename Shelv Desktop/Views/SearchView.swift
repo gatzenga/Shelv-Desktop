@@ -15,7 +15,7 @@ struct SearchView: View {
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
-                TextField("Künstler, Alben, Titel suchen…", text: $vm.query)
+                TextField(tr("Search artists, albums, tracks…", "Künstler, Alben, Titel suchen…"), text: $vm.query)
                     .textFieldStyle(.plain)
                     .focused($isSearchFocused)
                     .onSubmit { Task { await vm.search() } }
@@ -34,7 +34,7 @@ struct SearchView: View {
             Divider()
 
             if vm.isLoading {
-                ProgressView("Suchen…")
+                ProgressView(tr("Searching…", "Suchen…"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if vm.isEmpty && !vm.query.isEmpty {
                 ContentUnavailableView.search(text: vm.query)
@@ -44,7 +44,7 @@ struct SearchView: View {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 48))
                         .foregroundStyle(.secondary)
-                    Text("Suchbegriff eingeben")
+                    Text(tr("Enter a search term", "Suchbegriff eingeben"))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -53,7 +53,7 @@ struct SearchView: View {
                     VStack(alignment: .leading, spacing: 28) {
                         // Artists
                         if !vm.artists.isEmpty {
-                            SearchSection(title: "Künstler") {
+                            SearchSection(title: tr("Artists", "Künstler")) {
                                 ForEach(vm.artists) { artist in
                                     NavigationLink(value: artist) {
                                         SearchArtistRow(artist: artist)
@@ -65,7 +65,7 @@ struct SearchView: View {
                         }
                         // Albums
                         if !vm.albums.isEmpty {
-                            SearchSection(title: "Alben") {
+                            SearchSection(title: tr("Albums", "Alben")) {
                                 ForEach(vm.albums) { album in
                                     NavigationLink(value: album) {
                                         SearchAlbumRow(album: album)
@@ -78,7 +78,7 @@ struct SearchView: View {
                         }
                         // Songs
                         if !vm.songs.isEmpty {
-                            SearchSection(title: "Titel") {
+                            SearchSection(title: tr("Tracks", "Titel")) {
                                 ForEach(vm.songs) { song in
                                     SearchSongRow(
                                         song: song,
@@ -105,7 +105,7 @@ struct SearchView: View {
                 }
             }
         }
-        .navigationTitle("Suche")
+        .navigationTitle(tr("Search", "Suche"))
         .onAppear { isSearchFocused = true }
         .onChange(of: vm.query) { _, newValue in
             if newValue.count >= 2 {
@@ -141,7 +141,7 @@ struct SearchArtistRow: View {
             VStack(alignment: .leading) {
                 Text(artist.name).font(.callout.bold())
                 if let count = artist.albumCount {
-                    Text("\(count) Alben").font(.caption).foregroundStyle(.secondary)
+                    Text(tr("\(count) Albums", "\(count) Alben")).font(.caption).foregroundStyle(.secondary)
                 }
             }
             Spacer()
