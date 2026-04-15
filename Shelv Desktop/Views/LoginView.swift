@@ -15,14 +15,16 @@ struct LoginView: View {
         VStack(spacing: 0) {
             Spacer()
 
-            VStack(spacing: 24) {
+            VStack(spacing: 28) {
                 // Logo
-                VStack(spacing: 8) {
-                    Image(systemName: "books.vertical.fill")
-                        .font(.system(size: 52))
-                        .foregroundStyle(themeColor)
+                VStack(spacing: 10) {
+                    if let nsImage = NSImage(named: NSImage.applicationIconName) {
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .frame(width: 80, height: 80)
+                    }
                     Text("Shelv")
-                        .font(.system(size: 32, weight: .bold))
+                        .font(.system(size: 28, weight: .bold))
                     Text(tr("Navidrome Desktop Client", "Navidrome Desktop-Client"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -31,35 +33,34 @@ struct LoginView: View {
                 Divider()
 
                 // Form
-                VStack(spacing: 14) {
-                    LabeledContent(tr("Server Name", "Servername")) {
-                        TextField(tr("My Navidrome", "Mein Navidrome"), text: $serverName)
-                            .textFieldStyle(.roundedBorder)
-                            .autocorrectionDisabled()
-                    }
-                    LabeledContent(tr("Server URL", "Server-URL")) {
-                        TextField("https://music.example.com", text: $serverURL)
-                            .textFieldStyle(.roundedBorder)
-                            .autocorrectionDisabled()
-                    }
-                    LabeledContent(tr("Username", "Benutzername")) {
-                        TextField(tr("Username", "Benutzername"), text: $username)
-                            .textFieldStyle(.roundedBorder)
-                            .autocorrectionDisabled()
-                    }
-                    LabeledContent(tr("Password", "Passwort")) {
-                        SecureField(tr("Password", "Passwort"), text: $password)
-                            .textFieldStyle(.roundedBorder)
-                    }
+                VStack(alignment: .leading, spacing: 10) {
+                    fieldLabel(tr("Server Name", "Servername"))
+                    TextField(tr("My Navidrome", "Mein Navidrome"), text: $serverName)
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+
+                    fieldLabel(tr("Server URL", "Server-URL"))
+                    TextField("https://music.example.com", text: $serverURL)
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+
+                    fieldLabel(tr("Username", "Benutzername"))
+                    TextField(tr("Username", "Benutzername"), text: $username)
+                        .textFieldStyle(.roundedBorder)
+                        .autocorrectionDisabled()
+
+                    fieldLabel(tr("Password", "Passwort"))
+                    SecureField(tr("Password", "Passwort"), text: $password)
+                        .textFieldStyle(.roundedBorder)
                 }
-                .frame(maxWidth: 360)
+                .frame(maxWidth: 340)
 
                 if let err = errorMessage {
                     Label(err, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.red)
                         .font(.callout)
                         .multilineTextAlignment(.center)
-                        .frame(maxWidth: 360)
+                        .frame(maxWidth: 340)
                 }
 
                 Button {
@@ -76,18 +77,25 @@ struct LoginView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .frame(maxWidth: 360)
+                .frame(maxWidth: 340)
                 .disabled(isLoading || serverURL.isEmpty || username.isEmpty || password.isEmpty)
                 .keyboardShortcut(.return)
             }
             .padding(40)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-            .frame(maxWidth: 460)
+            .frame(maxWidth: 440)
 
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    @ViewBuilder
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.callout.weight(.medium))
+            .foregroundStyle(.secondary)
     }
 
     private func connect() async {
@@ -109,5 +117,5 @@ struct LoginView: View {
 #Preview {
     LoginView()
         .environmentObject(AppState.shared)
-        .frame(width: 700, height: 560)
+        .frame(width: 700, height: 580)
 }
