@@ -1,5 +1,9 @@
 import SwiftUI
 
+// MARK: - Localization helper (identical to iOS)
+let appLang: String = Locale.preferredLanguages.first?.hasPrefix("de") == true ? "de" : "en"
+func tr(_ en: String, _ de: String, _ lang: String = appLang) -> String { lang == "de" ? de : en }
+
 @main
 struct Shelv_DesktopApp: App {
     @StateObject private var appState = AppState.shared

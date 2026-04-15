@@ -13,9 +13,9 @@ class AudioPlayerService: ObservableObject {
     @Published var isPlaying: Bool = false
     @Published var isBuffering: Bool = false
     @Published var currentSong: Song?
-    @Published var queue: [QueueItem] = []       // Aktuelles Album / Kontext
-    @Published var playNextQueue: [Song] = []    // "Als nächstes" – höchste Priorität
-    @Published var userQueue: [Song] = []        // "Warteschlange" – Nutzer-Backlog
+    @Published var queue: [QueueItem] = []
+    @Published var playNextQueue: [Song] = []
+    @Published var userQueue: [Song] = []
     @Published var currentIndex: Int = 0
     @Published var currentTime: Double = 0
     @Published var duration: Double = 0
@@ -28,7 +28,13 @@ class AudioPlayerService: ObservableObject {
     @Published var isShuffled: Bool = false
     @Published var repeatMode: RepeatMode = .off
 
-    private var originalQueue: [QueueItem] = []
+    private struct ShuffleSnapshot {
+        var playNextQueue: [Song]
+        var queue: [QueueItem]
+        var currentIndex: Int
+        var userQueue: [Song]
+    }
+    private var shuffleSnapshot: ShuffleSnapshot?
     private var isPlayingFromPlayNext = false
 
     private var player: AVPlayer?
@@ -39,15 +45,10 @@ class AudioPlayerService: ObservableObject {
     private var itemEndObserver: NSObjectProtocol?
     private var apiService: SubsonicAPIService { SubsonicAPIService.shared }
 
-    // Now Playing artwork (loaded async so we never block the main thread)
     private var currentArtwork: MPMediaItemArtwork?
     private var artworkLoadTask: Task<Void, Never>?
-
-    // Scrobble tracking
     private var scrobbledSongId: String?
     private var hasScrobbledCurrent: Bool = false
-
-    // Wiederherstellungsposition nach App-Neustart
     private var resumeTime: Double = 0
 
     // MARK: - State Persistence Keys
@@ -58,6 +59,8 @@ class AudioPlayerService: ObservableObject {
         static let playNextQueue = "shelv_mac_playNextQueue"
         static let userQueue     = "shelv_mac_userQueue"
         static let currentTime   = "shelv_mac_currentTime"
+        static let isShuffled    = "shelv_mac_isShuffled"
+        static let repeatMode    = "shelv_mac_repeatMode"
     }
 
     private init() {
@@ -84,6 +87,8 @@ class AudioPlayerService: ObservableObject {
         if let data = try? encoder.encode(playNextQueue) { defaults.set(data, forKey: StateKey.playNextQueue) }
         if let data = try? encoder.encode(userQueue) { defaults.set(data, forKey: StateKey.userQueue) }
         defaults.set(currentTime, forKey: StateKey.currentTime)
+        defaults.set(isShuffled, forKey: StateKey.isShuffled)
+        defaults.set(repeatMode == .one ? "one" : repeatMode == .all ? "all" : "off", forKey: StateKey.repeatMode)
     }
 
     private func clearSavedState() {
@@ -114,12 +119,16 @@ class AudioPlayerService: ObservableObject {
            let uq = try? decoder.decode([Song].self, from: data) { userQueue = uq }
 
         if let song = currentSong { updateNowPlayingInfo(song: song) }
+
+        isShuffled = defaults.bool(forKey: StateKey.isShuffled)
+        let repeatStr = defaults.string(forKey: StateKey.repeatMode) ?? "off"
+        repeatMode = repeatStr == "one" ? .one : repeatStr == "all" ? .all : .off
     }
 
     // MARK: - Queue Management
 
     func play(songs: [Song], startIndex: Int = 0) {
-        originalQueue = []
+        shuffleSnapshot = nil
         isShuffled = false
         isPlayingFromPlayNext = false
         playNextQueue = []
@@ -129,13 +138,16 @@ class AudioPlayerService: ObservableObject {
         playCurrent()
     }
 
+    func playShuffled(songs: [Song]) {
+        play(songs: songs, startIndex: 0)
+        if !isShuffled { toggleShuffle() }
+    }
+
     func playSong(_ song: Song) {
         play(songs: [song], startIndex: 0)
     }
 
-    /// Rückt zur nächsten Wiedergabe vor (Taste oder automatisch am Titelende).
-    func playNext() {
-        // "Als nächstes"-Queue hat Priorität
+    func playNext(triggeredByUser: Bool = true) {
         if !playNextQueue.isEmpty {
             let song = playNextQueue.removeFirst()
             isPlayingFromPlayNext = true
@@ -149,7 +161,6 @@ class AudioPlayerService: ObservableObject {
         isPlayingFromPlayNext = false
 
         guard !queue.isEmpty else {
-            // Album-Queue leer (z.B. nur via playNextQueue gestartet)
             if !userQueue.isEmpty {
                 let song = userQueue.removeFirst()
                 let item = QueueItem(id: song.id, song: song)
@@ -162,10 +173,13 @@ class AudioPlayerService: ObservableObject {
             return
         }
 
-        switch repeatMode {
-        case .one:
+        if repeatMode == .one && !triggeredByUser {
             playCurrent()
-        case .all:
+            return
+        }
+
+        switch repeatMode {
+        case .one, .all:
             currentIndex = (currentIndex + 1) % queue.count
             playCurrent()
         case .off:
@@ -173,7 +187,6 @@ class AudioPlayerService: ObservableObject {
                 currentIndex += 1
                 playCurrent()
             } else if !userQueue.isEmpty {
-                // Einen Titel aus der Nutzer-Queue holen und ans Ende der Album-Queue hängen
                 let song = userQueue.removeFirst()
                 let item = QueueItem(id: song.id, song: song)
                 queue.append(item)
@@ -190,7 +203,6 @@ class AudioPlayerService: ObservableObject {
             seek(to: 0)
             return
         }
-        // Wenn gerade ein "Play Next"-Titel läuft, zurück zum letzten Album-Titel
         if isPlayingFromPlayNext {
             isPlayingFromPlayNext = false
             playCurrent()
@@ -211,42 +223,46 @@ class AudioPlayerService: ObservableObject {
         playCurrent()
     }
 
-    /// Springt zu einem Track im aktuellen Album.
-    /// Löscht playNextQueue (alles davor wird verworfen).
     func jumpToAlbumTrack(at index: Int) {
-        guard index >= 0 && index < queue.count else { return }
-        playNextQueue = []
+        guard queue.indices.contains(index), index > currentIndex else { return }
+        let item = queue.remove(at: index)
+        let insertAt = currentIndex + 1
+        queue.insert(item, at: insertAt)
         isPlayingFromPlayNext = false
-        currentIndex = index
-        playCurrent()  // playCurrent() calls saveState()
+        currentIndex = insertAt
+        startPlayback(queueItem: item)
+        saveState()
     }
 
-    /// Springt zu einem Track in der Nutzer-Warteschlange.
-    /// Löscht playNextQueue, verbleibende Album-Tracks und alle userQueue-Einträge davor.
     func jumpToUserQueueTrack(at index: Int) {
         guard userQueue.indices.contains(index) else { return }
-        let song = userQueue[index]
-        // Alles davor verwerfen
-        playNextQueue = []
-        let removeFrom = currentIndex + 1
-        if removeFrom < queue.count { queue.removeSubrange(removeFrom...) }
-        userQueue.removeSubrange(0...index)
-        // Song in Hauptqueue einreihen und starten
-        isPlayingFromPlayNext = false
+        let song = userQueue.remove(at: index)
         let item = QueueItem(id: song.id, song: song)
-        queue.append(item)
-        currentIndex = queue.count - 1
-        playCurrent()  // playCurrent() calls saveState()
+        queue.insert(item, at: currentIndex + 1)
+        isPlayingFromPlayNext = false
+        currentIndex = currentIndex + 1
+        startPlayback(queueItem: item)
+        saveState()
     }
 
     // MARK: Play Next Queue
 
     func addPlayNext(_ song: Song) {
-        playNextQueue.append(song)
+        shuffleSnapshot?.playNextQueue.append(song)
+        if isShuffled {
+            insertRandomlyInShuffledQueue(song)
+        } else {
+            playNextQueue.append(song)
+        }
     }
 
     func addPlayNext(_ songs: [Song]) {
-        playNextQueue.append(contentsOf: songs)
+        shuffleSnapshot?.playNextQueue.append(contentsOf: songs)
+        if isShuffled {
+            songs.forEach { insertRandomlyInShuffledQueue($0) }
+        } else {
+            playNextQueue.append(contentsOf: songs)
+        }
     }
 
     func removeFromPlayNextQueue(at index: Int) {
@@ -259,12 +275,15 @@ class AudioPlayerService: ObservableObject {
         saveState()
     }
 
-    /// Springt zu einem Track in der "Als nächstes"-Queue.
-    /// Alles davor (frühere Einträge) wird verworfen.
     func jumpToPlayNextTrack(at index: Int) {
         guard playNextQueue.indices.contains(index) else { return }
-        if index > 0 { playNextQueue.removeSubrange(0..<index) }
-        playNext()
+        let song = playNextQueue.remove(at: index)
+        isPlayingFromPlayNext = true
+        currentSong = song
+        hasScrobbledCurrent = false
+        guard let url = apiService.streamURL(songId: song.id) else { return }
+        loadURL(url, song: song)
+        saveState()
     }
 
     // MARK: User Queue
@@ -272,14 +291,31 @@ class AudioPlayerService: ObservableObject {
     private let maxUserQueueSize = 200
 
     func addToUserQueue(_ song: Song) {
-        guard userQueue.count < maxUserQueueSize else { return }
-        userQueue.append(song)
+        shuffleSnapshot?.userQueue.append(song)
+        if isShuffled {
+            insertRandomlyInShuffledQueue(song)
+        } else {
+            guard userQueue.count < maxUserQueueSize else { return }
+            userQueue.append(song)
+        }
     }
 
     func addToUserQueue(_ songs: [Song]) {
-        let slots = maxUserQueueSize - userQueue.count
-        guard slots > 0 else { return }
-        userQueue.append(contentsOf: songs.prefix(slots))
+        shuffleSnapshot?.userQueue.append(contentsOf: songs)
+        if isShuffled {
+            songs.forEach { insertRandomlyInShuffledQueue($0) }
+        } else {
+            let slots = maxUserQueueSize - userQueue.count
+            guard slots > 0 else { return }
+            userQueue.append(contentsOf: songs.prefix(slots))
+        }
+    }
+
+    private func insertRandomlyInShuffledQueue(_ song: Song) {
+        let lo = currentIndex + 1
+        let hi = queue.count
+        let pos = lo <= hi ? Int.random(in: lo...hi) : hi
+        queue.insert(QueueItem(id: song.id, song: song), at: pos)
     }
 
     func removeFromUserQueue(at index: Int) {
@@ -300,7 +336,6 @@ class AudioPlayerService: ObservableObject {
         if index < currentIndex { currentIndex -= 1 }
     }
 
-    /// Verschiebt Tracks im Album-Abschnitt der Queue (Indizes relativ zu albumEntries, d.h. ab currentIndex+1).
     func moveInAlbumQueue(from: IndexSet, to: Int) {
         let offset = currentIndex + 1
         var adjustedFrom = IndexSet()
@@ -335,7 +370,6 @@ class AudioPlayerService: ObservableObject {
     func resume() {
         guard let song = currentSong else { return }
         if player == nil {
-            // Nach App-Neustart: Player neu aufbauen und an gespeicherter Position starten
             resumeTime = currentTime
             guard let url = apiService.streamURL(songId: song.id) else { return }
             loadURL(url, song: song)
@@ -356,7 +390,7 @@ class AudioPlayerService: ObservableObject {
         currentIndex = 0
         playNextQueue = []
         userQueue = []
-        originalQueue = []
+        shuffleSnapshot = nil
         isShuffled = false
         updateNowPlayingInfo()
         clearSavedState()
@@ -366,22 +400,44 @@ class AudioPlayerService: ObservableObject {
 
     func toggleShuffle() {
         if isShuffled {
-            // Restore original order, keeping current position
-            let currentId = queue[safe: currentIndex]?.id
-            queue = originalQueue
-            currentIndex = originalQueue.firstIndex { $0.id == currentId } ?? 0
-            originalQueue = []
+            guard let snap = shuffleSnapshot else { isShuffled = false; saveState(); return }
+            let remainingInQueue: Set<String> = currentIndex + 1 < queue.count
+                ? Set(queue[(currentIndex + 1)...].map { $0.id }) : []
+            let remainingInPN = Set(playNextQueue.map { $0.id })
+            let remainingInUQ = Set(userQueue.map { $0.id })
+            let allRemaining = remainingInQueue.union(remainingInPN).union(remainingInUQ)
+            let currentPlayingId = currentSong?.id
+            let restoredQueueSuffix = snap.queue.filter { item in
+                item.id != currentPlayingId && allRemaining.contains(item.id)
+            }
+            if let cid = currentPlayingId, let snapItem = snap.queue.first(where: { $0.id == cid }) {
+                queue = [snapItem] + restoredQueueSuffix
+            } else {
+                queue = (currentSong.map { [QueueItem(id: $0.id, song: $0)] } ?? []) + restoredQueueSuffix
+            }
+            currentIndex = 0
+            let snapPNIds = Set(snap.playNextQueue.map { $0.id })
+            let snapUQIds = Set(snap.userQueue.map { $0.id })
+            let addedPN = playNextQueue.filter { !snapPNIds.contains($0.id) }
+            let addedUQ = userQueue.filter { !snapUQIds.contains($0.id) }
+            playNextQueue = snap.playNextQueue.filter { allRemaining.contains($0.id) } + addedPN
+            userQueue = snap.userQueue.filter { allRemaining.contains($0.id) } + addedUQ
+            shuffleSnapshot = nil
             isShuffled = false
         } else {
-            originalQueue = queue
-            // Keep current song at front, shuffle the rest
-            var rest = queue
-            let current = currentIndex < rest.count ? rest.remove(at: currentIndex) : nil
-            rest.shuffle()
-            queue = (current.map { [$0] } ?? []) + rest
-            currentIndex = 0
+            shuffleSnapshot = ShuffleSnapshot(
+                playNextQueue: playNextQueue, queue: queue,
+                currentIndex: currentIndex, userQueue: userQueue
+            )
+            let upcoming = playNextQueue.map { QueueItem(id: $0.id, song: $0) }
+                + Array(queue[(currentIndex + 1)...])
+                + userQueue.map { QueueItem(id: $0.id, song: $0) }
+            queue.replaceSubrange((currentIndex + 1)..., with: upcoming.shuffled())
+            playNextQueue = []
+            userQueue = []
             isShuffled = true
         }
+        saveState()
     }
 
     // MARK: - Repeat
@@ -409,8 +465,6 @@ class AudioPlayerService: ObservableObject {
 
     // MARK: - Star State
 
-    /// Updates the starred state of the currently playing song both in `currentSong`
-    /// and in the corresponding queue item without triggering a network reload.
     func setCurrentSongStarred(_ starred: Bool) {
         guard var song = currentSong else { return }
         song.starred = starred ? "starred" : nil
@@ -425,10 +479,14 @@ class AudioPlayerService: ObservableObject {
 
     private func playCurrent() {
         guard currentIndex >= 0 && currentIndex < queue.count else { return }
-        let song = queue[currentIndex].song
+        startPlayback(queueItem: queue[currentIndex])
+        saveState()
+    }
+
+    private func startPlayback(queueItem: QueueItem) {
+        let song = queueItem.song
         currentSong = song
         hasScrobbledCurrent = false
-        saveState()
         guard let url = apiService.streamURL(songId: song.id) else { return }
         loadURL(url, song: song)
     }
@@ -511,10 +569,9 @@ class AudioPlayerService: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             guard let self else { return }
-            Task { @MainActor [self] in self.playNext() }
+            Task { @MainActor [self] in self.playNext(triggeredByUser: false) }
         }
 
-        // Load artwork asynchronously (never blocking the main thread)
         currentArtwork = nil
         loadArtworkAsync(for: song)
         updateNowPlayingInfo(song: song)
@@ -628,10 +685,3 @@ class AudioPlayerService: ObservableObject {
     }
 }
 
-// MARK: - Collection safe subscript
-
-private extension Collection {
-    subscript(safe index: Index) -> Element? {
-        indices.contains(index) ? self[index] : nil
-    }
-}

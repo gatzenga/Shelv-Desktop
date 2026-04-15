@@ -7,13 +7,13 @@ struct AlbumContextMenuModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content.contextMenu {
-            Button("Als nächstes abspielen") {
+            Button(tr("Play Next", "Als nächstes abspielen")) {
                 Task {
                     guard let detail = try? await SubsonicAPIService.shared.getAlbum(id: album.id) else { return }
                     await MainActor.run { AudioPlayerService.shared.addPlayNext(detail.song) }
                 }
             }
-            Button("Zur Warteschlange hinzufügen") {
+            Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) {
                 Task {
                     guard let detail = try? await SubsonicAPIService.shared.getAlbum(id: album.id) else { return }
                     await MainActor.run { AudioPlayerService.shared.addToUserQueue(detail.song) }

@@ -44,7 +44,7 @@ struct AlbumDetailView: View {
                             Button {
                                 if let songs = vm.album?.song { appState.player.play(songs: songs) }
                             } label: {
-                                Label("Abspielen", systemImage: "play.fill")
+                                Label(tr("Play", "Abspielen"), systemImage: "play.fill")
                                     .frame(minWidth: 110)
                             }
                             .buttonStyle(.borderedProminent)
@@ -53,10 +53,10 @@ struct AlbumDetailView: View {
 
                             Button {
                                 if let songs = vm.album?.song {
-                                    appState.player.play(songs: songs.shuffled())
+                                    appState.player.playShuffled(songs: songs)
                                 }
                             } label: {
-                                Label("Zufall", systemImage: "shuffle")
+                                Label(tr("Shuffle", "Zufall"), systemImage: "shuffle")
                                     .frame(minWidth: 100)
                             }
                             .buttonStyle(.bordered)
@@ -186,8 +186,8 @@ struct TrackRow: View {
         .onHover { isHovered = $0 }
         .gesture(TapGesture(count: 2).onEnded { onPlay() })
         .contextMenu {
-            Button("Als nächstes abspielen") { onPlayNext() }
-            Button("Zur Warteschlange hinzufügen") { onAddToQueue() }
+            Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
+            Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) { onAddToQueue() }
         }
     }
 }

@@ -88,6 +88,33 @@ Abspielreihenfolge: `playNextQueue` → `queue[currentIndex+1...]` → `userQueu
 - **CoverArt-URLs**: Immer `song.coverArt.flatMap { coverArtURL(id: $0, size:) }` — nie `coverArtURL(id: coverArt ?? "")`, sonst geht ein Netzwerkrequest mit leerem ID raus
 - **Neue Swift-Dateien** einfach im Filesystem anlegen — `PBXFileSystemSynchronizedRootGroup` übernimmt sie automatisch
 
+## UserDefaults-Keys
+
+### Player-State
+| Key | Inhalt |
+|-----|--------|
+| `shelv_mac_queue` | `[Song]` JSON |
+| `shelv_mac_currentIndex` | Int |
+| `shelv_mac_playNextQueue` | `[Song]` JSON |
+| `shelv_mac_userQueue` | `[Song]` JSON |
+| `shelv_mac_currentTime` | Double (Sekunden) |
+
+### App-State
+| Key | Inhalt |
+|-----|--------|
+| `serverConfig` | `ServerConfig` JSON (URL, Username, Password) |
+| `themeColor` | String (Farbname) |
+
+## Was vermieden werden soll
+
+- Kein `AsyncImage` — immer `CoverArtView` mit `ImageCache` verwenden
+- Keine feste Farbe — immer `@Environment(\.themeColor)` verwenden, nie `Color.accentColor`
+- Kein `List` für Sidebar — macOS ignoriert `.tint()` auf `List(selection:)`, immer custom VStack
+- Kein `TabView`, kein altes `NavigationView` — ausschliesslich `NavigationSplitView`
+- `coverArtURL` nie mit leerem String aufrufen — immer `song.coverArt.flatMap { coverArtURL(id: $0, size:) }`
+- `saveState()` nicht manuell nach Jump-/Add-Methoden aufrufen — bereits intern drin
+- Referenzprojekte nicht verändern — nur lesen
+
 ## Referenzprojekte (nur lesen, nicht verändern)
 
 - `/Users/vasco/Repositorys/AzuraPlayer` — iOS Radio App (MVVM, AVPlayer Pattern)

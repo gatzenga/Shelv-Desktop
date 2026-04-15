@@ -70,7 +70,7 @@ struct PlayerBarView: View {
                             .lineLimit(1)
                         }
                     } else {
-                        Text("Kein Titel")
+                        Text(tr("No track", "Kein Titel"))
                             .font(.body)
                             .foregroundStyle(.secondary)
                     }
@@ -89,7 +89,7 @@ struct PlayerBarView: View {
                         }
                         .buttonStyle(.plain)
                         .font(.title2)
-                        .help(player.isShuffled ? "Zufallsmodus aus" : "Zufallsmodus an")
+                        .help(player.isShuffled ? tr("Shuffle off", "Zufallsmodus aus") : tr("Shuffle on", "Zufallsmodus an"))
 
                         Button { player.playPrevious() } label: {
                             Image(systemName: "backward.fill")
@@ -204,9 +204,9 @@ struct PlayerBarView: View {
 
     private var repeatHelpText: String {
         switch player.repeatMode {
-        case .off: return "Wiederholen: Aus"
-        case .all: return "Wiederholen: Alle"
-        case .one: return "Wiederholen: Einer"
+        case .off: return tr("Repeat: Off", "Wiederholen: Aus")
+        case .all: return tr("Repeat: All", "Wiederholen: Alle")
+        case .one: return tr("Repeat: One", "Wiederholen: Einer")
         }
     }
 
@@ -254,9 +254,11 @@ struct QueuePopover: View {
         }
     }
 
-    // O(1) check against source arrays — avoids materialising QueueEntry arrays just to count
     private var hasUpcoming: Bool {
-        !player.playNextQueue.isEmpty
+        if player.isShuffled {
+            return player.currentIndex + 1 < player.queue.count
+        }
+        return !player.playNextQueue.isEmpty
             || player.currentIndex + 1 < player.queue.count
             || !player.userQueue.isEmpty
     }
@@ -264,10 +266,10 @@ struct QueuePopover: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Warteschlange").font(.headline)
+                Text(tr("Queue", "Warteschlange")).font(.headline)
                 Spacer()
                 if hasUpcoming {
-                    Button("Leeren") { player.clearAllQueues() }
+                    Button(tr("Clear", "Leeren")) { player.clearAllQueues() }
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .buttonStyle(.plain)
@@ -281,25 +283,32 @@ struct QueuePopover: View {
             if !hasUpcoming {
                 VStack(spacing: 10) {
                     Image(systemName: "list.bullet").font(.title2).foregroundStyle(.tertiary)
-                    Text("Keine weiteren Titel").font(.callout).foregroundStyle(.secondary)
+                    Text(tr("No upcoming tracks", "Keine weiteren Titel")).font(.callout).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
-                    queueSection("Als nächstes", entries: playNextEntries,
-                        onTap:   { player.jumpToPlayNextTrack(at: $0.index) },
-                        onDelete: { player.removeFromPlayNextQueue(at: $0.index) },
-                        onMove:  { player.moveInPlayNextQueue(from: $0, to: $1) })
+                    if player.isShuffled {
+                        queueSection(tr("Shuffled Queue", "Gemischte Warteschlange"), entries: albumEntries,
+                            onTap:   { player.jumpToAlbumTrack(at: $0.index) },
+                            onDelete: { player.removeFromQueue(at: $0.index) },
+                            onMove:  { player.moveInAlbumQueue(from: $0, to: $1) })
+                    } else {
+                        queueSection(tr("Play Next", "Als nächstes"), entries: playNextEntries,
+                            onTap:   { player.jumpToPlayNextTrack(at: $0.index) },
+                            onDelete: { player.removeFromPlayNextQueue(at: $0.index) },
+                            onMove:  { player.moveInPlayNextQueue(from: $0, to: $1) })
 
-                    queueSection("Von diesem Album", entries: albumEntries,
-                        onTap:   { player.jumpToAlbumTrack(at: $0.index) },
-                        onDelete: { player.removeFromQueue(at: $0.index) },
-                        onMove:  { player.moveInAlbumQueue(from: $0, to: $1) })
+                        queueSection(tr("From this album", "Von diesem Album"), entries: albumEntries,
+                            onTap:   { player.jumpToAlbumTrack(at: $0.index) },
+                            onDelete: { player.removeFromQueue(at: $0.index) },
+                            onMove:  { player.moveInAlbumQueue(from: $0, to: $1) })
 
-                    queueSection("Warteschlange", entries: userQueueEntries,
-                        onTap:   { player.jumpToUserQueueTrack(at: $0.index) },
-                        onDelete: { player.removeFromUserQueue(at: $0.index) },
-                        onMove:  { player.moveInUserQueue(from: $0, to: $1) })
+                        queueSection(tr("Queue", "Warteschlange"), entries: userQueueEntries,
+                            onTap:   { player.jumpToUserQueueTrack(at: $0.index) },
+                            onDelete: { player.removeFromUserQueue(at: $0.index) },
+                            onMove:  { player.moveInUserQueue(from: $0, to: $1) })
+                    }
                 }
                 .listStyle(.inset)
             }
@@ -321,7 +330,7 @@ struct QueuePopover: View {
                         .onTapGesture { onTap(entry) }
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) { onDelete(entry) } label: {
-                                Label("Entfernen", systemImage: "trash")
+                                Label(tr("Remove", "Entfernen"), systemImage: "trash")
                             }
                         }
                 }

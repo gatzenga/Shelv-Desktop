@@ -88,6 +88,7 @@
       }
     },
     "Abspielen" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -184,6 +185,7 @@
       }
     },
     "Als nächstes" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -200,6 +202,7 @@
       }
     },
     "Als nächstes abspielen" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -369,6 +372,7 @@
       }
     },
     "Dunkel" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -401,6 +405,7 @@
       }
     },
     "Entfernen" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -516,6 +521,7 @@
       }
     },
     "Hell" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -551,6 +557,7 @@
       }
     },
     "Jahr" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -567,6 +574,7 @@
       }
     },
     "Kein Titel" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -583,6 +591,7 @@
       }
     },
     "Keine weiteren Titel" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -743,6 +752,7 @@
       }
     },
     "Meist gespielt" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1196,6 +1206,7 @@
       }
     },
     "Verbindung fehlgeschlagen." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1247,6 +1258,7 @@
       }
     },
     "Von diesem Album" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1279,6 +1291,7 @@
       }
     },
     "Vorschau Album" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1295,6 +1308,7 @@
       }
     },
     "Warteschlange" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1327,6 +1341,7 @@
       }
     },
     "Wiederholen: Alle" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1343,6 +1358,7 @@
       }
     },
     "Wiederholen: Aus" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1359,6 +1375,7 @@
       }
     },
     "Wiederholen: Einer" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1391,6 +1408,7 @@
       }
     },
     "Zufall" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1423,6 +1441,7 @@
       }
     },
     "Zufallsmodus an" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1439,6 +1458,7 @@
       }
     },
     "Zufallsmodus aus" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1455,6 +1475,7 @@
       }
     },
     "Zuletzt hinzugefügt" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -1471,6 +1492,7 @@
       }
     },
     "Zur Warteschlange hinzufügen" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
