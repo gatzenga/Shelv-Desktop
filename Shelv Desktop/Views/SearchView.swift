@@ -6,8 +6,8 @@ struct SearchView: View {
     @EnvironmentObject var libraryStore: LibraryViewModel
     @StateObject private var vm = SearchViewModel()
     @FocusState private var isSearchFocused: Bool
-    @AppStorage("enableFavorites") private var enableFavorites = false
-    @AppStorage("enablePlaylists") private var enablePlaylists = false
+    @AppStorage("enableFavorites") private var enableFavorites = true
+    @AppStorage("enablePlaylists") private var enablePlaylists = true
 
     var body: some View {
         VStack(spacing: 0) {

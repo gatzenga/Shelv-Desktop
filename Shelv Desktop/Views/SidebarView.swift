@@ -6,8 +6,8 @@ struct SidebarView: View {
     @Binding var selection: SidebarItem?
     @Binding var selectedPlaylist: Playlist?
     @Environment(\.themeColor) private var themeColor
-    @AppStorage("enableFavorites") private var enableFavorites = false
-    @AppStorage("enablePlaylists") private var enablePlaylists = false
+    @AppStorage("enableFavorites") private var enableFavorites = true
+    @AppStorage("enablePlaylists") private var enablePlaylists = true
 
     @State private var showCreatePlaylist = false
     @State private var newPlaylistName = ""

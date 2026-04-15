@@ -8,8 +8,8 @@ struct AlbumDetailView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var libraryStore: LibraryViewModel
     @ObservedObject private var player = AudioPlayerService.shared
-    @AppStorage("enableFavorites") private var enableFavorites = false
-    @AppStorage("enablePlaylists") private var enablePlaylists = false
+    @AppStorage("enableFavorites") private var enableFavorites = true
+    @AppStorage("enablePlaylists") private var enablePlaylists = true
 
     var body: some View {
         ScrollView {

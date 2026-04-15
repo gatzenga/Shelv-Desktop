@@ -7,7 +7,7 @@ struct ArtistDetailView: View {
     @StateObject private var vm = ArtistDetailViewModel()
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var libraryStore: LibraryViewModel
-    @AppStorage("enableFavorites") private var enableFavorites = false
+    @AppStorage("enableFavorites") private var enableFavorites = true
     @Environment(\.themeColor) private var themeColor
 
     var body: some View {

@@ -4,8 +4,8 @@ struct PlaylistDetailView: View {
     let playlist: Playlist
     @EnvironmentObject var libraryStore: LibraryViewModel
     @EnvironmentObject var appState: AppState
-    @AppStorage("enableFavorites") private var enableFavorites = false
-    @AppStorage("enablePlaylists") private var enablePlaylists = false
+    @AppStorage("enableFavorites") private var enableFavorites = true
+    @AppStorage("enablePlaylists") private var enablePlaylists = true
     @Environment(\.themeColor) private var themeColor
 
     @State private var detail: PlaylistDetail?

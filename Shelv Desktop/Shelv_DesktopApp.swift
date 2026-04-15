@@ -16,8 +16,8 @@ struct Shelv_DesktopApp: App {
     @StateObject private var appState = AppState.shared
     @AppStorage("appColorScheme") private var storedColorScheme: AppColorScheme = .system
     @AppStorage("themeColor") private var themeColorName: String = "violet"
-    @AppStorage("enableFavorites") private var enableFavorites = false
-    @AppStorage("enablePlaylists") private var enablePlaylists = false
+    @AppStorage("enableFavorites") private var enableFavorites = true
+    @AppStorage("enablePlaylists") private var enablePlaylists = true
 
     init() {
         NSWindow.allowsAutomaticWindowTabbing = false

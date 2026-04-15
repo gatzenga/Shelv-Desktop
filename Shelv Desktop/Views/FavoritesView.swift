@@ -3,7 +3,7 @@ import SwiftUI
 struct FavoritesView: View {
     @EnvironmentObject var libraryStore: LibraryViewModel
     @EnvironmentObject var appState: AppState
-    @AppStorage("enablePlaylists") private var enablePlaylists = false
+    @AppStorage("enablePlaylists") private var enablePlaylists = true
     @Environment(\.themeColor) private var themeColor
 
     var body: some View {

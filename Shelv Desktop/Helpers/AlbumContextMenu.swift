@@ -5,8 +5,8 @@ import SwiftUI
 struct AlbumContextMenuModifier: ViewModifier {
     let album: Album
     @EnvironmentObject var libraryStore: LibraryViewModel
-    @AppStorage("enableFavorites") private var enableFavorites = false
-    @AppStorage("enablePlaylists") private var enablePlaylists = false
+    @AppStorage("enableFavorites") private var enableFavorites = true
+    @AppStorage("enablePlaylists") private var enablePlaylists = true
 
     func body(content: Content) -> some View {
         content.contextMenu {

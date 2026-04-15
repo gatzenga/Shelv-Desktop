@@ -7,8 +7,8 @@ struct PlayerBarView: View {
     // @ObservedObject direkt auf den Service: AppState.objectWillChange feuert bei Player-Änderungen NICHT.
     @ObservedObject private var player = AudioPlayerService.shared
     @Environment(\.themeColor) private var themeColor
-    @AppStorage("enableFavorites") private var enableFavorites = false
-    @AppStorage("enablePlaylists") private var enablePlaylists = false
+    @AppStorage("enableFavorites") private var enableFavorites = true
+    @AppStorage("enablePlaylists") private var enablePlaylists = true
     @State private var isDragging: Bool = false
     @State private var dragValue: Double = 0
     @State private var showQueue: Bool = false
