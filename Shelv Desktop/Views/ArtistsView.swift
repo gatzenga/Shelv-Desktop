@@ -17,7 +17,7 @@ struct ArtistsView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 220)
                 Spacer()
-                Text("\(vm.artists.count) Künstler")
+                Text(String(format: NSLocalizedString("%lld Künstler", comment: ""), vm.artists.count))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -79,7 +79,7 @@ struct ArtistGridItem: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
             if let count = artist.albumCount {
-                Text("\(count) Alben")
+                Text(String(format: NSLocalizedString("%lld Alben", comment: ""), count))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

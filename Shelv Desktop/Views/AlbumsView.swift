@@ -23,7 +23,7 @@ struct AlbumsView: View {
                 Spacer()
                 Picker("Sortieren", selection: $vm.sortOption) {
                     ForEach(LibrarySortOption.allCases, id: \.self) { opt in
-                        Text(opt.rawValue).tag(opt)
+                        Text(LocalizedStringKey(opt.rawValue)).tag(opt)
                     }
                 }
                 .pickerStyle(.menu)
@@ -67,7 +67,7 @@ struct AlbumsView: View {
                     .padding()
             }
         }
-        .navigationTitle("Alben (\(vm.albums.count))")
+        .navigationTitle(String(format: NSLocalizedString("Alben (%lld)", comment: ""), vm.albums.count))
         .task { await vm.loadAlbums() }
     }
 }

@@ -72,3 +72,18 @@ Pull requests are welcome. For larger changes, please open an issue first to dis
 ## License
 
 See [LICENSE](LICENSE) for details.
+
+## Screenshots
+
+<p align="center">
+  <img src="Screenshots/home.png" width="48%" alt="Home"/>
+  <img src="Screenshots/albums.png" width="48%" alt="Albums"/>
+</p>
+<p align="center">
+  <img src="Screenshots/artists.png" width="48%" alt="Artists"/>
+  <img src="Screenshots/artist_overview.png" width="48%" alt="Artist Overview"/>
+</p>
+<p align="center">
+  <img src="Screenshots/album.png" width="48%" alt="Album Detail"/>
+  <img src="Screenshots/search.png" width="48%" alt="Search"/>
+</p>

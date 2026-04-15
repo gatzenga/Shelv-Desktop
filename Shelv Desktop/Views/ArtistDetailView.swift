@@ -23,7 +23,7 @@ struct ArtistDetailView: View {
                                 Text(vm.artist?.name ?? artistName)
                                     .font(.title.bold())
                                 if let count = vm.artist?.albumCount {
-                                    Text("\(count) Alben")
+                                    Text(String(format: NSLocalizedString("%lld Alben", comment: ""), count))
                                         .foregroundStyle(.secondary)
                                 }
                             }

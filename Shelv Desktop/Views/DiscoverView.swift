@@ -99,7 +99,7 @@ struct DiscoverView: View {
 // MARK: - Mix Button
 
 struct MixButton: View {
-    let title: String
+    let title: LocalizedStringKey
     let icon: String
     let color: Color
     let isLoading: Bool
@@ -139,7 +139,7 @@ struct MixButton: View {
 // MARK: - Album Shelf Section (drag-to-scroll, keine Scrollbar)
 
 struct AlbumShelfSection: View {
-    let title: String
+    let title: LocalizedStringKey
     let albums: [Album]
     var refreshAction: (() async -> Void)? = nil
 

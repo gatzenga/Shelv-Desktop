@@ -24,8 +24,13 @@ struct Shelv_DesktopApp: App {
             }
 
             CommandMenu("Profil") {
-                Text(appState.username.isEmpty ? "Nicht angemeldet" : appState.username)
-                    .foregroundStyle(.secondary)
+                if appState.username.isEmpty {
+                    Text("Nicht angemeldet")
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(appState.username)
+                        .foregroundStyle(.secondary)
+                }
                 Divider()
                 ServerManagementMenuItem()
                 Divider()

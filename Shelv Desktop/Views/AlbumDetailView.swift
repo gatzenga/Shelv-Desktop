@@ -31,7 +31,7 @@ struct AlbumDetailView: View {
                         HStack(spacing: 10) {
                             if let year  = vm.album?.year     { Text(String(year)) }
                             if let genre = vm.album?.genre    { Text("·"); Text(genre) }
-                            if let count = vm.album?.songCount { Text("·"); Text("\(count) Titel") }
+                            if let count = vm.album?.songCount { Text("·"); Text(String(format: NSLocalizedString("%lld Titel", comment: ""), count)) }
                             if let dur   = vm.album?.duration  { Text("·"); Text(formatDuration(dur)) }
                         }
                         .font(.caption)

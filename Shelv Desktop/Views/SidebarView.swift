@@ -37,7 +37,7 @@ struct SidebarRow: View {
 
     var body: some View {
         Button(action: action) {
-            Label(item.rawValue, systemImage: item.icon)
+            Label(LocalizedStringKey(item.rawValue), systemImage: item.icon)
                 .font(.body)
                 .fontWeight(isSelected ? .semibold : .regular)
                 .foregroundStyle(isSelected ? themeColor : .primary)

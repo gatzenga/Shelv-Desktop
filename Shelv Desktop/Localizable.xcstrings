@@ -9,6 +9,12 @@
     },
     "%lld Alben" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Alben"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -18,10 +24,29 @@
       }
     },
     "%lld Künstler" : {
-
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Künstler"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Artists"
+          }
+        }
+      }
     },
     "%lld Titel" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Titel"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -32,6 +57,12 @@
     },
     "Abbrechen" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbrechen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -42,6 +73,12 @@
     },
     "Abmelden" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abmelden"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -52,6 +89,12 @@
     },
     "Abspielen" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abspielen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -62,6 +105,12 @@
     },
     "Abspielen / Pause" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abspielen / Pause"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -72,6 +121,12 @@
     },
     "Alben" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alben"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -82,6 +137,12 @@
     },
     "Alben (%lld)" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alben (%lld)"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -92,6 +153,12 @@
     },
     "Alben laden…" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alben laden…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -102,6 +169,12 @@
     },
     "Alle zwischengespeicherten Cover-Bilder werden gelöscht und beim nächsten Anzeigen neu geladen." : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle zwischengespeicherten Cover-Bilder werden gelöscht und beim nächsten Anzeigen neu geladen."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -111,8 +184,13 @@
       }
     },
     "Als nächstes" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Als nächstes"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -123,6 +201,12 @@
     },
     "Als nächstes abspielen" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Als nächstes abspielen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -136,6 +220,12 @@
     },
     "Benutzer" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benutzer"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -146,6 +236,12 @@
     },
     "Benutzername" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Benutzername"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -156,6 +252,12 @@
     },
     "Bibliothek" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliothek"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -166,6 +268,12 @@
     },
     "Bibliothek wird gescannt…" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliothek wird gescannt…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -179,6 +287,12 @@
     },
     "Cache leeren" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cache leeren"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -189,6 +303,12 @@
     },
     "Cache leeren?" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cache leeren?"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -202,6 +322,12 @@
     },
     "Cover-Bilder" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cover-Bilder"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -212,6 +338,12 @@
     },
     "Darstellung" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Darstellung"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -222,6 +354,12 @@
     },
     "Die Server-Verbindung wird getrennt und alle gespeicherten Zugangsdaten werden gelöscht." : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die Server-Verbindung wird getrennt und alle gespeicherten Zugangsdaten werden gelöscht."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -231,8 +369,13 @@
       }
     },
     "Dunkel" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dunkel"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -243,6 +386,12 @@
     },
     "Entdecken" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entdecken"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -253,6 +402,12 @@
     },
     "Entfernen" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entfernen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -263,6 +418,12 @@
     },
     "Erscheinungsbild" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erscheinungsbild"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -273,6 +434,12 @@
     },
     "Farbe" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Farbe"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -283,6 +450,12 @@
     },
     "Farbe wählen" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Farbe wählen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -293,6 +466,12 @@
     },
     "Filter…" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -306,6 +485,12 @@
     },
     "Grösse" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grösse"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -315,8 +500,13 @@
       }
     },
     "Häufig gespielt" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Häufig gespielt"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -326,8 +516,13 @@
       }
     },
     "Hell" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hell"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -341,6 +536,12 @@
     },
     "Info" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Info"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -350,8 +551,13 @@
       }
     },
     "Jahr" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jahr"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -362,6 +568,12 @@
     },
     "Kein Titel" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Titel"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -372,6 +584,12 @@
     },
     "Keine weiteren Titel" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine weiteren Titel"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -382,6 +600,12 @@
     },
     "Kontakt" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kontakt"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -392,6 +616,12 @@
     },
     "Künstler" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Künstler"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -402,6 +632,12 @@
     },
     "Künstler laden…" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Künstler laden…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -412,6 +648,12 @@
     },
     "Künstler, Alben, Titel suchen…" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Künstler, Alben, Titel suchen…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -421,8 +663,13 @@
       }
     },
     "Kürzlich gespielt" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kürzlich gespielt"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -432,8 +679,13 @@
       }
     },
     "Kürzlich hinzugefügt" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kürzlich hinzugefügt"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -444,6 +696,12 @@
     },
     "Laden…" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laden…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -454,6 +712,12 @@
     },
     "Leeren" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leeren"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -464,6 +728,12 @@
     },
     "Letzte Synchronisation" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letzte Synchronisation"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -473,8 +743,13 @@
       }
     },
     "Meist gespielt" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meist gespielt"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -484,8 +759,13 @@
       }
     },
     "Mix: Häufig gespielt" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mix: Häufig gespielt"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -495,8 +775,13 @@
       }
     },
     "Mix: Kürzlich gespielt" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mix: Kürzlich gespielt"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -506,8 +791,13 @@
       }
     },
     "Mix: Neueste Titel" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mix: Neueste Titel"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -518,6 +808,12 @@
     },
     "Modus" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modus"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -528,6 +824,12 @@
     },
     "Nächster Titel" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nächster Titel"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -538,6 +840,12 @@
     },
     "Navidrome / Subsonic Client für macOS" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Navidrome / Subsonic Client für macOS"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -551,6 +859,12 @@
     },
     "Navidrome Dokumentation" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Navidrome Dokumentation"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -561,6 +875,12 @@
     },
     "Neu laden" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neu laden"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -570,8 +890,13 @@
       }
     },
     "Nicht angemeldet" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nicht angemeldet"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -582,6 +907,12 @@
     },
     "Noch nie" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch nie"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -592,6 +923,12 @@
     },
     "Passwort" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passwort"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -605,6 +942,12 @@
     },
     "Profil" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -618,6 +961,12 @@
     },
     "Server verwalten" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Server verwalten"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -628,6 +977,12 @@
     },
     "Server verwalten…" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Server verwalten…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -638,6 +993,12 @@
     },
     "Server-URL" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Server-URL"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -651,6 +1012,12 @@
     },
     "Shelv auf GitHub" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shelv auf GitHub"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -667,6 +1034,12 @@
     },
     "Sortieren" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sortieren"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -677,6 +1050,12 @@
     },
     "Suchbegriff eingeben" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suchbegriff eingeben"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -687,6 +1066,12 @@
     },
     "Suche" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suche"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -697,6 +1082,12 @@
     },
     "Suchen…" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suchen…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -707,6 +1098,12 @@
     },
     "Synchronisation" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisation"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -717,6 +1114,12 @@
     },
     "Synchronisation abgeschlossen" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synchronisation abgeschlossen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -727,6 +1130,12 @@
     },
     "Titel" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titel"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -737,6 +1146,12 @@
     },
     "Titel laden…" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titel laden…"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -747,6 +1162,12 @@
     },
     "Über Shelv" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Über Shelv"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -760,6 +1181,12 @@
     },
     "Verbinden" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbinden"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -769,8 +1196,13 @@
       }
     },
     "Verbindung fehlgeschlagen." : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbindung fehlgeschlagen."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -781,6 +1213,12 @@
     },
     "Verbundener Server" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbundener Server"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -794,6 +1232,12 @@
     },
     "Vollständig synchronisieren" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vollständig synchronisieren"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -803,8 +1247,13 @@
       }
     },
     "Von diesem Album" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Von diesem Album"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -815,6 +1264,12 @@
     },
     "Vorheriger Titel" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorheriger Titel"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -824,8 +1279,13 @@
       }
     },
     "Vorschau Album" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorschau Album"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -836,6 +1296,12 @@
     },
     "Warteschlange" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warteschlange"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -846,6 +1312,12 @@
     },
     "Wiedergabe" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiedergabe"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -855,8 +1327,13 @@
       }
     },
     "Wiederholen: Alle" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiederholen: Alle"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -866,8 +1343,13 @@
       }
     },
     "Wiederholen: Aus" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiederholen: Aus"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -877,8 +1359,13 @@
       }
     },
     "Wiederholen: Einer" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wiederholen: Einer"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -889,6 +1376,12 @@
     },
     "Wirklich abmelden?" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wirklich abmelden?"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -899,6 +1392,12 @@
     },
     "Zufall" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zufall"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -908,8 +1407,13 @@
       }
     },
     "Zufällige Alben" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zufällige Alben"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -920,6 +1424,12 @@
     },
     "Zufallsmodus an" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zufallsmodus an"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -930,6 +1440,12 @@
     },
     "Zufallsmodus aus" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zufallsmodus aus"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -939,8 +1455,13 @@
       }
     },
     "Zuletzt hinzugefügt" : {
-      "extractionState" : "stale",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zuletzt hinzugefügt"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
@@ -951,6 +1472,12 @@
     },
     "Zur Warteschlange hinzufügen" : {
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zur Warteschlange hinzufügen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
