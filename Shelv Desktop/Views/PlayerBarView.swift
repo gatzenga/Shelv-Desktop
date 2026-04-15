@@ -52,12 +52,18 @@ struct PlayerBarView: View {
                             HStack(spacing: 0) {
                                 if let id = song.artistId, let name = song.artist {
                                     Button(name) {
+                                        appState.selectedPlaylist = nil
+                                        appState.selectedSidebar = .artists
+                                        appState.navigationPath = NavigationPath()
                                         appState.navigationPath.append(
                                             Artist(id: id, name: name, albumCount: nil, coverArt: nil, starred: nil)
                                         )
                                     }
                                     .buttonStyle(.plain)
                                     .foregroundStyle(themeColor)
+                                    .onHover { inside in
+                                        if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                                    }
                                 } else if let name = song.artist {
                                     Text(name).foregroundStyle(.secondary)
                                 }
@@ -66,6 +72,9 @@ struct PlayerBarView: View {
                                 }
                                 if let id = song.albumId, let name = song.album {
                                     Button(name) {
+                                        appState.selectedPlaylist = nil
+                                        appState.selectedSidebar = .albums
+                                        appState.navigationPath = NavigationPath()
                                         appState.navigationPath.append(
                                             Album(id: id, name: name, artist: song.artist,
                                                   artistId: song.artistId, coverArt: song.coverArt,
@@ -75,6 +84,9 @@ struct PlayerBarView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .foregroundStyle(themeColor)
+                                    .onHover { inside in
+                                        if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                                    }
                                 } else if let name = song.album {
                                     Text(name).foregroundStyle(.secondary)
                                 }

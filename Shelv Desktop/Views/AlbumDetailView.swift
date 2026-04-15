@@ -10,6 +10,7 @@ struct AlbumDetailView: View {
     @ObservedObject private var player = AudioPlayerService.shared
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
+    @Environment(\.themeColor) private var themeColor
 
     var body: some View {
         ScrollView {
@@ -26,9 +27,27 @@ struct AlbumDetailView: View {
                             .lineLimit(2)
 
                         if let artist = vm.album?.artist {
-                            Text(artist)
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
+                            if let artistId = vm.album?.artistId {
+                                Button {
+                                    appState.selectedPlaylist = nil
+                                    appState.selectedSidebar = .artists
+                                    appState.navigationPath = NavigationPath()
+                                    appState.navigationPath.append(Artist(id: artistId, name: artist, albumCount: nil, coverArt: nil, starred: nil))
+                                } label: {
+                                    Text(artist)
+                                        .font(.title3)
+                                        .foregroundStyle(themeColor)
+                                }
+                                .buttonStyle(.plain)
+                                .help(tr("Go to Artist", "Zum Künstler"))
+                                .onHover { inside in
+                                    if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                                }
+                            } else {
+                                Text(artist)
+                                    .font(.title3)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
 
                         HStack(spacing: 10) {

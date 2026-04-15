@@ -69,10 +69,6 @@ struct MainWindowView: View {
                 }
                 .environmentObject(libraryStore)
             }
-            .onChange(of: appState.selectedSidebar) { _, _ in
-                appState.navigationPath = NavigationPath()
-                appState.selectedPlaylist = nil
-            }
             .onChange(of: appState.serverStore.activeServerID) { _, _ in
                 libraryStore.reset()
             }
