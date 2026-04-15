@@ -310,14 +310,11 @@ class AudioPlayerService: ObservableObject {
 
     // MARK: User Queue
 
-    private let maxUserQueueSize = 200
-
     func addToUserQueue(_ song: Song) {
         shuffleSnapshot?.userQueue.append(song)
         if isShuffled {
             insertRandomlyInShuffledQueue(song)
         } else {
-            guard userQueue.count < maxUserQueueSize else { return }
             userQueue.append(song)
         }
     }
@@ -327,9 +324,7 @@ class AudioPlayerService: ObservableObject {
         if isShuffled {
             songs.forEach { insertRandomlyInShuffledQueue($0) }
         } else {
-            let slots = maxUserQueueSize - userQueue.count
-            guard slots > 0 else { return }
-            userQueue.append(contentsOf: songs.prefix(slots))
+            userQueue.append(contentsOf: songs)
         }
     }
 
