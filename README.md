@@ -4,7 +4,7 @@
 
 # Shelv Desktop
 
-A native, album and artist focused macOS client for [Navidrome](https://www.navidrome.org/) and Subsonic-compatible music servers, built with SwiftUI.
+A native, album and artist focused macOS client for [Navidrome](https://www.navidrome.org/) and Subsonic-compatible music servers, built with SwiftUI. Also available as a [native iOS/iPadOS app](https://github.com/gatzenga/Shelv).
 
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
 ![Swift](https://img.shields.io/badge/swift-5-orange)
@@ -12,16 +12,50 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 
 ## Features
 
-- **Browse your library** — Albums, Artists, and Discover views with recently added, recently played, frequently played, and random albums
-- **Full playback control** — Play, pause, seek, skip with shuffle, repeat, and a persistent footer player bar
-- **Smart mixes** — One-tap shuffled queues based on newest or most played tracks
-- **Smart queue system** — Play Next, Album queue, and a user backlog (up to 200 songs); shuffle merges all three queues into one mixed list and restores the original order when turned off
-- **Search** — Find tracks, albums, and artists on your server
-- **Cover art** — Cached artwork throughout the UI
-- **Media key support** — Native integration with macOS media controls and lock screen
-- **Multiple servers** — Manage and switch between Subsonic/Navidrome server configurations
-- **Theming** — Choose an accent color to personalize the interface
-- **Settings** — Configurable via a dedicated Settings window
+### Library
+- **Albums and Artists** — Browse your full library in a responsive grid with a live filter field and sort options (alphabetical, most played, recently added)
+- **Quick actions** — Right-click any album or artist card for a context menu (Play, Shuffle, Play Next, Add to Queue, Favorite, Add to Playlist)
+- **Artist detail** — Dedicated Play and Shuffle buttons on the artist page; album grid sorted by year
+
+### Discover
+- **Shelves** — Four horizontal scroll sections: Recently Added, Recently Played, Frequently Played, and Random Albums
+- **Smart Mixes** — Three one-tap buttons that build a shuffled queue from your newest tracks, most played tracks, or recently played tracks
+- **Random Albums** — Refresh the random selection at any time with a dedicated shuffle button
+
+### Playback
+- **Persistent footer player** — Always-visible player bar at the bottom of the window with cover art, track info, seekbar with elapsed/remaining time, volume slider, and all transport controls (shuffle, previous, play/pause, next, repeat)
+- **Full controls** — Shuffle, three repeat modes (Off / All / One), and direct navigation to the artist or album of the current track
+- **Media key support** — Full integration with macOS media keys and the Now Playing widget via MPRemoteCommandCenter
+
+### Queue
+- **Three-tier queue** — Play Next (highest priority), Album queue (current context), and User Queue (backlog); all unlimited
+- **Queue popover** — Click the queue button in the player bar to open a popover showing all three sections; drag to reorder or swipe to delete any track
+- **Shuffle** — Merges all three queues into one shuffled list; a snapshot preserves the original order so it can be fully restored when shuffle is turned off. When an album or artist is started via Shuffle, the shuffled order itself becomes the reference — disabling shuffle mid-playback keeps the same shuffled sequence without losing any tracks
+- **Persistent state** — Queue, current track, playback position, shuffle state, and repeat mode all survive app restarts
+
+### Favorites *(optional)*
+- Star songs, albums, and artists — synced to the server via the Subsonic API
+- A dedicated Favorites view in the sidebar groups starred artists, albums, and songs
+- Favorite and unfavorite directly from context menus, the player bar, and track lists
+- Can be enabled or disabled in Settings; when disabled, all related UI elements are hidden
+
+### Playlists *(optional)*
+- Browse server playlists from the sidebar; view the full tracklist for each playlist
+- Add songs or full albums to existing playlists or create a new one on the fly — available via context menus and the player bar
+- Rename or delete playlists directly from the playlist detail view
+- Can be enabled or disabled in Settings; when disabled, all related UI elements are hidden
+
+### Search
+- Find artists, albums, and tracks on your server from a dedicated Search view in the sidebar
+
+### Settings
+- **Server** — View connection details and log out; run a full library scan with progress indicator and last-sync timestamp
+- **Appearance** — Choose between Light, Dark, and System mode; pick one of ten accent colors
+- **Cache** — See the current cover art cache size and clear it with a single tap
+- **Favorites & Playlists** — Toggle each feature on or off independently
+
+### Cover Art
+- Actor-isolated image cache (NSCache + disk) with concurrent deduplication — `AsyncImage` is never used directly
 
 ## Requirements
 
@@ -45,12 +79,12 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 
 ```
 Shelv_DesktopApp  (@main)
-├── AppState.shared          — central ObservableObject (login state, navigation, theme)
+├── AppState.shared           — central ObservableObject (login state, navigation, theme)
 ├── SubsonicAPIService.shared — API calls with MD5 authentication (CryptoKit)
-└── AudioPlayerService.shared — AVPlayer, 3-queue system, MPRemoteCommandCenter
+└── AudioPlayerService.shared — AVPlayer, 3-queue system, MPRemoteCommandCenter (@MainActor)
 ```
 
-The navigation is built entirely on `NavigationSplitView` + `NavigationStack` with value-based `NavigationLink`s — no legacy `NavigationView`.
+Navigation is built entirely on `NavigationSplitView` + `NavigationStack` with value-based `NavigationLink`s — no legacy `NavigationView`.
 
 ### Queue System
 
@@ -58,11 +92,11 @@ The navigation is built entirely on `NavigationSplitView` + `NavigationStack` wi
 |---|---|---|
 | `playNextQueue` | Highest | Tracks queued via "Play Next" |
 | `queue` | Normal | Current album / playback context |
-| `userQueue` | Lowest | User backlog, max 200 songs |
+| `userQueue` | Lowest | User backlog (unlimited) |
 
 Playback order: `playNextQueue` → `queue[currentIndex+1...]` → `userQueue` (one track at a time, not as a block).
 
-**Shuffle** — When enabled, all three queues are merged into a single shuffled list inside `queue`; `playNextQueue` and `userQueue` are cleared. A snapshot of the pre-shuffle state is saved. When shuffle is disabled, the original order is restored, keeping only the tracks that have not been played yet. Tracks added while shuffle is active (via "Play Next" or "Add to Queue") are inserted at a random position in the shuffled queue and are mirrored into the snapshot so they reappear in the correct section when shuffle is turned off. The queue popover shows a single "Shuffled Queue" section while shuffle is active.
+**Shuffle** — When enabled, all three queues are merged into a single shuffled list inside `queue`; `playNextQueue` and `userQueue` are cleared. A snapshot of the pre-shuffle state is saved. When shuffle is disabled, the original order is restored, keeping only the tracks that have not been played yet. Tracks added while shuffle is active are inserted at a random position and mirrored into the snapshot so they reappear in the correct section when shuffle is turned off. When playback is started via the Shuffle action on an album or artist, all tracks are shuffled upfront and the snapshot stores this shuffled order — so disabling shuffle mid-playback restores the same shuffled sequence without losing any tracks.
 
 **Repeat**
 - **Off** — Stops after the last track

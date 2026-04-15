@@ -61,7 +61,7 @@ Shelv_DesktopApp  (@main)
 | `Views/LoginView.swift` | Verbindungsformular mit Validierung |
 | `Helpers/ImageCache.swift` | Actor-basierter Image-Cache (NSCache + Disk) + `CoverArtView` |
 | `Helpers/AlbumContextMenu.swift` | `.albumContextMenu()` ViewModifier — Play, Shuffle, Play Next, Add to Queue, Favorit, Add to Playlist |
-| `Helpers/ArtistContextMenu.swift` | `.artistContextMenu()` ViewModifier — gleiche Aktionen für Künstler, lädt Songs per `withThrowingTaskGroup`, max. 200 |
+| `Helpers/ArtistContextMenu.swift` | `.artistContextMenu()` ViewModifier — gleiche Aktionen für Künstler, lädt Songs aller Alben parallel via `withThrowingTaskGroup` |
 | `Helpers/AppTheme.swift` | 10 Themes, EnvironmentKey `\.themeColor`, `Color(hex:)` |
 | `Helpers/FileManager+Extensions.swift` | `directorySize(at:)` für Cache-Größenanzeige |
 
@@ -90,7 +90,7 @@ Drei getrennte Arrays — niemals mischen:
 |-------|-----|-----------|
 | `playNextQueue` | `[Song]` | "Als nächstes" — höchste Priorität |
 | `queue` | `[QueueItem]` | Aktuelles Album / Kontext (currentIndex zeigt aktuellen Track) |
-| `userQueue` | `[Song]` | Nutzer-Backlog, max. 200 Songs |
+| `userQueue` | `[Song]` | Nutzer-Backlog (unbegrenzt) |
 
 Abspielreihenfolge: `playNextQueue` → `queue[currentIndex+1...]` → `userQueue` (einer nach dem anderen, nicht als Block).
 

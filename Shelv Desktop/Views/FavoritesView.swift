@@ -36,11 +36,8 @@ struct FavoritesView: View {
                                         ArtistGridItem(artist: artist)
                                     }
                                     .buttonStyle(.plain)
-                                    .contextMenu {
-                                        Button(tr("Remove from Favorites", "Aus Favoriten entfernen")) {
-                                            Task { await libraryStore.toggleStarArtist(artist) }
-                                        }
-                                    }
+                                    .artistContextMenu(artist)
+                                    .environmentObject(libraryStore)
                                 }
                             }
                         }

@@ -8,8 +8,6 @@ struct ArtistContextMenuModifier: ViewModifier {
     @AppStorage("enableFavorites") private var enableFavorites = false
     @AppStorage("enablePlaylists") private var enablePlaylists = false
 
-    private let maxSongs = 200
-
     func body(content: Content) -> some View {
         content.contextMenu {
             Button(tr("Play", "Abspielen")) {
@@ -61,7 +59,6 @@ struct ArtistContextMenuModifier: ViewModifier {
         }
     }
 
-    /// Lädt alle Songs des Künstlers parallel; begrenzt auf maxSongs zufällige Titel.
     private func fetchSongs() async -> [Song]? {
         guard let detail = try? await SubsonicAPIService.shared.getArtist(id: artist.id) else { return nil }
         var songs: [Song] = []
@@ -74,9 +71,6 @@ struct ArtistContextMenuModifier: ViewModifier {
             return result
         } {
             songs = fetched
-        }
-        if songs.count > maxSongs {
-            songs = Array(songs.shuffled().prefix(maxSongs))
         }
         return songs
     }
