@@ -17,17 +17,18 @@ Shelv_DesktopApp  (@main)
   ├── AppState.shared          (ObservableObject @EnvironmentObject)
   │     ├── isLoggedIn, selectedSidebar: SidebarItem?, errorMessage
   │     ├── navigationPath: NavigationPath   ← global, ermöglicht Navigation aus PlayerBar
+  │     ├── serverStore: ServerStore  — Multi-Server-Liste, Keychain, activate/add/delete
   │     ├── SubsonicAPIService.shared  — API-Calls, MD5+Salt-Auth (CryptoKit)
   │     └── AudioPlayerService.shared  — AVPlayer, 3-Queue-System, MPRemoteCommandCenter
   ├── WindowGroup → ContentView
-  │     ├── LoginView          (wenn !isLoggedIn)
-  │     └── MainWindowView     (NavigationSplitView + PlayerBarView)
+  │     ├── LoginView          (wenn !isLoggedIn — erster Server wird hinzugefügt)
+  │     └── MainWindowView     (NavigationSplitView + PlayerBarView + ToastOverlay)
   │           ├── SidebarView  (custom VStack, kein List — wegen Theme-Farbe)
   │           ├── NavigationStack(path: $appState.navigationPath)
   │           │     ├── .navigationDestination(for: Album.self)
   │           │     └── .navigationDestination(for: Artist.self)
-  │           └── PlayerBarView (Footer, immer sichtbar)
-  └── Settings Scene → SettingsView
+  │           └── PlayerBarView (Footer: AirPlay + Volume + Queue)
+  └── Settings Scene → SettingsView (Multi-Server-Tab)
   └── Window("Server Management") → ServerManagementView
 ```
 
@@ -42,10 +43,12 @@ Shelv_DesktopApp  (@main)
 | `Models/SubsonicModels.swift` | Alle Codable-Modelle (Song, Album, Artist, AlbumDetail, QueueItem, SidebarItem, RepeatMode, LibrarySortOption, …) |
 | `Services/SubsonicAPIService.swift` | API + MD5+Salt-Auth + Stream/CoverArt URLs + Scrobbling + Scan |
 | `Services/AudioPlayerService.swift` | AVPlayer + 3-Queue-System + State-Persistenz + Remote Controls (@MainActor) |
-| `ViewModels/AppState.swift` | Login/Logout, selectedSidebar, navigationPath |
+| `Services/KeychainService.swift` | Passwörter pro Server-UUID im Keychain |
+| `ViewModels/AppState.swift` | Multi-Server-Login/Logout, ServerStore, selectedSidebar, navigationPath |
+| `ViewModels/ServerStore.swift` | CRUD für Server-Liste, Keychain, Migration von Legacy-Config, activate() |
 | `ViewModels/LibraryViewModel.swift` | Albums (paginiert, 500/Seite), Artists, Sortierung, Favoriten, Playlists |
 | `ViewModels/DiscoverViewModel.swift` | 4 Album-Shelves (newest/recent/frequent/random) + Smart Mixes |
-| `Views/PlayerBarView.swift` | Footer-Player + QueuePopover + Seekbar + Volume |
+| `Views/PlayerBarView.swift` | Footer-Player + AirPlay-Button + QueuePopover + Seekbar + Volume |
 | `Views/SidebarView.swift` | Custom VStack-Sidebar (kein List) |
 | `Views/DiscoverView.swift` | Smart Mix Buttons + 4 Album-Scroll-Sektionen |
 | `Views/AlbumsView.swift` | Grid + Suchfilter + Sortieroptionen |
@@ -56,9 +59,9 @@ Shelv_DesktopApp  (@main)
 | `Views/FavoritesView.swift` | Favoritenliste: Künstler-Grid, Alben-Grid, Titellist (conditional via `enableFavorites`) |
 | `Views/PlaylistDetailView.swift` | Playlist-Header + Tracklist, Rename/Delete-Toolbar |
 | `Views/AddToPlaylistPanel.swift` | Sheet zum Hinzufügen von Songs zu bestehender oder neuer Playlist (380×440) |
-| `Views/SettingsView.swift` | Server-Info, Appearance, Cache-Verwaltung |
+| `Views/SettingsView.swift` | Multi-Server-Liste (hinzufügen/bearbeiten/löschen/wechseln), Appearance, Cache |
 | `Views/ServerManagementView.swift` | Server-Version/API, Bibliothekszähler, Last Sync, Full Scan mit Polling |
-| `Views/LoginView.swift` | Verbindungsformular mit Validierung |
+| `Views/LoginView.swift` | Ersten Server hinzufügen (wird angezeigt wenn keine Server vorhanden) |
 | `Helpers/ImageCache.swift` | Actor-basierter Image-Cache (NSCache + Disk) + `CoverArtView` |
 | `Helpers/AlbumContextMenu.swift` | `.albumContextMenu()` ViewModifier — Play, Shuffle, Play Next, Add to Queue, Favorit, Add to Playlist |
 | `Helpers/ArtistContextMenu.swift` | `.artistContextMenu()` ViewModifier — gleiche Aktionen für Künstler, lädt Songs aller Alben parallel via `withThrowingTaskGroup` |
@@ -144,11 +147,14 @@ Abspielreihenfolge: `playNextQueue` → `queue[currentIndex+1...]` → `userQueu
 - **Swift 6 Concurrency in Closures**: `[weak self]` → `guard let self` vor dem Task, dann `Task { @MainActor [self] in }` mit explizitem Capture
 - **Auth**: MD5(`password` + `salt`) via `CryptoKit.Insecure.MD5`
 - **AlbumContextMenu**: ViewModifier `.albumContextMenu(album:)` aus `Helpers/AlbumContextMenu.swift` — für einheitliche Context Menus auf allen Albumkarten verwenden
-- **ArtistContextMenu**: ViewModifier `.artistContextMenu(artist:)` aus `Helpers/ArtistContextMenu.swift` — lädt Songs aller Alben parallel via `withThrowingTaskGroup`, begrenzt auf 200 zufällige Titel
+- **ArtistContextMenu**: ViewModifier `.artistContextMenu(artist:)` aus `Helpers/ArtistContextMenu.swift` — lädt Songs aller Alben parallel via `withThrowingTaskGroup`
 - **LibraryViewModel**: Album-Pagination 500 Items/Seite; Sortierung: alphabetisch, mostPlayed, recentlyAdded, year; **wird als `@EnvironmentObject` von `MainWindowView` gehalten und weitergegeben** — nie als `@StateObject` in Unterviews anlegen
 - **DiscoverViewModel**: 4 Shelves (newest/recent/frequent/random) + 3 Smart Mix Typen
 - **Lokalisierung**: `tr(_ en: String, _ de: String)` — nie hartcodierte Strings in Views
 - **Playlist-Integration über Notification**: Songs zu Playlist hinzufügen via `NotificationCenter.default.post(name: .addSongsToPlaylist, object: [songId])` — `MainWindowView` fängt es auf und zeigt `AddToPlaylistPanel`
+- **Toast-Feedback über Notification**: Kurze Rückmeldungen (z. B. "Als nächstes hinzugefügt") via `NotificationCenter.default.post(name: .showToast, object: "Text")` auslösen — `MainWindowView` zeigt 2-Sekunden-Toast-Overlay am oberen Rand
+- **AirPlay-Button**: `AVRoutePickerViewRepresentable` (NSViewRepresentable, am Ende von `PlayerBarView.swift`) — in PlayerBar-Right-Section eingebunden
+- **Multi-Server**: `appState.serverStore: ServerStore` verwaltet `[SubsonicServer]` + Keychain-Passwörter. Für neuen Server: `appState.addServer(name:serverURL:username:password:)`. Für Wechsel: `appState.switchServer(_:)`. Legacy-Migration von `serverConfig`-Key wird automatisch in `ServerStore.init()` durchgeführt
 - **Menü-Erweiterung**: Neue Menüpunkte in bestehendes "View"-Menü via `CommandGroup(after: .sidebar)` — **kein** `CommandMenu("Ansicht")` (erzeugt Duplikat)
 - **Tab-Leiste entfernen**: `NSWindow.allowsAutomaticWindowTabbing = false` in `App.init()` — verhindert "Show Tab Bar"/"Show All Tabs"-Einträge
 - **withThrowingTaskGroup Rückgabetyp**: Bei Typ-Inferenzproblemen immer explizit annotieren: `{ group -> [Song] in ... }` (Swift-Compiler kann sonst `[Any]` inferieren)
@@ -172,7 +178,8 @@ Abspielreihenfolge: `playNextQueue` → `queue[currentIndex+1...]` → `userQueu
 ### App-State
 | Key | Inhalt |
 |-----|--------|
-| `serverConfig` | `ServerConfig` JSON (URL, Username, Password) |
+| `shelv_mac_servers` | `[SubsonicServer]` JSON (migriert automatisch von `serverConfig`) |
+| `shelv_mac_active_server` | UUID-String des aktiven Servers |
 | `themeColor` | String (Farbname) |
 | `enableFavorites` | Bool — Favoriten-Feature aktiv (Sidebar-Eintrag, Herz-Buttons, Context Menus) |
 | `enablePlaylists` | Bool — Playlists-Feature aktiv (Sidebar-Sektion, Context Menus) |

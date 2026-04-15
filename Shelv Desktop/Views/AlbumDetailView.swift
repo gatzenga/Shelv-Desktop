@@ -120,8 +120,10 @@ struct AlbumDetailView: View {
                                 appState.player.play(songs: vm.songs, startIndex: index)
                             } onPlayNext: {
                                 appState.player.addPlayNext(song)
+                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
                             } onAddToQueue: {
                                 appState.player.addToUserQueue(song)
+                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
                             } onFavorite: {
                                 Task { await libraryStore.toggleStarSong(song) }
                             } onAddToPlaylist: {

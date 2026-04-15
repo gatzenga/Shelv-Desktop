@@ -15,7 +15,7 @@ struct SettingsView: View {
             AboutTab()
                 .tabItem { Label("Info", systemImage: "info.circle") }
         }
-        .frame(width: 480, height: 320)
+        .frame(width: 520, height: 420)
         .environmentObject(appState)
     }
 }
@@ -24,36 +24,263 @@ struct SettingsView: View {
 
 struct ServerTab: View {
     @EnvironmentObject var appState: AppState
-    @State private var showLogoutConfirm = false
+    @State private var showAddServer = false
+    @State private var serverToEdit: SubsonicServer?
+    @State private var serverToDelete: SubsonicServer?
 
     var body: some View {
-        Form {
-            Section("Verbundener Server") {
-                LabeledContent("URL") {
-                    Text(appState.serverDisplayName)
-                        .foregroundStyle(.secondary)
-                }
-                LabeledContent("Benutzer") {
-                    Text(appState.username)
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 0) {
+            List {
+                ForEach(appState.serverStore.servers) { server in
+                    ServerRow(
+                        server: server,
+                        isActive: appState.serverStore.activeServerID == server.id,
+                        onActivate: { appState.switchServer(server) },
+                        onEdit: { serverToEdit = server },
+                        onDelete: { serverToDelete = server }
+                    )
                 }
             }
-            Section {
-                Button(role: .destructive) {
-                    showLogoutConfirm = true
+            .listStyle(.inset)
+            .frame(minHeight: 140)
+
+            Divider()
+
+            HStack {
+                Button {
+                    showAddServer = true
                 } label: {
-                    Label("Abmelden", systemImage: "rectangle.portrait.and.arrow.right")
+                    Label(tr("Add Server…", "Server hinzufügen…"), systemImage: "plus")
                 }
-                .confirmationDialog("Wirklich abmelden?", isPresented: $showLogoutConfirm) {
-                    Button("Abmelden", role: .destructive) { appState.logout() }
-                    Button("Abbrechen", role: .cancel) { }
-                } message: {
-                    Text("Die Server-Verbindung wird getrennt und alle gespeicherten Zugangsdaten werden gelöscht.")
-                }
+                .buttonStyle(.borderless)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                Spacer()
             }
         }
-        .formStyle(.grouped)
-        .padding()
+        .sheet(isPresented: $showAddServer) {
+            AddServerSheet()
+                .environmentObject(appState)
+        }
+        .sheet(item: $serverToEdit) { server in
+            EditServerSheet(server: server)
+                .environmentObject(appState)
+        }
+        .confirmationDialog(
+            tr("Remove Server?", "Server entfernen?"),
+            isPresented: Binding(get: { serverToDelete != nil }, set: { if !$0 { serverToDelete = nil } }),
+            presenting: serverToDelete
+        ) { server in
+            Button(tr("Remove", "Entfernen"), role: .destructive) {
+                appState.deleteServer(server)
+                serverToDelete = nil
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) { serverToDelete = nil }
+        } message: { server in
+            Text(tr("\"\(server.displayName)\" will be removed and its credentials deleted.",
+                    "\"\(server.displayName)\" wird entfernt und die Zugangsdaten gelöscht."))
+        }
+    }
+}
+
+struct ServerRow: View {
+    let server: SubsonicServer
+    let isActive: Bool
+    let onActivate: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    @Environment(\.themeColor) private var themeColor
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: isActive ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(isActive ? AnyShapeStyle(themeColor) : AnyShapeStyle(.tertiary))
+                .font(.body)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(server.displayName)
+                    .font(.body)
+                    .fontWeight(isActive ? .semibold : .regular)
+                Text(server.username + " · " + server.baseURL)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            if !isActive {
+                Button(tr("Connect", "Verbinden")) { onActivate() }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+            }
+
+            Button { onEdit() } label: {
+                Image(systemName: "pencil").font(.caption)
+            }
+            .buttonStyle(.borderless)
+
+            Button(role: .destructive) { onDelete() } label: {
+                Image(systemName: "trash").font(.caption)
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+// MARK: - Add Server Sheet
+
+struct AddServerSheet: View {
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.themeColor) private var themeColor
+
+    @State private var name = ""
+    @State private var url = ""
+    @State private var username = ""
+    @State private var password = ""
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text(tr("Add Server", "Server hinzufügen"))
+                .font(.title2.bold())
+
+            serverForm
+
+            if let err = errorMessage {
+                Label(err, systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.red)
+                    .font(.callout)
+                    .multilineTextAlignment(.center)
+            }
+
+            HStack {
+                Button(tr("Cancel", "Abbrechen")) { dismiss() }
+                    .keyboardShortcut(.escape)
+                Spacer()
+                Button {
+                    Task { await connect() }
+                } label: {
+                    if isLoading { ProgressView().controlSize(.small) }
+                    else { Text(tr("Connect", "Verbinden")) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isLoading || url.isEmpty || username.isEmpty || password.isEmpty)
+                .keyboardShortcut(.return)
+            }
+        }
+        .padding(24)
+        .frame(width: 420)
+    }
+
+    @ViewBuilder
+    private var serverForm: some View {
+        VStack(spacing: 12) {
+            LabeledContent(tr("Name", "Name")) {
+                TextField(tr("My Navidrome", "Mein Navidrome"), text: $name)
+                    .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+            }
+            LabeledContent("URL") {
+                TextField("https://music.example.com", text: $url)
+                    .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+            }
+            LabeledContent(tr("Username", "Benutzername")) {
+                TextField(tr("Username", "Benutzername"), text: $username)
+                    .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+            }
+            LabeledContent(tr("Password", "Passwort")) {
+                SecureField(tr("Password", "Passwort"), text: $password)
+                    .textFieldStyle(.roundedBorder)
+            }
+        }
+    }
+
+    private func connect() async {
+        isLoading = true
+        errorMessage = nil
+        var normalized = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !normalized.hasPrefix("http://") && !normalized.hasPrefix("https://") {
+            normalized = "https://" + normalized
+        }
+        let success = await appState.addServer(
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            serverURL: normalized, username: username, password: password
+        )
+        if success { dismiss() }
+        else { errorMessage = appState.errorMessage ?? tr("Connection failed.", "Verbindung fehlgeschlagen.") }
+        isLoading = false
+    }
+}
+
+// MARK: - Edit Server Sheet
+
+struct EditServerSheet: View {
+    let server: SubsonicServer
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var name: String
+    @State private var url: String
+    @State private var username: String
+    @State private var password: String = ""
+
+    init(server: SubsonicServer) {
+        self.server = server
+        _name = State(initialValue: server.name)
+        _url = State(initialValue: server.baseURL)
+        _username = State(initialValue: server.username)
+    }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text(tr("Edit Server", "Server bearbeiten"))
+                .font(.title2.bold())
+
+            VStack(spacing: 12) {
+                LabeledContent(tr("Name", "Name")) {
+                    TextField(tr("My Navidrome", "Mein Navidrome"), text: $name)
+                        .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+                }
+                LabeledContent("URL") {
+                    TextField("https://music.example.com", text: $url)
+                        .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+                }
+                LabeledContent(tr("Username", "Benutzername")) {
+                    TextField(tr("Username", "Benutzername"), text: $username)
+                        .textFieldStyle(.roundedBorder).autocorrectionDisabled()
+                }
+                LabeledContent(tr("Password", "Passwort")) {
+                    SecureField(tr("Leave blank to keep current", "Leer lassen zum Beibehalten"), text: $password)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+
+            HStack {
+                Button(tr("Cancel", "Abbrechen")) { dismiss() }
+                    .keyboardShortcut(.escape)
+                Spacer()
+                Button(tr("Save", "Speichern")) {
+                    var updated = server
+                    updated.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    updated.baseURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
+                    updated.username = username.trimmingCharacters(in: .whitespacesAndNewlines)
+                    appState.serverStore.update(
+                        server: updated,
+                        password: password.isEmpty ? nil : password
+                    )
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(url.isEmpty || username.isEmpty)
+                .keyboardShortcut(.return)
+            }
+        }
+        .padding(24)
+        .frame(width: 420)
     }
 }
 

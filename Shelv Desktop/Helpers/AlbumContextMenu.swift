@@ -26,13 +26,19 @@ struct AlbumContextMenuModifier: ViewModifier {
             Button(tr("Play Next", "Als nächstes abspielen")) {
                 Task {
                     guard let detail = try? await SubsonicAPIService.shared.getAlbum(id: album.id) else { return }
-                    await MainActor.run { AudioPlayerService.shared.addPlayNext(detail.song) }
+                    await MainActor.run {
+                        AudioPlayerService.shared.addPlayNext(detail.song)
+                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                    }
                 }
             }
             Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) {
                 Task {
                     guard let detail = try? await SubsonicAPIService.shared.getAlbum(id: album.id) else { return }
-                    await MainActor.run { AudioPlayerService.shared.addToUserQueue(detail.song) }
+                    await MainActor.run {
+                        AudioPlayerService.shared.addToUserQueue(detail.song)
+                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                    }
                 }
             }
             if enableFavorites || enablePlaylists {

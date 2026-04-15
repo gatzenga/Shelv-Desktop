@@ -1,0 +1,116 @@
+import Foundation
+import SwiftUI
+import Combine
+
+@MainActor
+class ServerStore: ObservableObject {
+    @Published var servers: [SubsonicServer] = []
+    @Published var activeServerID: UUID?
+
+    private let saveKey = "shelv_mac_servers"
+    private let activeKey = "shelv_mac_active_server"
+
+    init() {
+        migrateIfNeeded()
+        load()
+        activateStoredServer()
+    }
+
+    var activeServer: SubsonicServer? {
+        guard let id = activeServerID else { return servers.first }
+        return servers.first { $0.id == id }
+    }
+
+    func activate(server: SubsonicServer) {
+        activeServerID = server.id
+        UserDefaults.standard.set(server.id.uuidString, forKey: activeKey)
+        applyToAPIService(server: server)
+    }
+
+    func add(server: SubsonicServer, password: String) {
+        KeychainService.save(password: password, for: server.id)
+        servers.append(server)
+        save()
+        if servers.count == 1 { activate(server: server) }
+    }
+
+    func update(server: SubsonicServer, password: String?) {
+        if let idx = servers.firstIndex(where: { $0.id == server.id }) {
+            servers[idx] = server
+            if let pw = password { KeychainService.save(password: pw, for: server.id) }
+            save()
+            if activeServerID == server.id { applyToAPIService(server: server) }
+        }
+    }
+
+    func delete(server: SubsonicServer) {
+        KeychainService.delete(for: server.id)
+        servers.removeAll { $0.id == server.id }
+        save()
+        if activeServerID == server.id {
+            activeServerID = nil
+            activateStoredServer()
+        }
+    }
+
+    func clearAll() {
+        for server in servers { KeychainService.delete(for: server.id) }
+        servers = []
+        activeServerID = nil
+        UserDefaults.standard.removeObject(forKey: saveKey)
+        UserDefaults.standard.removeObject(forKey: activeKey)
+    }
+
+    func password(for server: SubsonicServer) -> String? {
+        KeychainService.load(for: server.id)
+    }
+
+    // MARK: - Private
+
+    private func activateStoredServer() {
+        if let idStr = UserDefaults.standard.string(forKey: activeKey),
+           let id = UUID(uuidString: idStr),
+           let server = servers.first(where: { $0.id == id }) {
+            activeServerID = id
+            applyToAPIService(server: server)
+        } else if let first = servers.first {
+            activeServerID = first.id
+            applyToAPIService(server: first)
+        }
+    }
+
+    private func applyToAPIService(server: SubsonicServer) {
+        let password = KeychainService.load(for: server.id) ?? ""
+        let config = ServerConfig(serverURL: server.baseURL, username: server.username, password: password)
+        SubsonicAPIService.shared.setConfig(config)
+    }
+
+    private func save() {
+        if let data = try? JSONEncoder().encode(servers) {
+            UserDefaults.standard.set(data, forKey: saveKey)
+        }
+    }
+
+    private func load() {
+        if let data = UserDefaults.standard.data(forKey: saveKey),
+           let decoded = try? JSONDecoder().decode([SubsonicServer].self, from: data) {
+            servers = decoded
+        }
+    }
+
+    /// Migrates a single legacy `serverConfig` UserDefaults entry to the new multi-server format.
+    private func migrateIfNeeded() {
+        guard UserDefaults.standard.data(forKey: saveKey) == nil,
+              let data = UserDefaults.standard.data(forKey: "serverConfig"),
+              let legacy = try? JSONDecoder().decode(ServerConfig.self, from: data)
+        else { return }
+
+        let server = SubsonicServer(name: "", baseURL: legacy.serverURL, username: legacy.username)
+        KeychainService.save(password: legacy.password, for: server.id)
+        if let encoded = try? JSONEncoder().encode([server]) {
+            UserDefaults.standard.set(encoded, forKey: saveKey)
+            UserDefaults.standard.set(server.id.uuidString, forKey: activeKey)
+        }
+        UserDefaults.standard.removeObject(forKey: "serverConfig")
+    }
+}

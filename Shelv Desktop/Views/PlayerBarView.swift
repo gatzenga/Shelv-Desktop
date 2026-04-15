@@ -1,4 +1,5 @@
 import SwiftUI
+import AVKit
 
 struct PlayerBarView: View {
     @EnvironmentObject var appState: AppState
@@ -204,8 +205,12 @@ struct PlayerBarView: View {
                 }
                 .frame(maxWidth: 560)
 
-                // MARK: Right – Volume + Queue
+                // MARK: Right – AirPlay + Volume + Queue
                 HStack(spacing: 16) {
+                    AVRoutePickerViewRepresentable()
+                        .frame(width: 20, height: 20)
+                        .help(tr("AirPlay", "AirPlay"))
+
                     Image(systemName: player.volume < 0.01 ? "speaker.slash.fill"
                                     : player.volume < 0.5  ? "speaker.wave.1.fill"
                                                            : "speaker.wave.3.fill")
@@ -397,6 +402,15 @@ struct QueueSongRow: View {
         }
         .contentShape(Rectangle())
     }
+}
+
+// MARK: - AirPlay Button
+
+struct AVRoutePickerViewRepresentable: NSViewRepresentable {
+    func makeNSView(context: Context) -> AVRoutePickerView {
+        AVRoutePickerView()
+    }
+    func updateNSView(_ nsView: AVRoutePickerView, context: Context) {}
 }
 
 #Preview {

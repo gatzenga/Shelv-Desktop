@@ -15,16 +15,22 @@ class AppState: ObservableObject {
 
     let api = SubsonicAPIService.shared
     let player = AudioPlayerService.shared
+    let serverStore = ServerStore()
 
     private init() {
         isLoggedIn = api.hasConfig
     }
 
-    func login(serverURL: String, username: String, password: String) async -> Bool {
-        let cfg = ServerConfig(serverURL: serverURL, username: username, password: password)
-        api.setConfig(cfg)
+    // MARK: - Server Management
+
+    /// Testet die Verbindung und fügt den Server zur Liste hinzu.
+    func addServer(name: String, serverURL: String, username: String, password: String) async -> Bool {
+        let config = ServerConfig(serverURL: serverURL, username: username, password: password)
+        api.setConfig(config)
         do {
             try await api.ping()
+            let server = SubsonicServer(name: name, baseURL: serverURL, username: username)
+            serverStore.add(server: server, password: password)
             isLoggedIn = true
             return true
         } catch {
@@ -34,14 +40,43 @@ class AppState: ObservableObject {
         }
     }
 
+    /// Wechselt zum angegebenen Server.
+    func switchServer(_ server: SubsonicServer) {
+        serverStore.activate(server: server)
+        isLoggedIn = api.hasConfig
+        navigationPath = NavigationPath()
+        selectedSidebar = .discover
+        selectedPlaylist = nil
+    }
+
+    /// Entfernt einen Server. Wenn es der letzte war, wird der Nutzer abgemeldet.
+    func deleteServer(_ server: SubsonicServer) {
+        let wasActive = serverStore.activeServerID == server.id
+        serverStore.delete(server: server)
+        if serverStore.servers.isEmpty {
+            api.clearConfig()
+            player.stop()
+            isLoggedIn = false
+        } else if wasActive {
+            isLoggedIn = api.hasConfig
+            navigationPath = NavigationPath()
+            selectedSidebar = .discover
+            selectedPlaylist = nil
+        }
+    }
+
+    /// Meldet vollständig ab und löscht alle Server.
     func logout() {
+        serverStore.clearAll()
         api.clearConfig()
         player.stop()
         isLoggedIn = false
     }
 
+    // MARK: - Convenience
+
     var serverDisplayName: String {
-        api.currentConfig?.serverURL ?? ""
+        serverStore.activeServer?.displayName ?? api.currentConfig?.serverURL ?? ""
     }
 
     var username: String {

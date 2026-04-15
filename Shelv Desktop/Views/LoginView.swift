@@ -4,6 +4,7 @@ struct LoginView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.themeColor) private var themeColor
 
+    @State private var serverName: String = ""
     @State private var serverURL: String = ""
     @State private var username: String = ""
     @State private var password: String = ""
@@ -22,7 +23,7 @@ struct LoginView: View {
                         .foregroundStyle(themeColor)
                     Text("Shelv")
                         .font(.system(size: 32, weight: .bold))
-                    Text("Navidrome Desktop Client")
+                    Text(tr("Navidrome Desktop Client", "Navidrome Desktop-Client"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -31,18 +32,23 @@ struct LoginView: View {
 
                 // Form
                 VStack(spacing: 14) {
-                    LabeledContent("Server-URL") {
+                    LabeledContent(tr("Server Name", "Servername")) {
+                        TextField(tr("My Navidrome", "Mein Navidrome"), text: $serverName)
+                            .textFieldStyle(.roundedBorder)
+                            .autocorrectionDisabled()
+                    }
+                    LabeledContent(tr("Server URL", "Server-URL")) {
                         TextField("https://music.example.com", text: $serverURL)
                             .textFieldStyle(.roundedBorder)
                             .autocorrectionDisabled()
                     }
-                    LabeledContent("Benutzername") {
-                        TextField("Benutzername", text: $username)
+                    LabeledContent(tr("Username", "Benutzername")) {
+                        TextField(tr("Username", "Benutzername"), text: $username)
                             .textFieldStyle(.roundedBorder)
                             .autocorrectionDisabled()
                     }
-                    LabeledContent("Passwort") {
-                        SecureField("Passwort", text: $password)
+                    LabeledContent(tr("Password", "Passwort")) {
+                        SecureField(tr("Password", "Passwort"), text: $password)
                             .textFieldStyle(.roundedBorder)
                     }
                 }
@@ -64,7 +70,7 @@ struct LoginView: View {
                             .controlSize(.small)
                             .frame(maxWidth: .infinity)
                     } else {
-                        Text("Verbinden")
+                        Text(tr("Connect", "Verbinden"))
                             .frame(maxWidth: .infinity)
                     }
                 }
@@ -76,7 +82,7 @@ struct LoginView: View {
             }
             .padding(40)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
-            .frame(maxWidth: 440)
+            .frame(maxWidth: 460)
 
             Spacer()
         }
@@ -91,9 +97,10 @@ struct LoginView: View {
         if !url.hasPrefix("http://") && !url.hasPrefix("https://") {
             url = "https://" + url
         }
-        let success = await appState.login(serverURL: url, username: username, password: password)
+        let name = serverName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let success = await appState.addServer(name: name, serverURL: url, username: username, password: password)
         if !success {
-            errorMessage = appState.errorMessage ?? "Verbindung fehlgeschlagen."
+            errorMessage = appState.errorMessage ?? tr("Connection failed.", "Verbindung fehlgeschlagen.")
         }
         isLoading = false
     }
@@ -102,5 +109,5 @@ struct LoginView: View {
 #Preview {
     LoginView()
         .environmentObject(AppState.shared)
-        .frame(width: 700, height: 500)
+        .frame(width: 700, height: 560)
 }

@@ -26,13 +26,19 @@ struct ArtistContextMenuModifier: ViewModifier {
             Button(tr("Play Next", "Als nächstes abspielen")) {
                 Task {
                     guard let songs = await fetchSongs(), !songs.isEmpty else { return }
-                    await MainActor.run { AudioPlayerService.shared.addPlayNext(songs) }
+                    await MainActor.run {
+                        AudioPlayerService.shared.addPlayNext(songs)
+                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                    }
                 }
             }
             Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) {
                 Task {
                     guard let songs = await fetchSongs(), !songs.isEmpty else { return }
-                    await MainActor.run { AudioPlayerService.shared.addToUserQueue(songs) }
+                    await MainActor.run {
+                        AudioPlayerService.shared.addToUserQueue(songs)
+                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                    }
                 }
             }
             if enableFavorites || enablePlaylists {

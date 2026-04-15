@@ -8,6 +8,7 @@ func tr(_ en: String, _ de: String, _ lang: String = appLang) -> String { lang =
 
 extension Notification.Name {
     static let addSongsToPlaylist = Notification.Name("shelv.addSongsToPlaylist")
+    static let showToast = Notification.Name("shelv.showToast")
 }
 
 @main
@@ -40,17 +41,18 @@ struct Shelv_DesktopApp: App {
             }
 
             CommandMenu("Profil") {
-                if appState.username.isEmpty {
-                    Text("Nicht angemeldet")
+                if appState.isLoggedIn, let active = appState.serverStore.activeServer {
+                    Text(active.displayName)
+                    Text(appState.username)
                         .foregroundStyle(.secondary)
                 } else {
-                    Text(appState.username)
+                    Text(tr("Not logged in", "Nicht angemeldet"))
                         .foregroundStyle(.secondary)
                 }
                 Divider()
                 ServerManagementMenuItem()
                 Divider()
-                Button("Abmelden") {
+                Button(tr("Log Out", "Abmelden")) {
                     appState.logout()
                 }
                 .disabled(!appState.isLoggedIn)

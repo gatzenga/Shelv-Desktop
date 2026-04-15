@@ -21,6 +21,22 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Toast View
+
+struct ToastView: View {
+    let message: String
+
+    var body: some View {
+        Label(message, systemImage: "checkmark")
+            .font(.callout.weight(.medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(.black.opacity(0.8), in: Capsule())
+            .allowsHitTesting(false)
+    }
+}
+
 // MARK: - Main Window
 
 struct MainWindowView: View {
@@ -29,6 +45,7 @@ struct MainWindowView: View {
 
     @State private var showAddToPlaylist = false
     @State private var playlistSongIds: [String] = []
+    @State private var toastMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -61,10 +78,27 @@ struct MainWindowView: View {
             PlayerBarView()
                 .environmentObject(libraryStore)
         }
+        .overlay(alignment: .top) {
+            if let msg = toastMessage {
+                ToastView(message: msg)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .padding(.top, 12)
+            }
+        }
+        .animation(.spring(duration: 0.35), value: toastMessage)
         .onReceive(NotificationCenter.default.publisher(for: .addSongsToPlaylist)) { notification in
             if let ids = notification.object as? [String] {
                 playlistSongIds = ids
                 showAddToPlaylist = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .showToast)) { notification in
+            if let msg = notification.object as? String {
+                toastMessage = msg
+                Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    toastMessage = nil
+                }
             }
         }
         .sheet(isPresented: $showAddToPlaylist) {
