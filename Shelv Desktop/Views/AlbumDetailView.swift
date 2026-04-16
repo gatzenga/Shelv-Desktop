@@ -158,7 +158,7 @@ struct AlbumDetailView: View {
     }
 
     private var coverURL: URL? {
-        guard let id = vm.album?.coverArt ?? albumId else { return nil }
+        let id = vm.album?.coverArt ?? albumId
         return SubsonicAPIService.shared.coverArtURL(id: id, size: 320)
     }
 

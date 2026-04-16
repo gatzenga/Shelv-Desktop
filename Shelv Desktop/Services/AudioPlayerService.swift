@@ -401,6 +401,7 @@ class AudioPlayerService: ObservableObject {
         tearDownPlayer()
         currentSong = nil
         isPlaying = false
+        isBuffering = false
         isPlayingFromPlayNext = false
         currentTime = 0
         duration = 0
@@ -543,7 +544,7 @@ class AudioPlayerService: ObservableObject {
                     }
                     Task { try? await self.apiService.scrobble(songId: song.id, submission: false) }
                 } else if item.status == .failed {
-                    self.isBuffering = false
+                    self.isBuffering = true
                 }
             }
         }

@@ -990,6 +990,7 @@
       }
     },
     "Profil" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
