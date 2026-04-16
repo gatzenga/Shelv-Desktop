@@ -79,6 +79,7 @@ struct MainWindowView: View {
                 ToastView(message: msg)
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .padding(.top, 12)
+                    .ignoresSafeArea(edges: .top)
             }
         }
         .animation(.spring(duration: 0.35), value: toastMessage)

@@ -98,44 +98,24 @@ struct PlayerBarView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    if let song = player.currentSong {
-                        HStack(spacing: 10) {
-                            if enableFavorites {
-                                let isStarred = libraryStore.isSongStarred(song)
-                                Button {
-                                    Task {
-                                        await libraryStore.toggleStarSong(song)
-                                        player.setCurrentSongStarred(!isStarred)
-                                    }
-                                } label: {
-                                    Image(systemName: isStarred ? "heart.fill" : "heart")
-                                        .font(.body)
-                                        .foregroundStyle(isStarred ? .red : .secondary)
-                                }
-                                .buttonStyle(.plain)
-                                .help(isStarred
-                                      ? tr("Remove from Favorites", "Aus Favoriten entfernen")
-                                      : tr("Add to Favorites", "Zu Favoriten hinzufügen"))
-                            }
-                            if enablePlaylists {
-                                Button {
-                                    NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
-                                } label: {
-                                    Image(systemName: "music.note.list")
-                                        .font(.body)
-                                        .foregroundStyle(.secondary)
-                                }
-                                .buttonStyle(.plain)
-                                .help(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…"))
-                            }
-                        }
-                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, 20)
 
                 VStack(spacing: 10) {
                     HStack(spacing: 22) {
+                        if enablePlaylists, let song = player.currentSong {
+                            Button {
+                                NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
+                            } label: {
+                                Image(systemName: "music.note.list")
+                                    .foregroundStyle(AnyShapeStyle(.primary.opacity(0.35)))
+                            }
+                            .buttonStyle(.plain)
+                            .font(.title2)
+                            .help(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…"))
+                        }
+
                         Button { player.toggleShuffle() } label: {
                             Image(systemName: "shuffle")
                                 .foregroundStyle(player.isShuffled ? AnyShapeStyle(themeColor) : AnyShapeStyle(.primary.opacity(0.35)))
@@ -187,6 +167,24 @@ struct PlayerBarView: View {
                         .buttonStyle(.plain)
                         .font(.title2)
                         .help(repeatHelpText)
+
+                        if enableFavorites, let song = player.currentSong {
+                            let isStarred = libraryStore.isSongStarred(song)
+                            Button {
+                                Task {
+                                    await libraryStore.toggleStarSong(song)
+                                    player.setCurrentSongStarred(!isStarred)
+                                }
+                            } label: {
+                                Image(systemName: isStarred ? "heart.fill" : "heart")
+                                    .foregroundStyle(isStarred ? AnyShapeStyle(themeColor) : AnyShapeStyle(.primary.opacity(0.35)))
+                            }
+                            .buttonStyle(.plain)
+                            .font(.title2)
+                            .help(isStarred
+                                  ? tr("Remove from Favorites", "Aus Favoriten entfernen")
+                                  : tr("Add to Favorites", "Zu Favoriten hinzufügen"))
+                        }
                     }
 
                     HStack(spacing: 10) {
@@ -223,6 +221,20 @@ struct PlayerBarView: View {
                 .frame(maxWidth: 560)
 
                 HStack(spacing: 16) {
+                    if let song = player.currentSong, let suffix = song.suffix {
+                        Group {
+                            if let bitRate = song.bitRate {
+                                Text("\(suffix.uppercased()) · \(bitRate) kbps")
+                            } else {
+                                Text(suffix.uppercased())
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                        .padding(.trailing, 8)
+                    }
+
                     AVRoutePickerViewRepresentable()
                         .frame(width: 20, height: 20)
                         .help(tr("AirPlay", "AirPlay"))

@@ -201,6 +201,7 @@ struct SearchSongRow: View {
         .onTapGesture(count: 2) { onPlay() }
         .contextMenu {
             Button(tr("Play", "Abspielen")) { onPlay() }
+            Divider()
             if let onPlayNext {
                 Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
             }

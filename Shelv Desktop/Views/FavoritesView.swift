@@ -170,6 +170,7 @@ struct FavoriteSongRow: View {
         .gesture(TapGesture(count: 2).onEnded { onPlay() })
         .contextMenu {
             Button(tr("Play", "Abspielen")) { onPlay() }
+            Divider()
             Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
             Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) { onAddToQueue() }
             Divider()
