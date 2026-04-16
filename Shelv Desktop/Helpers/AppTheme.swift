@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Hex Color Init (identisch zur iOS App)
-
 extension Color {
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
@@ -22,30 +20,26 @@ extension Color {
     }
 }
 
-// MARK: - Theme Option
-
 struct ThemeOption {
     let name: String
+    let nameEN: String
     let nameDE: String
     let color: Color
     let useDarkCheckmark: Bool
 }
 
-// MARK: - App Theme
-
 struct AppTheme {
-    /// Alle Optionen: Violett zuerst, Rest alphabetisch nach deutschem Namen.
     static let options: [ThemeOption] = [
-        ThemeOption(name: "violet",    nameDE: "Violett (Standard)", color: Color(hex: "7C3AED"), useDarkCheckmark: false),
-        ThemeOption(name: "blue",      nameDE: "Blau",               color: Color(hex: "0077FF"), useDarkCheckmark: false),
-        ThemeOption(name: "yellow",    nameDE: "Gelb",               color: Color(hex: "F59E0B"), useDarkCheckmark: true),
-        ThemeOption(name: "green",     nameDE: "Grün",               color: Color(hex: "00B56A"), useDarkCheckmark: false),
-        ThemeOption(name: "lightpink", nameDE: "Helles Pink",        color: Color(hex: "FF6B9D"), useDarkCheckmark: false),
-        ThemeOption(name: "pumpkin",   nameDE: "Kürbis",             color: Color(hex: "F97316"), useDarkCheckmark: false),
-        ThemeOption(name: "lime",      nameDE: "Limette",            color: Color(hex: "84CC16"), useDarkCheckmark: true),
-        ThemeOption(name: "pink",      nameDE: "Pink",               color: Color(hex: "FF1988"), useDarkCheckmark: false),
-        ThemeOption(name: "red",       nameDE: "Rot",                color: Color(hex: "DC2626"), useDarkCheckmark: false),
-        ThemeOption(name: "teal",      nameDE: "Türkis",             color: Color(hex: "14B8A6"), useDarkCheckmark: false),
+        ThemeOption(name: "violet",    nameEN: "Violet (Default)",   nameDE: "Violett (Standard)", color: Color(hex: "7C3AED"), useDarkCheckmark: false),
+        ThemeOption(name: "blue",      nameEN: "Blue",               nameDE: "Blau",               color: Color(hex: "0077FF"), useDarkCheckmark: false),
+        ThemeOption(name: "yellow",    nameEN: "Yellow",             nameDE: "Gelb",               color: Color(hex: "F59E0B"), useDarkCheckmark: true),
+        ThemeOption(name: "green",     nameEN: "Green",              nameDE: "Grün",               color: Color(hex: "00B56A"), useDarkCheckmark: false),
+        ThemeOption(name: "lightpink", nameEN: "Light Pink",         nameDE: "Helles Pink",        color: Color(hex: "FF6B9D"), useDarkCheckmark: false),
+        ThemeOption(name: "pumpkin",   nameEN: "Pumpkin",            nameDE: "Kürbis",             color: Color(hex: "F97316"), useDarkCheckmark: false),
+        ThemeOption(name: "lime",      nameEN: "Lime",               nameDE: "Limette",            color: Color(hex: "84CC16"), useDarkCheckmark: true),
+        ThemeOption(name: "pink",      nameEN: "Pink",               nameDE: "Pink",               color: Color(hex: "FF1988"), useDarkCheckmark: false),
+        ThemeOption(name: "red",       nameEN: "Red",                nameDE: "Rot",                color: Color(hex: "DC2626"), useDarkCheckmark: false),
+        ThemeOption(name: "teal",      nameEN: "Teal",               nameDE: "Türkis",             color: Color(hex: "14B8A6"), useDarkCheckmark: false),
     ]
 
     static func color(for name: String) -> Color {
@@ -56,8 +50,6 @@ struct AppTheme {
         options.first { $0.name == name } ?? options[0]
     }
 }
-
-// MARK: - Environment Key
 
 private struct ThemeColorKey: EnvironmentKey {
     static let defaultValue: Color = AppTheme.options[0].color
@@ -70,9 +62,6 @@ extension EnvironmentValues {
     }
 }
 
-// MARK: - Shared Form Helpers
-
-/// Einheitliches Feldlabel für Formulare (grau, medium weight).
 func formFieldLabel(_ text: String) -> some View {
     Text(text)
         .font(.callout.weight(.medium))

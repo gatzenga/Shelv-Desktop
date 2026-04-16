@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Artist Context Menu Modifier
-
 struct ArtistContextMenuModifier: ViewModifier {
     let artist: Artist
     @EnvironmentObject var libraryStore: LibraryViewModel
@@ -12,32 +10,52 @@ struct ArtistContextMenuModifier: ViewModifier {
         content.contextMenu {
             Button(tr("Play", "Abspielen")) {
                 Task {
-                    guard let songs = await fetchSongs(), !songs.isEmpty else { return }
-                    await MainActor.run { AudioPlayerService.shared.play(songs: songs) }
+                    do {
+                        let songs = try await fetchSongs()
+                        guard !songs.isEmpty else { return }
+                        await MainActor.run { AudioPlayerService.shared.play(songs: songs) }
+                    } catch {
+                        NotificationCenter.default.post(name: .showToast, object: tr("Playback failed", "Wiedergabe fehlgeschlagen"))
+                    }
                 }
             }
             Button(tr("Shuffle", "Zufällig abspielen")) {
                 Task {
-                    guard let songs = await fetchSongs(), !songs.isEmpty else { return }
-                    await MainActor.run { AudioPlayerService.shared.playShuffled(songs: songs) }
+                    do {
+                        let songs = try await fetchSongs()
+                        guard !songs.isEmpty else { return }
+                        await MainActor.run { AudioPlayerService.shared.playShuffled(songs: songs) }
+                    } catch {
+                        NotificationCenter.default.post(name: .showToast, object: tr("Playback failed", "Wiedergabe fehlgeschlagen"))
+                    }
                 }
             }
             Divider()
             Button(tr("Play Next", "Als nächstes abspielen")) {
                 Task {
-                    guard let songs = await fetchSongs(), !songs.isEmpty else { return }
-                    await MainActor.run {
-                        AudioPlayerService.shared.addPlayNext(songs)
-                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                    do {
+                        let songs = try await fetchSongs()
+                        guard !songs.isEmpty else { return }
+                        await MainActor.run {
+                            AudioPlayerService.shared.addPlayNext(songs)
+                            NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                        }
+                    } catch {
+                        NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
                     }
                 }
             }
             Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) {
                 Task {
-                    guard let songs = await fetchSongs(), !songs.isEmpty else { return }
-                    await MainActor.run {
-                        AudioPlayerService.shared.addToUserQueue(songs)
-                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                    do {
+                        let songs = try await fetchSongs()
+                        guard !songs.isEmpty else { return }
+                        await MainActor.run {
+                            AudioPlayerService.shared.addToUserQueue(songs)
+                            NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                        }
+                    } catch {
+                        NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
                     }
                 }
             }
@@ -53,10 +71,15 @@ struct ArtistContextMenuModifier: ViewModifier {
                 if enablePlaylists {
                     Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) {
                         Task {
-                            guard let songs = await fetchSongs(), !songs.isEmpty else { return }
-                            let ids = songs.map(\.id)
-                            await MainActor.run {
-                                NotificationCenter.default.post(name: .addSongsToPlaylist, object: ids)
+                            do {
+                                let songs = try await fetchSongs()
+                                guard !songs.isEmpty else { return }
+                                let ids = songs.map(\.id)
+                                await MainActor.run {
+                                    NotificationCenter.default.post(name: .addSongsToPlaylist, object: ids)
+                                }
+                            } catch {
+                                NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
                             }
                         }
                     }
@@ -65,20 +88,16 @@ struct ArtistContextMenuModifier: ViewModifier {
         }
     }
 
-    private func fetchSongs() async -> [Song]? {
-        guard let detail = try? await SubsonicAPIService.shared.getArtist(id: artist.id) else { return nil }
-        var songs: [Song] = []
-        if let fetched = try? await withThrowingTaskGroup(of: [Song].self) { group -> [Song] in
+    private func fetchSongs() async throws -> [Song] {
+        let detail = try await SubsonicAPIService.shared.getArtist(id: artist.id)
+        return try await withThrowingTaskGroup(of: [Song].self) { group -> [Song] in
             for album in detail.album {
                 group.addTask { try await SubsonicAPIService.shared.getAlbum(id: album.id).song }
             }
             var result: [Song] = []
             for try await albumSongs in group { result.append(contentsOf: albumSongs) }
             return result
-        } {
-            songs = fetched
         }
-        return songs
     }
 }
 

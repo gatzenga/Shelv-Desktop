@@ -9,7 +9,6 @@ struct DiscoverView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
 
-                // MARK: Smart Mix Buttons
                 VStack(alignment: .leading, spacing: 12) {
                     Text(tr("Smart Mixes", "Smart Mixes"))
                         .font(.title2).bold()
@@ -52,7 +51,6 @@ struct DiscoverView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 40)
                 } else {
-                    // Reihenfolge wie iOS: Kürzlich hinzugefügt → Kürzlich gespielt → Häufig gespielt
                     if !vm.recentlyAdded.isEmpty {
                         AlbumShelfSection(title: tr("Recently Added", "Kürzlich hinzugefügt"), albums: vm.recentlyAdded)
                     }
@@ -93,10 +91,12 @@ struct DiscoverView: View {
             }
         }
         .task { await vm.load() }
+        .onChange(of: appState.serverStore.activeServerID) { _, _ in
+            vm.reset()
+            Task { await vm.load() }
+        }
     }
 }
-
-// MARK: - Mix Button
 
 struct MixButton: View {
     let title: String
@@ -135,8 +135,6 @@ struct MixButton: View {
         .disabled(isLoading)
     }
 }
-
-// MARK: - Album Shelf Section (drag-to-scroll, keine Scrollbar)
 
 struct AlbumShelfSection: View {
     let title: String
@@ -205,8 +203,6 @@ struct AlbumShelfSection: View {
     }
 }
 
-// MARK: - Shelf Navigation Button
-
 struct ShelfNavButton: View {
     let icon: String
     let disabled: Bool
@@ -226,8 +222,6 @@ struct ShelfNavButton: View {
         .disabled(disabled)
     }
 }
-
-// MARK: - Album Card
 
 struct AlbumCard: View {
     let album: Album
@@ -259,8 +253,6 @@ struct AlbumCard: View {
         .onHover { isHovered = $0 }
     }
 }
-
-// MARK: - Theme Picker
 
 struct ThemePickerButton: View {
     @AppStorage("themeColor") private var themeColorName: String = "violet"
@@ -308,7 +300,7 @@ struct ThemePickerPopover: View {
                             .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
                     }
                     .buttonStyle(.plain)
-                    .help(option.nameDE)
+                    .help(tr(option.nameEN, option.nameDE))
                 }
             }
         }

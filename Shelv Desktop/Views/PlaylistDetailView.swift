@@ -19,7 +19,6 @@ struct PlaylistDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
 
-                // MARK: Header
                 HStack(alignment: .top, spacing: 24) {
                     CoverArtView(
                         url: playlist.coverArt.flatMap { SubsonicAPIService.shared.coverArtURL(id: $0, size: 320) },
@@ -62,6 +61,7 @@ struct PlaylistDetailView: View {
                                     .frame(minWidth: 110)
                             }
                             .buttonStyle(.borderedProminent)
+                            .tint(themeColor)
                             .controlSize(.large)
                             .disabled(isLoading || songs.isEmpty)
 
@@ -85,7 +85,6 @@ struct PlaylistDetailView: View {
                     .padding(.horizontal, 28)
                     .padding(.bottom, 8)
 
-                // MARK: Track List
                 if isLoading {
                     ProgressView(tr("Loading tracks…", "Titel laden…"))
                         .frame(maxWidth: .infinity)
@@ -119,9 +118,10 @@ struct PlaylistDetailView: View {
                             } onAddToPlaylist: {
                                 NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
                             } onRemoveFromPlaylist: {
+                                let songId = song.id
                                 Task {
                                     await libraryStore.removeSongsFromPlaylist(playlist, indices: [index])
-                                    songs.remove(at: index)
+                                    songs.removeAll { $0.id == songId }
                                 }
                             }
                         }
@@ -194,8 +194,6 @@ struct PlaylistDetailView: View {
     }
 }
 
-// MARK: - Playlist Track Row
-
 struct PlaylistTrackRow: View {
     let song: Song
     let index: Int
@@ -265,6 +263,8 @@ struct PlaylistTrackRow: View {
         .onHover { isHovered = $0 }
         .gesture(TapGesture(count: 2).onEnded { onPlay() })
         .contextMenu {
+            Button(tr("Play", "Abspielen")) { onPlay() }
+            Divider()
             Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
             Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) { onAddToQueue() }
             Divider()

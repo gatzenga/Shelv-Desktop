@@ -11,7 +11,6 @@ struct SearchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Search bar
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
@@ -51,7 +50,6 @@ struct SearchView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 28) {
-                        // Artists
                         if !vm.artists.isEmpty {
                             SearchSection(title: tr("Artists", "Künstler")) {
                                 ForEach(vm.artists) { artist in
@@ -63,7 +61,6 @@ struct SearchView: View {
                                 }
                             }
                         }
-                        // Albums
                         if !vm.albums.isEmpty {
                             SearchSection(title: tr("Albums", "Alben")) {
                                 ForEach(vm.albums) { album in
@@ -76,7 +73,6 @@ struct SearchView: View {
                                 }
                             }
                         }
-                        // Songs
                         if !vm.songs.isEmpty {
                             SearchSection(title: tr("Tracks", "Titel")) {
                                 ForEach(vm.songs) { song in
@@ -90,8 +86,10 @@ struct SearchView: View {
                                         appState.player.play(songs: vm.songs, startIndex: idx)
                                     } onPlayNext: {
                                         appState.player.addPlayNext(song)
+                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
                                     } onAddToQueue: {
                                         appState.player.addToUserQueue(song)
+                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
                                     } onFavorite: {
                                         Task { await libraryStore.toggleStarSong(song) }
                                     } onAddToPlaylist: {
@@ -110,12 +108,12 @@ struct SearchView: View {
         .onChange(of: vm.query) { _, newValue in
             if newValue.count >= 2 {
                 Task { await vm.search() }
+            } else {
+                vm.clearResults()
             }
         }
     }
 }
-
-// MARK: - Search Section
 
 struct SearchSection<Content: View>: View {
     let title: String
@@ -130,14 +128,12 @@ struct SearchSection<Content: View>: View {
     }
 }
 
-// MARK: - Result Rows
-
 struct SearchArtistRow: View {
     let artist: Artist
 
     var body: some View {
         HStack(spacing: 12) {
-            CoverArtView(url: SubsonicAPIService.shared.coverArtURL(id: artist.coverArt ?? "", size: 50), size: 44, cornerRadius: 22)
+            CoverArtView(url: artist.coverArt.flatMap { SubsonicAPIService.shared.coverArtURL(id: $0, size: 50) }, size: 44, cornerRadius: 22)
             VStack(alignment: .leading) {
                 Text(artist.name).font(.callout.bold())
                 if let count = artist.albumCount {
@@ -157,7 +153,7 @@ struct SearchAlbumRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            CoverArtView(url: SubsonicAPIService.shared.coverArtURL(id: album.coverArt ?? "", size: 50), size: 44, cornerRadius: 6)
+            CoverArtView(url: album.coverArt.flatMap { SubsonicAPIService.shared.coverArtURL(id: $0, size: 50) }, size: 44, cornerRadius: 6)
             VStack(alignment: .leading) {
                 Text(album.name).font(.callout.bold())
                 if let artist = album.artist { Text(artist).font(.caption).foregroundStyle(.secondary) }
@@ -186,7 +182,7 @@ struct SearchSongRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            CoverArtView(url: SubsonicAPIService.shared.coverArtURL(id: song.coverArt ?? "", size: 50), size: 44, cornerRadius: 6)
+            CoverArtView(url: song.coverArt.flatMap { SubsonicAPIService.shared.coverArtURL(id: $0, size: 50) }, size: 44, cornerRadius: 6)
             VStack(alignment: .leading) {
                 Text(song.title).font(.callout.bold())
                 if let artist = song.artist { Text(artist).font(.caption).foregroundStyle(.secondary) }
@@ -230,8 +226,6 @@ struct SearchSongRow: View {
     }
 }
 
-// MARK: - ViewModel
-
 @MainActor
 class SearchViewModel: ObservableObject {
     @Published var query: String = ""
@@ -256,7 +250,10 @@ class SearchViewModel: ObservableObject {
                 artists = result.artist ?? []
                 albums = result.album ?? []
                 songs = result.song ?? []
-            } catch { }
+            } catch {
+                guard !Task.isCancelled else { return }
+                NotificationCenter.default.post(name: .showToast, object: tr("Search failed", "Suche fehlgeschlagen"))
+            }
             isLoading = false
         }
         await searchTask?.value

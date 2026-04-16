@@ -1,7 +1,5 @@
 import Foundation
 
-// MARK: - Server Configuration
-
 struct ServerConfig: Codable, Equatable {
     var serverURL: String
     var username: String
@@ -11,8 +9,6 @@ struct ServerConfig: Codable, Equatable {
         !serverURL.isEmpty && !username.isEmpty && !password.isEmpty
     }
 }
-
-// MARK: - Subsonic Server (multi-server)
 
 struct SubsonicServer: Identifiable, Codable {
     let id: UUID
@@ -32,8 +28,6 @@ struct SubsonicServer: Identifiable, Codable {
     }
 }
 
-// MARK: - Subsonic API Response Wrapper
-
 struct SubsonicResponse: Codable {
     let subsonicResponse: SubsonicResponseBody
 
@@ -45,23 +39,21 @@ struct SubsonicResponse: Codable {
 struct SubsonicResponseBody: Codable {
     let status: String
     let version: String
-    let serverVersion: String?  // Navidrome-specific
-    let type: String?           // Navidrome-specific
+    let serverVersion: String?
+    let type: String?
     let error: SubsonicError?
     let artists: ArtistsResult?
     let artist: ArtistDetail?
     let albumList2: AlbumListResult?
     let album: AlbumDetail?
     let randomSongs: RandomSongsResult?
-    let topSongs: RandomSongsResult?   // returned by getTopSongs endpoint
+    let topSongs: RandomSongsResult?
     let searchResult3: SearchResult3?
     let starred2: Starred2Result?
     let scanStatus: ScanStatusBody?
     let playlists: PlaylistsResult?
     let playlist: PlaylistDetail?
 }
-
-// MARK: - Scan Status
 
 struct ScanStatusBody: Codable {
     let scanning: Bool
@@ -73,14 +65,11 @@ struct SubsonicError: Codable {
     let message: String
 }
 
-// MARK: - Artists
-
 struct ArtistsResult: Codable {
     let index: [ArtistIndex]
 }
 
 struct ArtistIndex: Codable, Identifiable {
-    // Navidrome's API does not include `id` on the letter-group level.
     // We use `name` (the letter, e.g. "A") as the stable identifier.
     var id: String { name }
     let name: String
@@ -101,8 +90,6 @@ struct Artist: Codable, Identifiable, Hashable {
     var isStarred: Bool { starred != nil }
 }
 
-// MARK: - Artist Detail (with Albums)
-
 struct ArtistDetail: Codable, Identifiable {
     let id: String
     let name: String
@@ -110,8 +97,6 @@ struct ArtistDetail: Codable, Identifiable {
     let coverArt: String?
     let album: [Album]
 }
-
-// MARK: - Albums
 
 struct AlbumListResult: Codable {
     let album: [Album]
@@ -138,8 +123,6 @@ struct Album: Codable, Identifiable, Hashable {
     }
 }
 
-// MARK: - Album Detail (with Songs)
-
 struct AlbumDetail: Codable, Identifiable {
     let id: String
     let name: String
@@ -156,8 +139,6 @@ struct AlbumDetail: Codable, Identifiable {
     var isStarred: Bool { starred != nil }
 }
 
-// MARK: - Songs / Tracks
-
 struct Song: Codable, Identifiable, Hashable {
     let id: String
     let title: String
@@ -171,7 +152,7 @@ struct Song: Codable, Identifiable, Hashable {
     let discNumber: Int?
     let year: Int?
     let genre: String?
-    var starred: String?   // mutable so AudioPlayerService can update star state in-place
+    var starred: String?
     let playCount: Int?
     let bitRate: Int?
     let contentType: String?
@@ -196,23 +177,17 @@ struct RandomSongsResult: Codable {
     let song: [Song]
 }
 
-// MARK: - Search
-
 struct SearchResult3: Codable {
     let artist: [Artist]?
     let album: [Album]?
     let song: [Song]?
 }
 
-// MARK: - Starred
-
 struct Starred2Result: Codable {
     let artist: [Artist]?
     let album: [Album]?
     let song: [Song]?
 }
-
-// MARK: - Playlists
 
 struct Playlist: Codable, Identifiable, Hashable {
     let id: String
@@ -242,16 +217,24 @@ struct PlaylistsResult: Codable {
     let playlist: [Playlist]
 }
 
-// MARK: - Sidebar Navigation
-
 enum SidebarItem: String, CaseIterable, Identifiable {
-    case discover = "Entdecken"
-    case albums = "Alben"
-    case artists = "Künstler"
-    case favorites = "Favoriten"
-    case search = "Suche"
+    case discover = "discover"
+    case albums = "albums"
+    case artists = "artists"
+    case favorites = "favorites"
+    case search = "search"
 
     var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .discover: return tr("Discover", "Entdecken")
+        case .albums:   return tr("Albums", "Alben")
+        case .artists:  return tr("Artists", "Künstler")
+        case .favorites: return tr("Favorites", "Favoriten")
+        case .search:   return tr("Search", "Suche")
+        }
+    }
 
     var icon: String {
         switch self {
@@ -263,8 +246,6 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         }
     }
 }
-
-// MARK: - Sort Options
 
 enum LibrarySortOption: String, CaseIterable {
     case name = "name"
@@ -282,14 +263,15 @@ enum LibrarySortOption: String, CaseIterable {
     }
 }
 
-// MARK: - Queue
-
 struct QueueItem: Identifiable, Equatable {
     let id: String
-    var song: Song   // var so star state can be updated in the queue
-}
+    var song: Song
 
-// MARK: - Repeat Mode
+    init(song: Song) {
+        self.id = UUID().uuidString
+        self.song = song
+    }
+}
 
 enum RepeatMode: CaseIterable {
     case off, all, one

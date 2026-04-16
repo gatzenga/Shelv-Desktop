@@ -20,8 +20,6 @@ struct SettingsView: View {
     }
 }
 
-// MARK: - Server Tab
-
 struct ServerTab: View {
     @EnvironmentObject var appState: AppState
     @State private var showAddServer = false
@@ -130,8 +128,6 @@ struct ServerRow: View {
     }
 }
 
-// MARK: - Add Server Sheet
-
 struct AddServerSheet: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
@@ -213,8 +209,6 @@ struct AddServerSheet: View {
     }
 }
 
-// MARK: - Edit Server Sheet
-
 struct EditServerSheet: View {
     let server: SubsonicServer
     @EnvironmentObject var appState: AppState
@@ -238,19 +232,19 @@ struct EditServerSheet: View {
                 .font(.title2.bold())
 
             VStack(alignment: .leading, spacing: 10) {
-                editFieldLabel(tr("Server Name", "Servername"))
+                formFieldLabel(tr("Server Name", "Servername"))
                 TextField(tr("My Navidrome", "Mein Navidrome"), text: $name)
                     .textFieldStyle(.roundedBorder).autocorrectionDisabled()
 
-                editFieldLabel("URL")
+                formFieldLabel("URL")
                 TextField("https://music.example.com", text: $url)
                     .textFieldStyle(.roundedBorder).autocorrectionDisabled()
 
-                editFieldLabel(tr("Username", "Benutzername"))
+                formFieldLabel(tr("Username", "Benutzername"))
                 TextField(tr("Username", "Benutzername"), text: $username)
                     .textFieldStyle(.roundedBorder).autocorrectionDisabled()
 
-                editFieldLabel(tr("Password", "Passwort"))
+                formFieldLabel(tr("Password", "Passwort"))
                 SecureField(tr("Leave blank to keep current", "Leer lassen zum Beibehalten"), text: $password)
                     .textFieldStyle(.roundedBorder)
             }
@@ -279,14 +273,7 @@ struct EditServerSheet: View {
         .frame(width: 420)
     }
 
-    private func editFieldLabel(_ text: String) -> some View {
-        Text(text)
-            .font(.callout.weight(.medium))
-            .foregroundStyle(.secondary)
-    }
 }
-
-// MARK: - Appearance Tab
 
 enum AppColorScheme: String, CaseIterable {
     case system = "System"
@@ -337,8 +324,6 @@ struct AppearanceTab: View {
     }
 }
 
-// MARK: - Cache Tab
-
 struct CacheTab: View {
     @State private var cacheSize = "–"
     @State private var showClearConfirm = false
@@ -382,8 +367,6 @@ struct CacheTab: View {
             : "0 KB"
     }
 }
-
-// MARK: - About Tab
 
 struct AboutTab: View {
     @Environment(\.themeColor) private var themeColor

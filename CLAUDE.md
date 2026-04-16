@@ -1,12 +1,8 @@
 # CLAUDE.md – Shelv Desktop
 
-## Projekt-Überblick
-
-Nativer macOS Navidrome/Subsonic Client (SwiftUI). Vollständig unabhängig von Shelv iOS.
-
 ## Build
 
-Öffne `Shelv Desktop.xcodeproj` in Xcode und führe es auf einem Mac-Target aus. Kein SPM, keine externen Abhängigkeiten. Neue Swift-Dateien einfach im Filesystem anlegen — `PBXFileSystemSynchronizedRootGroup` übernimmt sie automatisch ins Projekt.
+Öffne `Shelv Desktop.xcodeproj` in Xcode, Mac-Target. Kein SPM. Neue Swift-Dateien einfach anlegen — `PBXFileSystemSynchronizedRootGroup` übernimmt sie automatisch.
 
 ---
 
@@ -14,196 +10,114 @@ Nativer macOS Navidrome/Subsonic Client (SwiftUI). Vollständig unabhängig von 
 
 ```
 Shelv_DesktopApp  (@main)
-  ├── AppState.shared          (ObservableObject @EnvironmentObject)
-  │     ├── isLoggedIn, selectedSidebar: SidebarItem?, errorMessage
-  │     ├── navigationPath: NavigationPath   ← global, ermöglicht Navigation aus PlayerBar
-  │     ├── serverStore: ServerStore  — Multi-Server-Liste, Keychain, activate/add/delete
-  │     ├── SubsonicAPIService.shared  — API-Calls, MD5+Salt-Auth (CryptoKit)
-  │     └── AudioPlayerService.shared  — AVPlayer, 3-Queue-System, MPRemoteCommandCenter
-  ├── WindowGroup → ContentView
-  │     ├── LoginView          (wenn !isLoggedIn — erster Server wird hinzugefügt)
-  │     └── MainWindowView     (NavigationSplitView + PlayerBarView + ToastOverlay)
-  │           ├── SidebarView  (custom VStack, kein List — wegen Theme-Farbe)
-  │           ├── NavigationStack(path: $appState.navigationPath)
-  │           │     ├── .navigationDestination(for: Album.self)
-  │           │     └── .navigationDestination(for: Artist.self)
-  │           └── PlayerBarView (Footer: AirPlay + Volume + Queue)
-  └── Settings Scene → SettingsView (Multi-Server-Tab)
-  └── Window("Server Management") → ServerManagementView
+  ├── AppState.shared          (ObservableObject, @EnvironmentObject)
+  │     ├── isLoggedIn, selectedSidebar: SidebarItem?, selectedPlaylist: Playlist?
+  │     ├── navigationPath: NavigationPath   ← einziger globaler Pfad
+  │     ├── serverStore: ServerStore
+  │     └── player: AudioPlayerService.shared
+  └── WindowGroup → ContentView
+        ├── LoginView          (wenn !isLoggedIn)
+        └── MainWindowView     (NavigationSplitView + PlayerBarView + ToastOverlay)
+              ├── LibraryViewModel  @StateObject hier gehalten, via .environmentObject weitergegeben
+              ├── SidebarView       (custom VStack — kein List wegen macOS .tint()-Bug)
+              └── NavigationStack(path: $appState.navigationPath)
+                    ├── .navigationDestination(for: Album.self)  → AlbumDetailView
+                    └── .navigationDestination(for: Artist.self) → ArtistDetailView
+```
+
+Settings Scene + Window("Server Management") separat in `Shelv_DesktopApp.swift`.
+
+---
+
+## Navigation — KRITISCH
+
+`selectedSidebar` und `selectedPlaylist` müssen immer zusammen gesetzt werden. `MainWindowView.sectionRoot` zeigt entweder die Playlist-Detail-View (wenn `selectedPlaylist != nil`) **oder** den Sidebar-Switch — nie beides.
+
+```swift
+// Sidebar-Klick: immer dieses Pattern
+appState.selectedPlaylist = nil        // ← zuerst!
+appState.selectedSidebar = .albums
+appState.navigationPath = NavigationPath()
+
+// Playlist-Klick: immer dieses Pattern
+appState.selectedSidebar = nil
+appState.selectedPlaylist = playlist
+appState.navigationPath = NavigationPath()
+
+// Programmatisch zu Künstler/Album navigieren (z. B. aus PlayerBar):
+appState.selectedPlaylist = nil
+appState.selectedSidebar = .artists
+appState.navigationPath = NavigationPath()
+appState.navigationPath.append(Artist(...))   // alle 4 Zeilen synchron — kein Task nötig
+```
+
+- `navigationDestination(for:)` muss `.environmentObject(libraryStore)` explizit erhalten — wird nicht automatisch vererbt
+- `Album` und `Artist` sind `Hashable` für NavigationPath
+
+---
+
+## Theme / Appearance
+
+```swift
+// Akzentfarbe — immer @Environment, nie Color.accentColor
+@Environment(\.themeColor) private var themeColor
+
+// Appearance (Light/Dark/System) — enum in SettingsView.swift
+enum AppColorScheme: String, CaseIterable { case system, light, dark }
+@AppStorage("appColorScheme") private var storedColorScheme: AppColorScheme = .system
+// Gesetzt via NSApp.appearance = storedColorScheme.nsAppearance in ContentView
 ```
 
 ---
 
-## Schlüsseldateien
+## Queue-Logik (AudioPlayerService, @MainActor)
 
-| Datei | Zweck |
-|-------|-------|
-| `Shelv_DesktopApp.swift` | Entry Point, Commands (Menüleiste), Settings Scene, ServerManagement Window, Keyboard Shortcuts |
-| `ContentView.swift` | Login-Gate, MainWindowView, Theme-Color-Sync |
-| `Models/SubsonicModels.swift` | Alle Codable-Modelle (Song, Album, Artist, AlbumDetail, QueueItem, SidebarItem, RepeatMode, LibrarySortOption, …) |
-| `Services/SubsonicAPIService.swift` | API + MD5+Salt-Auth + Stream/CoverArt URLs + Scrobbling + Scan |
-| `Services/AudioPlayerService.swift` | AVPlayer + 3-Queue-System + State-Persistenz + Remote Controls (@MainActor) |
-| `Services/KeychainService.swift` | Passwörter pro Server-UUID im Keychain |
-| `ViewModels/AppState.swift` | Multi-Server-Login/Logout, ServerStore, selectedSidebar, navigationPath |
-| `ViewModels/ServerStore.swift` | CRUD für Server-Liste, Keychain, Migration von Legacy-Config, activate() |
-| `ViewModels/LibraryViewModel.swift` | Albums (paginiert, 500/Seite), Artists, Sortierung, Favoriten, Playlists |
-| `ViewModels/DiscoverViewModel.swift` | 4 Album-Shelves (newest/recent/frequent/random) + Smart Mixes |
-| `Views/PlayerBarView.swift` | Footer-Player + AirPlay-Button + QueuePopover + Seekbar + Volume |
-| `Views/SidebarView.swift` | Custom VStack-Sidebar (kein List) |
-| `Views/DiscoverView.swift` | Smart Mix Buttons + 4 Album-Scroll-Sektionen |
-| `Views/AlbumsView.swift` | Grid + Suchfilter + Sortieroptionen |
-| `Views/ArtistsView.swift` | Künstler-Grid mit Albumanzahl |
-| `Views/SearchView.swift` | Echtzeit-Suche (SearchViewModel inline), Artists/Albums/Songs |
-| `Views/AlbumDetailView.swift` | Album-Header + Tracklist mit Kontext-Menü |
-| `Views/ArtistDetailView.swift` | Künstler-Header + Play/Shuffle/Heart-Buttons + Albumgrid nach Jahr sortiert |
-| `Views/FavoritesView.swift` | Favoritenliste: Künstler-Grid, Alben-Grid, Titellist (conditional via `enableFavorites`) |
-| `Views/PlaylistDetailView.swift` | Playlist-Header + Tracklist, Rename/Delete-Toolbar |
-| `Views/AddToPlaylistPanel.swift` | Sheet zum Hinzufügen von Songs zu bestehender oder neuer Playlist (380×440) |
-| `Views/SettingsView.swift` | Multi-Server-Liste (hinzufügen/bearbeiten/löschen/wechseln), Appearance, Cache |
-| `Views/ServerManagementView.swift` | Server-Version/API, Bibliothekszähler, Last Sync, Full Scan mit Polling |
-| `Views/LoginView.swift` | Ersten Server hinzufügen (wird angezeigt wenn keine Server vorhanden) |
-| `Helpers/ImageCache.swift` | Actor-basierter Image-Cache (NSCache + Disk) + `CoverArtView` |
-| `Helpers/AlbumContextMenu.swift` | `.albumContextMenu()` ViewModifier — Play, Shuffle, Play Next, Add to Queue, Favorit, Add to Playlist |
-| `Helpers/ArtistContextMenu.swift` | `.artistContextMenu()` ViewModifier — gleiche Aktionen für Künstler, lädt Songs aller Alben parallel via `withThrowingTaskGroup` |
-| `Helpers/AppTheme.swift` | 10 Themes, EnvironmentKey `\.themeColor`, `Color(hex:)` |
-| `Helpers/FileManager+Extensions.swift` | `directorySize(at:)` für Cache-Größenanzeige |
-
----
-
-## Modelle (SubsonicModels.swift)
-
-Alle Datenstrukturen in einer Datei:
-- `ServerConfig` — URL, Username, Password (Codable, UserDefaults)
-- `Song`, `Album`, `AlbumDetail`, `Artist`, `ArtistDetail` — Codable Entities
-- `QueueItem` — Wrapper für Songs in der `queue`-Liste (Desktop nutzt `[QueueItem]`, nicht `[Song]`)
-- `Playlist` — `id`, `name`, `comment`, `songCount`, `duration`, `coverArt` (Codable, Identifiable, Hashable)
-- `PlaylistDetail` — enthält `songs` (CodingKey `"entry"`) als `[Song]`
-- `PlaylistsResult` — `playlist: [Playlist]` (CodingKey für API-Response)
-- `SidebarItem` enum — `discover`, `albums`, `artists`, `favorites`, `search` (`.favorites` mit `icon: "heart"`)
-- `LibrarySortOption` enum — Sortieroptionen für Alben/Künstler
-- `RepeatMode` enum — `off`, `all`, `one` (mit `.toggled` und `.systemImage`)
-
----
-
-## Warteschlangen-Logik (AudioPlayerService, @MainActor)
-
-Drei getrennte Arrays — niemals mischen:
-
-| Array | Typ | Bedeutung |
+| Array | Typ | Priorität |
 |-------|-----|-----------|
-| `playNextQueue` | `[Song]` | "Als nächstes" — höchste Priorität |
-| `queue` | `[QueueItem]` | Aktuelles Album / Kontext (currentIndex zeigt aktuellen Track) |
-| `userQueue` | `[Song]` | Nutzer-Backlog (unbegrenzt) |
+| `playNextQueue` | `[Song]` | Höchste |
+| `queue` | `[QueueItem]` | Normal (currentIndex = aktueller Track) |
+| `userQueue` | `[Song]` | Niedrigste |
 
-Abspielreihenfolge: `playNextQueue` → `queue[currentIndex+1...]` → `userQueue` (einer nach dem anderen, nicht als Block).
+Abspielreihenfolge: `playNextQueue[0]` → `queue[currentIndex+1...]` → `userQueue[0]`.
 
-**Jump-Methoden** (springen zum Track):
-- `jumpToPlayNextTrack(at:)` — entfernt Einträge vor Index aus playNextQueue, startet ihn
-- `jumpToAlbumTrack(at:)` — löscht playNextQueue, setzt currentIndex, startet Track
-- `jumpToUserQueueTrack(at:)` — löscht playNextQueue + verbleibende Album-Tracks + userQueue bis Index, startet ihn
+Desktop nutzt `[QueueItem]` für `queue` (nicht `[Song]` wie iOS) — nie mischen.
 
-**Scrobbling**: automatisch wenn 50% oder 4 Minuten gespielt — keine manuelle Implementierung nötig.
+**Jump-Methoden:**
+- `jumpToPlayNextTrack(at:)` — entfernt Einträge vor Index, startet ihn
+- `jumpToAlbumTrack(at:)` — setzt currentIndex, startet Track
+- `jumpToUserQueueTrack(at:)` — verschiebt in queue, startet ihn
 
-**State-Persistenz**: `saveState()` / `restoreState()` via UserDefaults + JSONEncoder. `playCurrent()` ruft `saveState()` bereits auf — **nicht nochmal danach aufrufen**. `resume()` nach Neustart nutzt `resumeTime`-Pattern in `loadURL()`.
+**Shuffle:** `playShuffled()` mischt alle Songs, Snapshot bewahrt Original-Reihenfolge. Beim Deaktivieren wird Snapshot wiederhergestellt — kein Titelverlust.
 
-**Seeking**: `AVURLAsset` mit Range-Header, `automaticallyWaitsToMinimizeStalling = false`, `seek()` setzt `currentTime` sofort (optimistisch) um Slider-Bounce zu verhindern.
+**Scrobbling:** Automatisch bei 50 % oder 4 Minuten — keine manuelle Implementierung.
 
----
+**State:** `saveState()` wird intern von `playCurrent()`, Jump- und Queue-Methoden aufgerufen — **nicht nochmal manuell aufrufen**.
 
-## Navigation
+**UserDefaults-Keys:** `shelv_mac_queue`, `shelv_mac_currentIndex`, `shelv_mac_playNextQueue`, `shelv_mac_userQueue`, `shelv_mac_currentTime`, `shelv_mac_isShuffled`, `shelv_mac_repeatMode`
 
-- `appState.navigationPath: NavigationPath` ist der **einzige** NavigationPath — in `AppState`, nicht lokal in Views
-- Sidebar-Wechsel setzt `navigationPath = NavigationPath()` zurück
-- Value-based `NavigationLink(value:)` + `.navigationDestination(for:)` — kein view-destination-Link
-- `Album` und `Artist` sind `Hashable` für den NavigationPath
-- Aus `PlayerBarView` heraus navigieren: `appState.navigationPath.append(Album(...))` bzw. `Artist(...)`
-
----
-
-## Theme / Farbe
-
-- Custom `EnvironmentKey` `\.themeColor` — immer `@Environment(\.themeColor)` verwenden, **nie** `Color.accentColor` oder `AppTheme.color(for:)` direkt
-- Gesetzt in `ContentView` via `.environment(\.themeColor, AppTheme.color(for: themeColorName))`
-- `AppStorage("themeColor")` speichert den Farbnamen (String), Standard `"violet"`
-- 10 Themes in `AppTheme.swift` (violet, blue, green, lightPink, lime, pink, pumpkin, red, teal, yellow)
-
----
-
-## Cover Art
-
-- Immer `CoverArtView` aus `Helpers/ImageCache.swift` verwenden — nie `AsyncImage`
-- `ImageCache` ist ein Actor: NSCache (300 Items, 100 MB) + Disk-Cache in `~/Library/Caches/shelv_covers/`
-- Deduplication via inflight task tracking, keine parallelen Requests für gleiche URL
-- **Nie** `coverArtURL` mit leerem String aufrufen: `song.coverArt.flatMap { coverArtURL(id: $0, size:) }` — sonst unnötiger Netzwerkrequest
+**App-State-Keys:** `shelv_mac_servers`, `shelv_mac_active_server`, `themeColor`, `appColorScheme`, `enableFavorites`, `enablePlaylists`
 
 ---
 
 ## Wichtige Konventionen
 
-- **Kein TabView, kein NavigationView alt** — ausschliesslich `NavigationSplitView`
-- **Kein `List` für Sidebar** — macOS `List(selection:)` ignoriert `.tint()`, immer custom VStack mit manuellem Selection-Tracking
-- **Menüleiste** via `.commands {}` in der App-Struct, nicht programmatisch
-- **SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor** — alle ObservableObject-Klassen sind implizit @MainActor
-- **Swift 6 Concurrency in Closures**: `[weak self]` → `guard let self` vor dem Task, dann `Task { @MainActor [self] in }` mit explizitem Capture
-- **Auth**: MD5(`password` + `salt`) via `CryptoKit.Insecure.MD5`
-- **AlbumContextMenu**: ViewModifier `.albumContextMenu(album:)` aus `Helpers/AlbumContextMenu.swift` — für einheitliche Context Menus auf allen Albumkarten verwenden
-- **ArtistContextMenu**: ViewModifier `.artistContextMenu(artist:)` aus `Helpers/ArtistContextMenu.swift` — lädt Songs aller Alben parallel via `withThrowingTaskGroup`
-- **LibraryViewModel**: Album-Pagination 500 Items/Seite; Sortierung: alphabetisch, mostPlayed, recentlyAdded, year; **wird als `@EnvironmentObject` von `MainWindowView` gehalten und weitergegeben** — nie als `@StateObject` in Unterviews anlegen
-- **DiscoverViewModel**: 4 Shelves (newest/recent/frequent/random) + 3 Smart Mix Typen
-- **Lokalisierung**: `tr(_ en: String, _ de: String)` — nie hartcodierte Strings in Views
-- **Playlist-Integration über Notification**: Songs zu Playlist hinzufügen via `NotificationCenter.default.post(name: .addSongsToPlaylist, object: [songId])` — `MainWindowView` fängt es auf und zeigt `AddToPlaylistPanel`
-- **Toast-Feedback über Notification**: Kurze Rückmeldungen (z. B. "Als nächstes hinzugefügt") via `NotificationCenter.default.post(name: .showToast, object: "Text")` auslösen — `MainWindowView` zeigt 2-Sekunden-Toast-Overlay am oberen Rand
-- **AirPlay-Button**: `AVRoutePickerViewRepresentable` (NSViewRepresentable, am Ende von `PlayerBarView.swift`) — in PlayerBar-Right-Section eingebunden
-- **Multi-Server**: `appState.serverStore: ServerStore` verwaltet `[SubsonicServer]` + Keychain-Passwörter. Für neuen Server: `appState.addServer(name:serverURL:username:password:)`. Für Wechsel: `appState.switchServer(_:)`. Legacy-Migration von `serverConfig`-Key wird automatisch in `ServerStore.init()` durchgeführt
-- **Menü-Erweiterung**: Neue Menüpunkte in bestehendes "View"-Menü via `CommandGroup(after: .sidebar)` — **kein** `CommandMenu("Ansicht")` (erzeugt Duplikat)
-- **Tab-Leiste entfernen**: `NSWindow.allowsAutomaticWindowTabbing = false` in `App.init()` — verhindert "Show Tab Bar"/"Show All Tabs"-Einträge
-- **withThrowingTaskGroup Rückgabetyp**: Bei Typ-Inferenzproblemen immer explizit annotieren: `{ group -> [Song] in ... }` (Swift-Compiler kann sonst `[Any]` inferieren)
-- **ArtistDetail vs. Artist**: API liefert zwei getrennte Typen; für `toggleStarArtist()` aus `ArtistDetail` ein `Artist`-Objekt konstruieren: `Artist(id: detail.id, name: detail.name, albumCount: detail.albumCount, coverArt: detail.coverArt, starred: ...)`
-- **navigationDestination + EnvironmentObject**: Bei `navigationDestination(for:)` immer `.environmentObject(libraryStore)` explizit anhängen — wird nicht automatisch vererbt
-- **playShuffled**: Mischt alle Songs, startet bei Index 0 der gemischten Liste; Snapshot speichert die gemischte Reihenfolge — beim Deaktivieren von Shuffle bleibt diese zufällige Reihenfolge erhalten, kein Titelverlust
-
----
-
-## UserDefaults-Keys
-
-### Player-State
-| Key | Inhalt |
-|-----|--------|
-| `shelv_mac_queue` | `[QueueItem]` JSON |
-| `shelv_mac_currentIndex` | Int |
-| `shelv_mac_playNextQueue` | `[Song]` JSON |
-| `shelv_mac_userQueue` | `[Song]` JSON |
-| `shelv_mac_currentTime` | Double (Sekunden) |
-
-### App-State
-| Key | Inhalt |
-|-----|--------|
-| `shelv_mac_servers` | `[SubsonicServer]` JSON (migriert automatisch von `serverConfig`) |
-| `shelv_mac_active_server` | UUID-String des aktiven Servers |
-| `themeColor` | String (Farbname) |
-| `enableFavorites` | Bool — Favoriten-Feature aktiv (Sidebar-Eintrag, Herz-Buttons, Context Menus) |
-| `enablePlaylists` | Bool — Playlists-Feature aktiv (Sidebar-Sektion, Context Menus) |
-
----
-
-## Was vermieden werden soll
-
-- Kein `AsyncImage` — immer `CoverArtView` mit `ImageCache` verwenden
-- Keine feste Farbe — immer `@Environment(\.themeColor)`, nie `Color.accentColor`
-- Kein `List` für Sidebar — macOS ignoriert `.tint()` auf `List(selection:)`, immer custom VStack
-- Kein `TabView`, kein altes `NavigationView` — ausschliesslich `NavigationSplitView`
-- `coverArtURL` nie mit leerem String aufrufen — immer `song.coverArt.flatMap { coverArtURL(id: $0, size:) }`
-- `saveState()` nicht manuell nach Jump-/Add-Methoden aufrufen — bereits intern
-- Lokalen `navigationPath` in Views anlegen — immer `appState.navigationPath` verwenden
-- Keine hardcodierten Strings in Views — immer `tr("EN", "DE")` verwenden
-- `LibraryViewModel` nicht als `@StateObject` in Unterviews erstellen — immer als `@EnvironmentObject` von `MainWindowView` beziehen
-- `CommandMenu("Ansicht")` nicht verwenden — erzeugt Duplikat-Menü; stattdessen `CommandGroup(after: .sidebar)`
-- Referenzprojekte nicht verändern — nur lesen
+- **`@ObservedObject private var player = AudioPlayerService.shared`** in Views — nicht `@EnvironmentObject`, weil `AppState.objectWillChange` bei Player-Updates nicht feuert
+- **Cover Art:** Nur `CoverArtView` aus `Helpers/ImageCache.swift` — nie `AsyncImage`. `coverArtURL` nie mit leerem String: `song.coverArt.flatMap { coverArtURL(id: $0, size:) }`
+- **Lokalisierung:** Immer `tr("EN", "DE")` — nie hardcodierte Strings
+- **LibraryViewModel:** `@StateObject` in `MainWindowView`, `@EnvironmentObject` in allen Unterviews. `AlbumDetailView` und `ArtistDetailView` haben eigene inline ViewModels (`AlbumDetailViewModel`, `ArtistDetailViewModel`) als `@StateObject`
+- **Context Menus:** `.albumContextMenu(album:)` und `.artistContextMenu(artist:)` ViewModifier aus Helpers verwenden
+- **ArtistContextMenu** nutzt `withThrowingTaskGroup(of: [Song].self) { group -> [Song] in ... }` — Rückgabetyp explizit annotieren, sonst inferiert Swift `[Any]`
+- **ArtistDetail → Artist:** Für `toggleStarArtist()` aus `ArtistDetail` konstruieren: `Artist(id: detail.id, name: detail.name, albumCount: detail.albumCount, coverArt: detail.coverArt, starred: ...)`
+- **Playlist via Notification:** `NotificationCenter.default.post(name: .addSongsToPlaylist, object: [songId])` — `MainWindowView` zeigt `AddToPlaylistPanel`
+- **Toast via Notification:** `NotificationCenter.default.post(name: .showToast, object: "Text")` — 2-Sekunden-Overlay
+- **Neue Menüpunkte:** `CommandGroup(after: .sidebar)` — nie `CommandMenu("Ansicht")` (Duplikat)
+- **Multi-Server:** `appState.addServer(...)` / `appState.switchServer(_:)`. Legacy-Migration von `serverConfig` läuft automatisch in `ServerStore.init()`
+- **Seeking:** `automaticallyWaitsToMinimizeStalling = false`, `seek()` setzt `currentTime` optimistisch für Slider-Bounce-Prävention
 
 ---
 
 ## Referenzprojekte (nur lesen, nicht verändern)
 
-- `/Users/vasco/Repositorys/AzuraPlayer` — iOS Radio App (MVVM, AVPlayer Pattern)
-- `/Users/vasco/Repositorys/AzuraPlayer Mac` — macOS Version (NSApp, AppKit Patterns)
-- `/Users/vasco/Repositorys/Shelv` — iOS Shelv (gleiche Subsonic API, gleiches 3-Queue-Konzept)
+- `/Users/vasco/Repositorys/AzuraPlayer` — iOS Radio App
+- `/Users/vasco/Repositorys/AzuraPlayer Mac` — macOS Version
+- `/Users/vasco/Repositorys/Shelv` — iOS Shelv (gleiche API, gleiches Queue-Konzept)

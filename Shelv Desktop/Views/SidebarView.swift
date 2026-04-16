@@ -14,7 +14,6 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            // Main navigation items
             SidebarRow(item: .discover, isSelected: selection == .discover && selectedPlaylist == nil, themeColor: themeColor) {
                 selection = .discover
                 selectedPlaylist = nil
@@ -43,7 +42,6 @@ struct SidebarView: View {
                 appState.navigationPath = NavigationPath()
             }
 
-            // Playlists section
             if enablePlaylists {
                 Divider()
                     .padding(.vertical, 8)
@@ -125,8 +123,6 @@ struct SidebarView: View {
     }
 }
 
-// MARK: - Sidebar Row
-
 struct SidebarRow: View {
     let item: SidebarItem
     let isSelected: Bool
@@ -137,7 +133,7 @@ struct SidebarRow: View {
 
     var body: some View {
         Button(action: action) {
-            Label(LocalizedStringKey(item.rawValue), systemImage: item.icon)
+            Label(item.displayName, systemImage: item.icon)
                 .font(.body)
                 .fontWeight(isSelected ? .semibold : .regular)
                 .foregroundStyle(isSelected ? themeColor : .primary)
@@ -159,8 +155,6 @@ struct SidebarRow: View {
         .onHover { isHovered = $0 }
     }
 }
-
-// MARK: - Playlist Sidebar Row
 
 struct PlaylistSidebarRow: View {
     let playlist: Playlist

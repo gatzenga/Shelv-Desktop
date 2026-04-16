@@ -16,7 +16,6 @@ struct AlbumDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
 
-                // MARK: Header
                 HStack(alignment: .top, spacing: 24) {
                     CoverArtView(url: coverURL, size: 160, cornerRadius: 12)
                         .shadow(color: .black.opacity(0.25), radius: 14)
@@ -70,6 +69,7 @@ struct AlbumDetailView: View {
                                     .frame(minWidth: 110)
                             }
                             .buttonStyle(.borderedProminent)
+                            .tint(themeColor)
                             .controlSize(.large)
                             .disabled(vm.isLoading)
 
@@ -115,7 +115,6 @@ struct AlbumDetailView: View {
                     .padding(.horizontal, 28)
                     .padding(.bottom, 8)
 
-                // MARK: Track List
                 if vm.isLoading {
                     ProgressView(tr("Loading tracks…", "Titel laden…"))
                         .frame(maxWidth: .infinity)
@@ -155,11 +154,11 @@ struct AlbumDetailView: View {
             }
         }
         .navigationTitle(vm.album?.name ?? albumName)
-        .task { await vm.load(albumId: albumId) }
+        .task(id: albumId) { await vm.load(albumId: albumId) }
     }
 
     private var coverURL: URL? {
-        guard let id = vm.album?.coverArt ?? albumId as String? else { return nil }
+        guard let id = vm.album?.coverArt ?? albumId else { return nil }
         return SubsonicAPIService.shared.coverArtURL(id: id, size: 320)
     }
 
@@ -169,8 +168,6 @@ struct AlbumDetailView: View {
         return "\(m):\(String(format: "%02d", s)) min"
     }
 }
-
-// MARK: - Track Row
 
 struct TrackRow: View {
     let song: Song
@@ -189,7 +186,6 @@ struct TrackRow: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            // Track number / waveform
             Group {
                 if isPlaying {
                     Image(systemName: "waveform")
@@ -204,7 +200,6 @@ struct TrackRow: View {
             .frame(width: 36, alignment: .trailing)
             .padding(.leading, 20)
 
-            // Title + Artist
             VStack(alignment: .leading, spacing: 2) {
                 Text(song.title)
                     .font(.body)
@@ -222,7 +217,6 @@ struct TrackRow: View {
 
             Spacer()
 
-            // Duration
             Text(song.durationString)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -242,6 +236,8 @@ struct TrackRow: View {
         .onHover { isHovered = $0 }
         .gesture(TapGesture(count: 2).onEnded { onPlay() })
         .contextMenu {
+            Button(tr("Play", "Abspielen")) { onPlay() }
+            Divider()
             Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
             Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) { onAddToQueue() }
             if showFavorite || showPlaylist {
@@ -262,8 +258,6 @@ struct TrackRow: View {
         }
     }
 }
-
-// MARK: - ViewModel
 
 @MainActor
 class AlbumDetailViewModel: ObservableObject {

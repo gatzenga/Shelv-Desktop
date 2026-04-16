@@ -1,7 +1,5 @@
 import SwiftUI
 
-// MARK: - Album Context Menu Modifier
-
 struct AlbumContextMenuModifier: ViewModifier {
     let album: Album
     @EnvironmentObject var libraryStore: LibraryViewModel
@@ -11,34 +9,26 @@ struct AlbumContextMenuModifier: ViewModifier {
     func body(content: Content) -> some View {
         content.contextMenu {
             Button(tr("Play", "Abspielen")) {
-                Task {
-                    guard let detail = try? await SubsonicAPIService.shared.getAlbum(id: album.id) else { return }
-                    await MainActor.run { AudioPlayerService.shared.play(songs: detail.song) }
+                withAlbumSongs(errorMsg: tr("Playback failed", "Wiedergabe fehlgeschlagen")) { songs in
+                    AudioPlayerService.shared.play(songs: songs)
                 }
             }
             Button(tr("Shuffle", "Zufällig abspielen")) {
-                Task {
-                    guard let detail = try? await SubsonicAPIService.shared.getAlbum(id: album.id) else { return }
-                    await MainActor.run { AudioPlayerService.shared.playShuffled(songs: detail.song) }
+                withAlbumSongs(errorMsg: tr("Playback failed", "Wiedergabe fehlgeschlagen")) { songs in
+                    AudioPlayerService.shared.playShuffled(songs: songs)
                 }
             }
             Divider()
             Button(tr("Play Next", "Als nächstes abspielen")) {
-                Task {
-                    guard let detail = try? await SubsonicAPIService.shared.getAlbum(id: album.id) else { return }
-                    await MainActor.run {
-                        AudioPlayerService.shared.addPlayNext(detail.song)
-                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
-                    }
+                withAlbumSongs(errorMsg: tr("Action failed", "Aktion fehlgeschlagen")) { songs in
+                    AudioPlayerService.shared.addPlayNext(songs)
+                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
                 }
             }
             Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) {
-                Task {
-                    guard let detail = try? await SubsonicAPIService.shared.getAlbum(id: album.id) else { return }
-                    await MainActor.run {
-                        AudioPlayerService.shared.addToUserQueue(detail.song)
-                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
-                    }
+                withAlbumSongs(errorMsg: tr("Action failed", "Aktion fehlgeschlagen")) { songs in
+                    AudioPlayerService.shared.addToUserQueue(songs)
+                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
                 }
             }
             if enableFavorites || enablePlaylists {
@@ -52,16 +42,23 @@ struct AlbumContextMenuModifier: ViewModifier {
                 }
                 if enablePlaylists {
                     Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) {
-                        Task {
-                            guard let detail = try? await SubsonicAPIService.shared.getAlbum(id: album.id),
-                                  !detail.song.isEmpty else { return }
-                            let ids = detail.song.map(\.id)
-                            await MainActor.run {
-                                NotificationCenter.default.post(name: .addSongsToPlaylist, object: ids)
-                            }
+                        withAlbumSongs(errorMsg: tr("Action failed", "Aktion fehlgeschlagen")) { songs in
+                            guard !songs.isEmpty else { return }
+                            NotificationCenter.default.post(name: .addSongsToPlaylist, object: songs.map(\.id))
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private func withAlbumSongs(errorMsg: String, _ action: @MainActor @escaping ([Song]) -> Void) {
+        Task {
+            do {
+                let detail = try await SubsonicAPIService.shared.getAlbum(id: album.id)
+                await MainActor.run { action(detail.song) }
+            } catch {
+                NotificationCenter.default.post(name: .showToast, object: errorMsg)
             }
         }
     }

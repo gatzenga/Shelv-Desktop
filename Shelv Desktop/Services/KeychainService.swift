@@ -6,7 +6,8 @@ enum KeychainService {
         "shelv_server_\(serverID.uuidString)"
     }
 
-    static func save(password: String, for serverID: UUID) {
+    @discardableResult
+    static func save(password: String, for serverID: UUID) -> Bool {
         let key = key(for: serverID)
         let data = Data(password.utf8)
         let query: [CFString: Any] = [
@@ -15,7 +16,8 @@ enum KeychainService {
             kSecValueData: data
         ]
         SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
+        let status = SecItemAdd(query as CFDictionary, nil)
+        return status == errSecSuccess
     }
 
     static func load(for serverID: UUID) -> String? {

@@ -1,10 +1,7 @@
 import SwiftUI
 
-// MARK: - Localization helper (identical to iOS)
 let appLang: String = Locale.preferredLanguages.first?.hasPrefix("de") == true ? "de" : "en"
 func tr(_ en: String, _ de: String, _ lang: String = appLang) -> String { lang == "de" ? de : en }
-
-// MARK: - Notification Names
 
 extension Notification.Name {
     static let addSongsToPlaylist = Notification.Name("shelv.addSongsToPlaylist")
@@ -40,7 +37,7 @@ struct Shelv_DesktopApp: App {
                 }
             }
 
-            CommandMenu("Profil") {
+            CommandMenu(tr("Profile", "Profil")) {
                 if appState.isLoggedIn, let active = appState.serverStore.activeServer {
                     Text(active.displayName)
                     Text(appState.username)
@@ -93,7 +90,6 @@ struct Shelv_DesktopApp: App {
             }
         }
 
-        // Server management window (via Profil menu)
         Window(tr("Manage Servers", "Server verwalten"), id: "server-management") {
             ServerManagementView()
                 .environmentObject(appState)
@@ -101,7 +97,6 @@ struct Shelv_DesktopApp: App {
         .windowResizability(.contentSize)
         .defaultSize(width: 660, height: 420)
 
-        // Settings window (Cmd+,)
         Settings {
             SettingsView()
                 .environmentObject(appState)
@@ -110,8 +105,6 @@ struct Shelv_DesktopApp: App {
         }
     }
 }
-
-// MARK: - Menu item helper (needs @Environment for openWindow)
 
 struct ServerManagementMenuItem: View {
     @Environment(\.openWindow) private var openWindow

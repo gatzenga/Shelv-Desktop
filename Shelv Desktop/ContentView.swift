@@ -21,8 +21,6 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Toast View
-
 struct ToastView: View {
     let message: String
 
@@ -37,8 +35,6 @@ struct ToastView: View {
     }
 }
 
-// MARK: - Main Window
-
 struct MainWindowView: View {
     @EnvironmentObject var appState: AppState
     @StateObject private var libraryStore = LibraryViewModel()
@@ -46,6 +42,7 @@ struct MainWindowView: View {
     @State private var showAddToPlaylist = false
     @State private var playlistSongIds: [String] = []
     @State private var toastMessage: String?
+    @State private var toastTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -94,8 +91,10 @@ struct MainWindowView: View {
         .onReceive(NotificationCenter.default.publisher(for: .showToast)) { notification in
             if let msg = notification.object as? String {
                 toastMessage = msg
-                Task {
+                toastTask?.cancel()
+                toastTask = Task {
                     try? await Task.sleep(for: .seconds(2))
+                    guard !Task.isCancelled else { return }
                     toastMessage = nil
                 }
             }

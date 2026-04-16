@@ -4,7 +4,6 @@ import AVKit
 struct PlayerBarView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var libraryStore: LibraryViewModel
-    // @ObservedObject direkt auf den Service: AppState.objectWillChange feuert bei Player-Änderungen NICHT.
     @ObservedObject private var player = AudioPlayerService.shared
     @Environment(\.themeColor) private var themeColor
     @AppStorage("enableFavorites") private var enableFavorites = true
@@ -17,7 +16,6 @@ struct PlayerBarView: View {
         VStack(spacing: 0) {
             Divider()
             HStack(spacing: 0) {
-                // MARK: Left – Song Info
                 HStack(spacing: 14) {
                     Group {
                         if let song = player.currentSong, let coverID = song.coverArt,
@@ -100,13 +98,15 @@ struct PlayerBarView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    // Favorites / Playlist buttons next to song info
                     if let song = player.currentSong {
                         HStack(spacing: 10) {
                             if enableFavorites {
                                 let isStarred = libraryStore.isSongStarred(song)
                                 Button {
-                                    Task { await libraryStore.toggleStarSong(song) }
+                                    Task {
+                                        await libraryStore.toggleStarSong(song)
+                                        player.setCurrentSongStarred(!isStarred)
+                                    }
                                 } label: {
                                     Image(systemName: isStarred ? "heart.fill" : "heart")
                                         .font(.body)
@@ -134,11 +134,8 @@ struct PlayerBarView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, 20)
 
-                // MARK: Center – Transport + Progress
                 VStack(spacing: 10) {
-                    // Controls
                     HStack(spacing: 22) {
-                        // Shuffle
                         Button { player.toggleShuffle() } label: {
                             Image(systemName: "shuffle")
                                 .foregroundStyle(player.isShuffled ? AnyShapeStyle(themeColor) : AnyShapeStyle(.primary.opacity(0.35)))
@@ -178,9 +175,11 @@ struct PlayerBarView: View {
                         }
                         .buttonStyle(.plain)
                         .font(.title2)
-                        .disabled(player.repeatMode == .off && player.currentIndex >= player.queue.count - 1)
+                        .disabled(player.repeatMode == .off
+                            && player.currentIndex >= player.queue.count - 1
+                            && player.playNextQueue.isEmpty
+                            && player.userQueue.isEmpty)
 
-                        // Repeat
                         Button { player.cycleRepeatMode() } label: {
                             Image(systemName: player.repeatMode.systemImage)
                                 .foregroundStyle(player.repeatMode == .off ? AnyShapeStyle(.primary.opacity(0.35)) : AnyShapeStyle(themeColor))
@@ -190,7 +189,6 @@ struct PlayerBarView: View {
                         .help(repeatHelpText)
                     }
 
-                    // Seekbar + Time
                     HStack(spacing: 10) {
                         Text(formatTime(isDragging ? dragValue : player.currentTime))
                             .font(.caption)
@@ -208,8 +206,6 @@ struct PlayerBarView: View {
                             if editing {
                                 isDragging = true
                             } else {
-                                // seek() setzt currentTime sofort → danach isDragging = false,
-                                // sodass der Slider den neuen Wert liest und nicht bounct
                                 player.seek(to: dragValue)
                                 isDragging = false
                             }
@@ -226,7 +222,6 @@ struct PlayerBarView: View {
                 }
                 .frame(maxWidth: 560)
 
-                // MARK: Right – AirPlay + Volume + Queue
                 HStack(spacing: 16) {
                     AVRoutePickerViewRepresentable()
                         .frame(width: 20, height: 20)
@@ -279,17 +274,11 @@ struct PlayerBarView: View {
 
 }
 
-// MARK: - Queue Entry
-
-// Prefixed IDs ("pn-0", "alb-3", "uq-1") prevent SwiftUI List ID collisions across sections.
-// `index` is the position in the respective source array for all three queue types.
 private struct QueueEntry: Identifiable {
     let id: String
     let index: Int
     let song: Song
 }
-
-// MARK: - Queue Popover
 
 struct QueuePopover: View {
     @ObservedObject private var player = AudioPlayerService.shared
@@ -400,8 +389,6 @@ struct QueuePopover: View {
     }
 }
 
-// MARK: - Queue Song Row
-
 struct QueueSongRow: View {
     let song: Song
 
@@ -424,8 +411,6 @@ struct QueueSongRow: View {
         .contentShape(Rectangle())
     }
 }
-
-// MARK: - AirPlay Button
 
 struct AVRoutePickerViewRepresentable: NSViewRepresentable {
     func makeNSView(context: Context) -> AVRoutePickerView {

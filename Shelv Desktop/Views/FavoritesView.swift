@@ -27,7 +27,6 @@ struct FavoritesView: View {
                 .padding(.vertical, 60)
             } else {
                 VStack(alignment: .leading, spacing: 28) {
-                    // Artists
                     if !libraryStore.starredArtists.isEmpty {
                         FavoritesSection(title: tr("Artists", "Künstler")) {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 130, maximum: 170), spacing: 16)], spacing: 20) {
@@ -43,7 +42,6 @@ struct FavoritesView: View {
                         }
                     }
 
-                    // Albums
                     if !libraryStore.starredAlbums.isEmpty {
                         FavoritesSection(title: tr("Albums", "Alben")) {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 190), spacing: 16)], spacing: 20) {
@@ -59,7 +57,6 @@ struct FavoritesView: View {
                         }
                     }
 
-                    // Songs
                     if !libraryStore.starredSongs.isEmpty {
                         FavoritesSection(title: tr("Tracks", "Titel")) {
                             VStack(spacing: 0) {
@@ -73,8 +70,10 @@ struct FavoritesView: View {
                                         appState.player.play(songs: libraryStore.starredSongs, startIndex: index)
                                     } onPlayNext: {
                                         appState.player.addPlayNext(song)
+                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
                                     } onAddToQueue: {
                                         appState.player.addToUserQueue(song)
+                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
                                     } onRemoveFavorite: {
                                         Task { await libraryStore.toggleStarSong(song) }
                                     } onAddToPlaylist: {
@@ -90,11 +89,8 @@ struct FavoritesView: View {
         }
         .navigationTitle(tr("Favorites", "Favoriten"))
         .task { await libraryStore.loadStarred() }
-        .refreshable { await libraryStore.loadStarred() }
     }
 }
-
-// MARK: - Favorites Section
 
 struct FavoritesSection<Content: View>: View {
     let title: String
@@ -108,8 +104,6 @@ struct FavoritesSection<Content: View>: View {
         }
     }
 }
-
-// MARK: - Favorite Song Row
 
 struct FavoriteSongRow: View {
     let song: Song

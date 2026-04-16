@@ -18,7 +18,6 @@ struct ArtistDetailView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
-                        // MARK: Header
                         HStack(alignment: .top, spacing: 24) {
                             CoverArtView(url: coverURL, size: 120, cornerRadius: 60)
                                 .shadow(color: .black.opacity(0.2), radius: 10)
@@ -34,7 +33,6 @@ struct ArtistDetailView: View {
                                 Spacer(minLength: 8)
 
                                 HStack(spacing: 10) {
-                                    // Play
                                     Button {
                                         Task { await vm.playAll(player: appState.player, shuffle: false) }
                                     } label: {
@@ -52,7 +50,6 @@ struct ArtistDetailView: View {
                                     .controlSize(.large)
                                     .disabled(vm.albums.isEmpty || vm.isLoadingSongs)
 
-                                    // Shuffle
                                     Button {
                                         Task { await vm.playAll(player: appState.player, shuffle: true) }
                                     } label: {
@@ -63,7 +60,6 @@ struct ArtistDetailView: View {
                                     .controlSize(.large)
                                     .disabled(vm.albums.isEmpty || vm.isLoadingSongs)
 
-                                    // Favorites heart
                                     if enableFavorites, let detail = vm.artist {
                                         let isStarred = libraryStore.starredArtists.contains { $0.id == detail.id }
                                         Button {
@@ -77,7 +73,7 @@ struct ArtistDetailView: View {
                                         } label: {
                                             Image(systemName: isStarred ? "heart.fill" : "heart")
                                                 .font(.title2)
-                                                .foregroundStyle(isStarred ? themeColor : .secondary)
+                                                .foregroundStyle(isStarred ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
                                         }
                                         .buttonStyle(.plain)
                                         .help(isStarred
@@ -113,7 +109,7 @@ struct ArtistDetailView: View {
             }
         }
         .navigationTitle(vm.artist?.name ?? artistName)
-        .task { await vm.load(artistId: artistId) }
+        .task(id: artistId) { await vm.load(artistId: artistId) }
     }
 
     private var coverURL: URL? {
@@ -121,8 +117,6 @@ struct ArtistDetailView: View {
         return SubsonicAPIService.shared.coverArtURL(id: id, size: 240)
     }
 }
-
-// MARK: - ViewModel
 
 @MainActor
 class ArtistDetailViewModel: ObservableObject {
@@ -160,7 +154,6 @@ class ArtistDetailViewModel: ObservableObject {
                 for try await albumSongs in group { result.append(contentsOf: albumSongs) }
                 return result
             }
-            // Limit to maxSongs — pick randomly if over the limit
             if songs.count > maxSongs {
                 songs = Array(songs.shuffled().prefix(maxSongs))
             }
@@ -169,7 +162,9 @@ class ArtistDetailViewModel: ObservableObject {
             } else {
                 player.play(songs: songs)
             }
-        } catch {}
+        } catch {
+            NotificationCenter.default.post(name: .showToast, object: tr("Playback failed", "Wiedergabe fehlgeschlagen"))
+        }
         isLoadingSongs = false
     }
 }

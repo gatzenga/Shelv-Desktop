@@ -2,8 +2,6 @@ import Foundation
 import Combine
 import CryptoKit
 
-// MARK: - Subsonic API Service
-
 class SubsonicAPIService: ObservableObject {
     static let shared = SubsonicAPIService()
 
@@ -16,40 +14,18 @@ class SubsonicAPIService: ObservableObject {
         return d
     }()
 
-    private init() {
-        config = loadConfig()
-    }
-
-    // MARK: - Configuration
+    private init() {}
 
     func setConfig(_ config: ServerConfig) {
         self.config = config
-        saveConfig(config)
     }
 
     func clearConfig() {
         self.config = nil
-        UserDefaults.standard.removeObject(forKey: "serverConfig")
     }
 
     var hasConfig: Bool { config != nil && config!.isValid }
     var currentConfig: ServerConfig? { config }
-
-    private func saveConfig(_ config: ServerConfig) {
-        if let data = try? JSONEncoder().encode(config) {
-            UserDefaults.standard.set(data, forKey: "serverConfig")
-        }
-    }
-
-    private func loadConfig() -> ServerConfig? {
-        guard let data = UserDefaults.standard.data(forKey: "serverConfig"),
-              let config = try? JSONDecoder().decode(ServerConfig.self, from: data) else {
-            return nil
-        }
-        return config
-    }
-
-    // MARK: - Auth
 
     private func md5(_ string: String) -> String {
         let data = Data(string.utf8)
@@ -82,8 +58,6 @@ class SubsonicAPIService: ObservableObject {
         return url
     }
 
-    // MARK: - Generic Request
-
     private func fetch<T: Decodable>(_ type: T.Type, endpoint: String, params: [URLQueryItem] = []) async throws -> T {
         let url = try buildURL(endpoint: endpoint, params: params)
         let (data, response) = try await URLSession.shared.data(from: url)
@@ -101,12 +75,10 @@ class SubsonicAPIService: ObservableObject {
         let wrapper = try await fetch(SubsonicResponse.self, endpoint: endpoint, params: params)
         let body = wrapper.subsonicResponse
         if body.status != "ok" {
-            throw APIError.serverError(body.error?.message ?? "Unbekannter Fehler")
+            throw APIError.serverError(body.error?.message ?? tr("Unknown error", "Unbekannter Fehler"))
         }
         return body
     }
-
-    // MARK: - Artists
 
     func getArtists() async throws -> [ArtistIndex] {
         let body = try await fetchSubsonic(endpoint: "getArtists")
@@ -120,8 +92,6 @@ class SubsonicAPIService: ObservableObject {
         guard let artist = body.artist else { throw APIError.missingData }
         return artist
     }
-
-    // MARK: - Albums
 
     func getAlbumList(type: AlbumListType, size: Int = 50, offset: Int = 0) async throws -> [Album] {
         let body = try await fetchSubsonic(endpoint: "getAlbumList2", params: [
@@ -140,8 +110,6 @@ class SubsonicAPIService: ObservableObject {
         return album
     }
 
-    // MARK: - Songs / Mixes
-
     func getRandomSongs(size: Int = 100, genre: String? = nil) async throws -> [Song] {
         var params = [URLQueryItem(name: "size", value: "\(size)")]
         if let g = genre { params.append(URLQueryItem(name: "genre", value: g)) }
@@ -157,19 +125,12 @@ class SubsonicAPIService: ObservableObject {
         return body.topSongs?.song ?? []
     }
 
-    // MARK: - Scrobble
-
-    /// Notifies the server about a song being played.
-    /// - Parameter songId: The ID of the song being played.
-    /// - Parameter submission: `true` = actual scrobble (play count); `false` = now-playing notification only.
     func scrobble(songId: String, submission: Bool = true) async throws {
         _ = try await fetchSubsonic(endpoint: "scrobble", params: [
             URLQueryItem(name: "id", value: songId),
             URLQueryItem(name: "submission", value: submission ? "true" : "false")
         ])
     }
-
-    // MARK: - Search
 
     func search(query: String) async throws -> SearchResult3 {
         let body = try await fetchSubsonic(endpoint: "search3", params: [
@@ -180,8 +141,6 @@ class SubsonicAPIService: ObservableObject {
         ])
         return body.searchResult3 ?? SearchResult3(artist: [], album: [], song: [])
     }
-
-    // MARK: - Starred
 
     func getStarred() async throws -> Starred2Result {
         let body = try await fetchSubsonic(endpoint: "getStarred2")
@@ -204,8 +163,6 @@ class SubsonicAPIService: ObservableObject {
         _ = try await fetchSubsonic(endpoint: "unstar", params: params)
     }
 
-    // MARK: - Cover Art URL
-
     func coverArtURL(id: String, size: Int? = nil) -> URL? {
         guard let cfg = config else { return nil }
         var base = cfg.serverURL
@@ -218,8 +175,6 @@ class SubsonicAPIService: ObservableObject {
         return components.url
     }
 
-    // MARK: - Stream URL
-
     func streamURL(songId: String) -> URL? {
         guard let cfg = config else { return nil }
         var base = cfg.serverURL
@@ -231,15 +186,9 @@ class SubsonicAPIService: ObservableObject {
         components.queryItems = items
         return components.url
     }
-
-    // MARK: - Smart Mix Helpers (ported from iOS Shelv)
-
-    /// Newest albums → all their songs (parallel fetch), shuffled.
     func getNewestSongs(albumCount: Int = 10) async throws -> [Song] {
         try await fetchSongsFromAlbums(type: .newest, albumCount: albumCount)
     }
-
-    /// Frequently played albums → songs sorted by playCount descending.
     func getFrequentSongs(albumCount: Int = 50, limit: Int = 100) async throws -> [Song] {
         let albums = try await getAlbumList(type: .frequent, size: albumCount)
         let allSongs = try await withThrowingTaskGroup(of: [Song].self) { group in
@@ -252,8 +201,6 @@ class SubsonicAPIService: ObservableObject {
         }
         return Array(allSongs.sorted { ($0.playCount ?? 0) > ($1.playCount ?? 0) }.prefix(limit))
     }
-
-    /// Recently played albums → songs in album order (album order preserved).
     func getRecentSongs(albumCount: Int = 50, limit: Int = 100) async throws -> [Song] {
         let albums = try await getAlbumList(type: .recentlyPlayed, size: albumCount)
         let indexed = Array(albums.enumerated())
@@ -281,13 +228,9 @@ class SubsonicAPIService: ObservableObject {
         }
     }
 
-    // MARK: - Ping / Auth Test
-
     func ping() async throws {
         _ = try await fetchSubsonic(endpoint: "ping")
     }
-
-    // MARK: - Server Info
 
     func getServerInfo() async throws -> ServerInfo {
         let body = try await fetchSubsonic(endpoint: "ping")
@@ -297,8 +240,6 @@ class SubsonicAPIService: ObservableObject {
             serverType: body.type
         )
     }
-
-    // MARK: - Library Scan
 
     func startScan() async throws -> ScanStatusBody {
         let body = try await fetchSubsonic(endpoint: "startScan")
@@ -312,14 +253,10 @@ class SubsonicAPIService: ObservableObject {
         return status
     }
 
-    // MARK: - All Artists (flattened)
-
     func getAllArtists() async throws -> [Artist] {
         let indices = try await getArtists()
         return indices.flatMap { $0.artist }
     }
-
-    // MARK: - Playlists
 
     func getPlaylists() async throws -> [Playlist] {
         let body = try await fetchSubsonic(endpoint: "getPlaylists")
@@ -364,19 +301,15 @@ class SubsonicAPIService: ObservableObject {
     }
 }
 
-// MARK: - Server Info
-
 struct ServerInfo {
     let apiVersion: String
     let serverVersion: String?
     let serverType: String?
 }
 
-// MARK: - Album List Type
-
 enum AlbumListType: String {
     case newest
-    case recentlyPlayed = "recent"   // Subsonic API uses "recent", not "recentlyPlayed"
+    case recentlyPlayed = "recent"
     case frequent
     case random
     case starred
@@ -385,8 +318,6 @@ enum AlbumListType: String {
     case byYear
     case byGenre
 }
-
-// MARK: - Errors
 
 enum APIError: LocalizedError {
     case notConfigured
@@ -398,12 +329,18 @@ enum APIError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notConfigured: return "Kein Server konfiguriert."
-        case .invalidURL: return "Ungültige Server-URL."
-        case .httpError: return "HTTP-Fehler beim Server."
-        case .decodingError(let e): return "Antwort konnte nicht gelesen werden: \(e.localizedDescription)"
-        case .serverError(let msg): return "Server-Fehler: \(msg)"
-        case .missingData: return "Unerwartete leere Antwort."
+        case .notConfigured:
+            return tr("No server configured.", "Kein Server konfiguriert.")
+        case .invalidURL:
+            return tr("Invalid server URL.", "Ungültige Server-URL.")
+        case .httpError:
+            return tr("HTTP error from server.", "HTTP-Fehler beim Server.")
+        case .decodingError(let e):
+            return tr("Could not read response: \(e.localizedDescription)", "Antwort konnte nicht gelesen werden: \(e.localizedDescription)")
+        case .serverError(let msg):
+            return tr("Server error: \(msg)", "Server-Fehler: \(msg)")
+        case .missingData:
+            return tr("Unexpected empty response.", "Unerwartete leere Antwort.")
         }
     }
 }

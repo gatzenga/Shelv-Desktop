@@ -33,6 +33,15 @@ class DiscoverViewModel: ObservableObject {
         isLoading = false
     }
 
+    func reset() {
+        recentlyAdded = []
+        recentlyPlayed = []
+        frequentlyPlayed = []
+        randomAlbums = []
+        errorMessage = nil
+        isLoading = false
+    }
+
     func refreshRandom() async {
         do {
             randomAlbums = try await api.getAlbumList(type: .random, size: Self.shelfSize)
@@ -41,9 +50,6 @@ class DiscoverViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Smart Mixes
-
-    /// Songs aus den zuletzt hinzugefügten Alben — immer frische Entdeckungen
     func playMixNewest() async {
         do {
             let songs = try await api.getNewestSongs()
@@ -53,7 +59,6 @@ class DiscoverViewModel: ObservableObject {
         }
     }
 
-    /// Top 100 meistgespielte Songs laut Navidrome-Statistik — deine Lieblinge
     func playMixFrequent() async {
         do {
             let songs = try await api.getFrequentSongs(limit: 100)
@@ -63,7 +68,6 @@ class DiscoverViewModel: ObservableObject {
         }
     }
 
-    /// 100 zuletzt abgespielte Songs — das was du gerade hörst
     func playMixRecent() async {
         do {
             let songs = try await api.getRecentSongs(limit: 100)
