@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		BC374A262F92A38E001AF9C7 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = BC374A252F92A38E001AF9C7 /* GRDB */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		BC9C594F2F8E9FC800FF4D25 /* Shelv Desktop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Shelv Desktop.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BC374A262F92A38E001AF9C7 /* GRDB in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = "Shelv Desktop";
 			packageProductDependencies = (
+				BC374A252F92A38E001AF9C7 /* GRDB */,
 			);
 			productName = "Shelv Desktop";
 			productReference = BC9C594F2F8E9FC800FF4D25 /* Shelv Desktop.app */;
@@ -95,6 +101,9 @@
 			);
 			mainGroup = BC9C59462F8E9FC800FF4D25;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				BC374A242F92A38E001AF9C7 /* XCRemoteSwiftPackageReference "GRDB" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BC9C59502F8E9FC800FF4D25 /* Products */;
 			projectDirPath = "";
@@ -340,6 +349,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		BC374A242F92A38E001AF9C7 /* XCRemoteSwiftPackageReference "GRDB" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BC374A252F92A38E001AF9C7 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BC374A242F92A38E001AF9C7 /* XCRemoteSwiftPackageReference "GRDB" */;
+			productName = GRDB;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BC9C59472F8E9FC800FF4D25 /* Project object */;
 }

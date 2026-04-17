@@ -37,6 +37,7 @@ struct ToastView: View {
 
 struct MainWindowView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var lyricsStore: LyricsStore
     @StateObject private var libraryStore = LibraryViewModel()
 
     @State private var showAddToPlaylist = false
@@ -73,6 +74,7 @@ struct MainWindowView: View {
 
             PlayerBarView()
                 .environmentObject(libraryStore)
+                .environmentObject(lyricsStore)
         }
         .overlay(alignment: .top) {
             if let msg = toastMessage {

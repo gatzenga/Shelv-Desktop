@@ -53,6 +53,23 @@ struct SubsonicResponseBody: Codable {
     let scanStatus: ScanStatusBody?
     let playlists: PlaylistsResult?
     let playlist: PlaylistDetail?
+    let lyricsList: LyricsListBody?
+    let song: Song?
+}
+
+struct LyricsListBody: Codable {
+    let structuredLyrics: [StructuredLyrics]?
+}
+
+struct StructuredLyrics: Codable {
+    let synced: Bool
+    let lang: String?
+    let line: [LyricsLine]?
+
+    struct LyricsLine: Codable {
+        let start: Int?
+        let value: String
+    }
 }
 
 struct ScanStatusBody: Codable {

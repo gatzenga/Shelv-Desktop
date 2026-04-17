@@ -110,6 +110,14 @@ class SubsonicAPIService: ObservableObject {
         return album
     }
 
+    func getSong(id: String) async throws -> Song {
+        let body = try await fetchSubsonic(endpoint: "getSong", params: [
+            URLQueryItem(name: "id", value: id)
+        ])
+        guard let song = body.song else { throw APIError.missingData }
+        return song
+    }
+
     func getRandomSongs(size: Int = 100, genre: String? = nil) async throws -> [Song] {
         var params = [URLQueryItem(name: "size", value: "\(size)")]
         if let g = genre { params.append(URLQueryItem(name: "genre", value: g)) }
@@ -292,6 +300,17 @@ class SubsonicAPIService: ObservableObject {
             params.append(URLQueryItem(name: "songIndexToRemove", value: "\(index)"))
         }
         _ = try await fetchSubsonic(endpoint: "updatePlaylist", params: params)
+    }
+
+    func getLyricsBySongId(songId: String) async throws -> StructuredLyrics? {
+        let body = try await fetchSubsonic(endpoint: "getLyricsBySongId", params: [
+            URLQueryItem(name: "id", value: songId)
+        ])
+        return body.lyricsList?.structuredLyrics?.first
+    }
+
+    func getAllAlbums(size: Int = 500, offset: Int = 0) async throws -> [Album] {
+        try await getAlbumList(type: .alphabeticalByName, size: size, offset: offset)
     }
 
     func deletePlaylist(id: String) async throws {

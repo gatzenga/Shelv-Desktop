@@ -18,9 +18,11 @@ class AudioPlayerService: ObservableObject {
     @Published var currentTime: Double = 0
     @Published var duration: Double = 0
     @Published var volume: Float = 1.0 {
-        didSet { player?.volume = volume }
+        didSet { engine.volume = volume }
     }
     @Published var isSeeking: Bool = false
+
+    let timePublisher = PassthroughSubject<(time: Double, duration: Double), Never>()
 
     @Published var isShuffled: Bool = false
     @Published var repeatMode: RepeatMode = .off
@@ -34,17 +36,15 @@ class AudioPlayerService: ObservableObject {
     private var shuffleSnapshot: ShuffleSnapshot?
     private var isPlayingFromPlayNext = false
 
-    private var player: AVPlayer?
-    private var playerItem: AVPlayerItem?
-    private var timeObserver: Any?
-    private var statusObserver: NSKeyValueObservation?
-    private var timeControlObserver: NSKeyValueObservation?
-    private var itemEndObserver: NSObjectProtocol?
+    private let engine = CrossfadeEngine()
+    private var engineSubscriptions = Set<AnyCancellable>()
+    private var crossfadeTriggered = false
+    private var isEngineLoaded = false
+
     private var apiService: SubsonicAPIService { SubsonicAPIService.shared }
 
     private var currentArtwork: MPMediaItemArtwork?
     private var artworkLoadTask: Task<Void, Never>?
-    private var scrobbledSongId: String?
     private var hasScrobbledCurrent: Bool = false
     private var resumeTime: Double = 0
 
@@ -66,6 +66,7 @@ class AudioPlayerService: ObservableObject {
 
     private init() {
         setupRemoteControls()
+        setupEngine()
         restoreState()
         NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
@@ -378,7 +379,7 @@ class AudioPlayerService: ObservableObject {
     }
 
     func pause() {
-        player?.pause()
+        engine.pause()
         isPlaying = false
         MPNowPlayingInfoCenter.default().playbackState = .paused
         saveState()
@@ -386,19 +387,23 @@ class AudioPlayerService: ObservableObject {
 
     func resume() {
         guard let song = currentSong else { return }
-        if player == nil {
+        if !isEngineLoaded {
             resumeTime = currentTime
             guard let url = apiService.streamURL(songId: song.id) else { return }
             loadURL(url, song: song)
         } else {
-            player?.play()
+            engine.resume()
             isPlaying = true
             MPNowPlayingInfoCenter.default().playbackState = .playing
         }
     }
 
     func stop() {
-        tearDownPlayer()
+        engine.stop()
+        isEngineLoaded = false
+        crossfadeTriggered = false
+        artworkLoadTask?.cancel()
+        artworkLoadTask = nil
         currentSong = nil
         isPlaying = false
         isBuffering = false
@@ -462,15 +467,12 @@ class AudioPlayerService: ObservableObject {
     }
 
     func seek(to time: Double) {
-        guard let player = player else { return }
-        currentTime = time
-        let cmTime = CMTime(seconds: time, preferredTimescale: 1000)
         isSeeking = true
-        player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
-            guard let self else { return }
-            Task { @MainActor [self] in
-                if finished { self.currentTime = time }
-                self.isSeeking = false
+        currentTime = time
+        engine.seek(to: time) { [weak self] finished in
+            Task { @MainActor [weak self] in
+                if finished { self?.currentTime = time }
+                self?.isSeeking = false
             }
         }
     }
@@ -500,7 +502,9 @@ class AudioPlayerService: ObservableObject {
     }
 
     private func loadURL(_ url: URL, song: Song) {
-        tearDownPlayer()
+        crossfadeTriggered = false
+        artworkLoadTask?.cancel()
+        artworkLoadTask = nil
         isBuffering = true
         currentTime = 0
         duration = Double(song.duration ?? 0)
@@ -508,95 +512,155 @@ class AudioPlayerService: ObservableObject {
         let seekTo = resumeTime
         resumeTime = 0
 
-        let headers: [String: String] = ["Range": "bytes=0-"]
-        let asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
-        playerItem = AVPlayerItem(asset: asset)
-        playerItem?.preferredForwardBufferDuration = 10
-        player = AVPlayer(playerItem: playerItem)
-        player?.allowsExternalPlayback = false
-        player?.automaticallyWaitsToMinimizeStalling = false
-        player?.volume = volume
+        engine.play(url: url)
+        isEngineLoaded = true
 
-        statusObserver = playerItem?.observe(\.status, options: [.new]) { [weak self] item, _ in
-            guard let self else { return }
-            let asset = item.asset
-            Task { @MainActor [self] in
-                if item.status == .readyToPlay {
-                    if let d = try? await asset.load(.duration), d.isNumeric, d.seconds > 0 {
-                        self.duration = d.seconds
-                    }
-                    if seekTo > 1 {
-                        let target = CMTime(seconds: seekTo, preferredTimescale: 1000)
-                        self.player?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
-                            guard let self else { return }
-                            Task { @MainActor [self] in
-                                self.player?.play()
-                                self.isPlaying = true
-                                self.isBuffering = false
-                                MPNowPlayingInfoCenter.default().playbackState = .playing
-                            }
-                        }
-                    } else {
-                        self.player?.play()
-                        self.isPlaying = true
-                        self.isBuffering = false
-                        MPNowPlayingInfoCenter.default().playbackState = .playing
-                    }
-                    Task { try? await self.apiService.scrobble(songId: song.id, submission: false) }
-                } else if item.status == .failed {
-                    self.isBuffering = true
-                }
-            }
-        }
-
-        timeControlObserver = player?.observe(\.timeControlStatus, options: [.new]) { [weak self] avPlayer, _ in
-            guard let self else { return }
-            Task { @MainActor [self] in
-                guard self.isPlaying else { return }
-                switch avPlayer.timeControlStatus {
-                case .playing: self.isBuffering = false
-                case .waitingToPlayAtSpecifiedRate: self.isBuffering = true
-                case .paused: break
-                @unknown default: break
-                }
-            }
-        }
-
-        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-        timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            guard let self else { return }
-            Task { @MainActor [self] in
-                guard !self.isSeeking else { return }
-                self.currentTime = time.seconds
-                self.updateNowPlayingInfo()
-                self.scrobbleIfNeeded(songId: song.id)
-            }
-        }
-
-        itemEndObserver = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: playerItem,
-            queue: .main
-        ) { [weak self] _ in
-            guard let self else { return }
-            Task { @MainActor [self] in self.playNext(triggeredByUser: false) }
+        if seekTo > 1 {
+            engine.seek(to: seekTo)
         }
 
         currentArtwork = nil
         loadArtworkAsync(for: song)
         updateNowPlayingInfo(song: song)
+        Task { try? await apiService.scrobble(songId: song.id, submission: false) }
     }
 
-    private func tearDownPlayer() {
-        if let obs = timeObserver { player?.removeTimeObserver(obs); timeObserver = nil }
-        if let obs = itemEndObserver { NotificationCenter.default.removeObserver(obs); itemEndObserver = nil }
-        statusObserver?.invalidate(); statusObserver = nil
-        timeControlObserver?.invalidate(); timeControlObserver = nil
-        artworkLoadTask?.cancel(); artworkLoadTask = nil
-        player?.pause()
-        player = nil
-        playerItem = nil
+    // MARK: - Engine setup
+
+    private func setupEngine() {
+        engine.onTrackFinished = { [weak self] in
+            guard let self else { return }
+            Task { @MainActor [self] in
+                if self.crossfadeTriggered {
+                    self.crossfadeTriggered = false
+                } else {
+                    self.playNext(triggeredByUser: false)
+                }
+            }
+        }
+
+        engine.$currentTime
+            .sink { [weak self] time in
+                guard let self else { return }
+                Task { @MainActor [self] in
+                    guard !self.isSeeking else { return }
+                    self.currentTime = time
+                    self.timePublisher.send((time: time, duration: self.duration))
+                    self.updateNowPlayingInfo()
+                    if let songId = self.currentSong?.id {
+                        self.scrobbleIfNeeded(songId: songId)
+                    }
+                    if !self.crossfadeTriggered {
+                        self.checkCrossfadeTrigger(currentTime: time)
+                    }
+                }
+            }
+            .store(in: &engineSubscriptions)
+
+        engine.$duration
+            .sink { [weak self] d in
+                guard let self, d > 0 else { return }
+                Task { @MainActor [self] in
+                    self.duration = d
+                }
+            }
+            .store(in: &engineSubscriptions)
+
+        engine.$isPlaying
+            .sink { [weak self] playing in
+                guard let self else { return }
+                Task { @MainActor [self] in
+                    if playing { self.isBuffering = false }
+                    self.isPlaying = playing
+                    if playing {
+                        MPNowPlayingInfoCenter.default().playbackState = .playing
+                    }
+                }
+            }
+            .store(in: &engineSubscriptions)
     }
+
+    // MARK: - Crossfade
+
+    private var crossfadeEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "crossfadeEnabled")
+    }
+
+    private var crossfadeDuration: Double {
+        let v = UserDefaults.standard.integer(forKey: "crossfadeDuration")
+        return v >= 1 ? Double(v) : 5
+    }
+
+    private func checkCrossfadeTrigger(currentTime: Double) {
+        guard crossfadeEnabled, !crossfadeTriggered, duration > 1 else { return }
+        guard crossfadeDuration < duration else { return }
+        let triggerAt = duration - crossfadeDuration
+        guard currentTime >= triggerAt else { return }
+        guard !(repeatMode == .one && playNextQueue.isEmpty) else { return }
+        guard let nextSong = peekNextSong() else { return }
+        crossfadeTriggered = true
+        advanceQueueState()
+        crossfadeToSong(nextSong)
+        saveState()
+    }
+
+    private func crossfadeToSong(_ song: Song) {
+        guard let url = apiService.streamURL(songId: song.id) else { return }
+        engine.crossfadeDuration = crossfadeDuration
+        engine.triggerCrossfade(nextURL: url)
+        crossfadeTriggered = true
+        currentSong = song
+        currentTime = 0
+        hasScrobbledCurrent = false
+        isEngineLoaded = true
+        if let d = song.duration { duration = Double(d) }
+        updateNowPlayingInfo(song: song)
+        MPNowPlayingInfoCenter.default().playbackState = .playing
+        loadArtworkAsync(for: song)
+        Task { try? await apiService.scrobble(songId: song.id, submission: false) }
+    }
+
+    private func peekNextSong() -> Song? {
+        if !playNextQueue.isEmpty { return playNextQueue.first }
+        switch repeatMode {
+        case .one: return nil
+        case .all:
+            guard !queue.isEmpty else { return nil }
+            return queue[(currentIndex + 1) % queue.count].song
+        case .off:
+            if currentIndex + 1 < queue.count {
+                return queue[currentIndex + 1].song
+            } else if !userQueue.isEmpty {
+                return userQueue.first
+            }
+            return nil
+        }
+    }
+
+    private func advanceQueueState() {
+        if !playNextQueue.isEmpty {
+            playNextQueue.removeFirst()
+            isPlayingFromPlayNext = true
+        } else {
+            isPlayingFromPlayNext = false
+            switch repeatMode {
+            case .one: break
+            case .all:
+                guard !queue.isEmpty else { return }
+                currentIndex = (currentIndex + 1) % queue.count
+            case .off:
+                if currentIndex + 1 < queue.count {
+                    currentIndex += 1
+                } else if !userQueue.isEmpty {
+                    let song = userQueue.removeFirst()
+                    queue.append(QueueItem(song: song))
+                    currentIndex = queue.count - 1
+                }
+            }
+        }
+    }
+
+    // MARK: - Scrobble
 
     private func scrobbleIfNeeded(songId: String) {
         guard !hasScrobbledCurrent else { return }
@@ -605,6 +669,8 @@ class AudioPlayerService: ObservableObject {
         hasScrobbledCurrent = true
         Task { try? await apiService.scrobble(songId: songId, submission: true) }
     }
+
+    // MARK: - Artwork
 
     private func loadArtworkAsync(for song: Song) {
         artworkLoadTask?.cancel()
@@ -622,6 +688,8 @@ class AudioPlayerService: ObservableObject {
             }
         }
     }
+
+    // MARK: - Remote Controls
 
     private func setupRemoteControls() {
         let center = MPRemoteCommandCenter.shared()
@@ -665,6 +733,8 @@ class AudioPlayerService: ObservableObject {
         }
     }
 
+    // MARK: - Now Playing
+
     private func updateNowPlayingInfo(song: Song? = nil) {
         let s = song ?? currentSong
         guard let s else {
@@ -689,4 +759,3 @@ class AudioPlayerService: ObservableObject {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 }
-

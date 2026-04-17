@@ -4,13 +4,16 @@ import AVKit
 struct PlayerBarView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var libraryStore: LibraryViewModel
+    @EnvironmentObject var lyricsStore: LyricsStore
     @ObservedObject private var player = AudioPlayerService.shared
     @Environment(\.themeColor) private var themeColor
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
+    @AppStorage("autoFetchLyrics") private var autoFetchLyrics = true
     @State private var isDragging: Bool = false
     @State private var dragValue: Double = 0
     @State private var showQueue: Bool = false
+    @State private var showLyrics: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -235,6 +238,20 @@ struct PlayerBarView: View {
                         .padding(.trailing, 8)
                     }
 
+                    Button { showLyrics.toggle() } label: {
+                        Image(systemName: "text.quote")
+                            .font(.system(size: 16))
+                            .foregroundStyle(showLyrics ? themeColor : Color.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 20, height: 20)
+                    .help(tr("Lyrics", "Lyrics"))
+                    .popover(isPresented: $showLyrics) {
+                        LyricsPanel()
+                            .environmentObject(lyricsStore)
+                            .environment(\.themeColor, themeColor)
+                    }
+
                     AVRoutePickerViewRepresentable()
                         .frame(width: 20, height: 20)
                         .help(tr("AirPlay", "AirPlay"))
@@ -267,6 +284,17 @@ struct PlayerBarView: View {
             .frame(height: 100)
         }
         .background(.bar)
+        .task(id: player.currentSong?.id) {
+            guard autoFetchLyrics,
+                  let song = player.currentSong,
+                  let serverId = appState.serverStore.activeServerID?.uuidString
+            else {
+                lyricsStore.currentLyrics = nil
+                lyricsStore.isLoadingLyrics = false
+                return
+            }
+            lyricsStore.loadLyrics(for: song, serverId: serverId)
+        }
     }
 
     private var repeatHelpText: String {
@@ -425,9 +453,7 @@ struct QueueSongRow: View {
 }
 
 struct AVRoutePickerViewRepresentable: NSViewRepresentable {
-    func makeNSView(context: Context) -> AVRoutePickerView {
-        AVRoutePickerView()
-    }
+    func makeNSView(context: Context) -> AVRoutePickerView { AVRoutePickerView() }
     func updateNSView(_ nsView: AVRoutePickerView, context: Context) {}
 }
 

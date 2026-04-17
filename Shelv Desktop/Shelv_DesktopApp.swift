@@ -11,6 +11,7 @@ extension Notification.Name {
 @main
 struct Shelv_DesktopApp: App {
     @StateObject private var appState = AppState.shared
+    @StateObject private var lyricsStore = LyricsStore()
     @AppStorage("appColorScheme") private var storedColorScheme: AppColorScheme = .system
     @AppStorage("themeColor") private var themeColorName: String = "violet"
     @AppStorage("enableFavorites") private var enableFavorites = true
@@ -24,7 +25,9 @@ struct Shelv_DesktopApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
+                .environmentObject(lyricsStore)
                 .frame(minWidth: 900, minHeight: 600)
+                .task { await lyricsStore.setup() }
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: 1200, height: 760)
@@ -77,6 +80,9 @@ struct Shelv_DesktopApp: App {
                     AppState.shared.player.playPrevious()
                 }
                 .keyboardShortcut(.leftArrow, modifiers: .command)
+                Divider()
+                CrossfadeMenuItem()
+                LyricsSettingsMenuItem()
             }
 
             CommandGroup(after: .sidebar) {
@@ -89,6 +95,29 @@ struct Shelv_DesktopApp: App {
                 }
             }
         }
+
+        Window(tr("Lyrics", "Lyrics"), id: "lyrics-settings") {
+            LyricsSettingsPanel()
+                .environmentObject(appState)
+                .environmentObject(lyricsStore)
+                .tint(AppTheme.color(for: themeColorName))
+                .environment(\.themeColor, AppTheme.color(for: themeColorName))
+        }
+        .windowResizability(.contentSize)
+
+        Window(tr("Crossfade", "Crossfade"), id: "crossfade") {
+            CrossfadePanel()
+                .tint(AppTheme.color(for: themeColorName))
+                .environment(\.themeColor, AppTheme.color(for: themeColorName))
+        }
+        .windowResizability(.contentSize)
+
+        Window(tr("Insights", "Insights"), id: "insights") {
+            InsightsView()
+                .tint(AppTheme.color(for: themeColorName))
+                .environment(\.themeColor, AppTheme.color(for: themeColorName))
+        }
+        .windowResizability(.contentSize)
 
         Window(tr("Manage Servers", "Server verwalten"), id: "server-management") {
             ServerManagementView()
@@ -106,12 +135,42 @@ struct Shelv_DesktopApp: App {
     }
 }
 
+struct LyricsSettingsMenuItem: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button(tr("Lyrics…", "Lyrics…")) {
+            openWindow(id: "lyrics-settings")
+        }
+    }
+}
+
+struct CrossfadeMenuItem: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button(tr("Crossfade…", "Crossfade…")) {
+            openWindow(id: "crossfade")
+        }
+    }
+}
+
 struct ServerManagementMenuItem: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Button(tr("Manage Servers…", "Server verwalten…")) {
             openWindow(id: "server-management")
+        }
+    }
+}
+
+struct InsightsMenuItem: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button(tr("Insights…", "Insights…")) {
+            openWindow(id: "insights")
         }
     }
 }

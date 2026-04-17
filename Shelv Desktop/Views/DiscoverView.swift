@@ -89,6 +89,12 @@ struct DiscoverView: View {
                 .disabled(vm.isLoading)
                 .help(tr("Reload", "Neu laden"))
             }
+            ToolbarItem(placement: .automatic) {
+                Divider()
+            }
+            ToolbarItem(placement: .automatic) {
+                InsightsToolbarButton()
+            }
         }
         .task { await vm.load() }
         .onChange(of: appState.serverStore.activeServerID) { _, _ in
@@ -251,6 +257,21 @@ struct AlbumCard: View {
         .scaleEffect(isHovered ? 1.03 : 1.0, anchor: .bottom)
         .animation(.easeInOut(duration: 0.15), value: isHovered)
         .onHover { isHovered = $0 }
+    }
+}
+
+struct InsightsToolbarButton: View {
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.themeColor) private var themeColor
+
+    var body: some View {
+        Button {
+            openWindow(id: "insights")
+        } label: {
+            Image(systemName: "chart.bar.xaxis")
+                .foregroundStyle(themeColor)
+        }
+        .help(tr("Insights", "Insights"))
     }
 }
 

@@ -15,8 +15,11 @@ enum KeychainService {
             kSecAttrAccount: key,
             kSecValueData: data
         ]
-        SecItemDelete(query as CFDictionary)
         let status = SecItemAdd(query as CFDictionary, nil)
+        if status == errSecDuplicateItem {
+            let update: [CFString: Any] = [kSecValueData: data]
+            return SecItemUpdate(query as CFDictionary, update as CFDictionary) == errSecSuccess
+        }
         return status == errSecSuccess
     }
 
