@@ -6,6 +6,8 @@
 
 A native, album and artist focused macOS client for [Navidrome](https://www.navidrome.org/) and Subsonic-compatible music servers, built with SwiftUI. Also available as a [native iOS/iPadOS app](https://github.com/gatzenga/Shelv).
 
+**TestFlight:** https://testflight.apple.com/join/6FMa77Ks
+
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
 ![Swift](https://img.shields.io/badge/swift-5-orange)
 ![License](https://img.shields.io/badge/license-MIT-blue)
