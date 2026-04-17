@@ -6,7 +6,8 @@
 
 A native, album and artist focused macOS client for [Navidrome](https://www.navidrome.org/) and Subsonic-compatible music servers, built with SwiftUI. Also available as a [native iOS/iPadOS app](https://github.com/gatzenga/Shelv).
 
-**TestFlight:** https://testflight.apple.com/join/6FMa77Ks
+**TestFlight:** https://testflight.apple.com/join/6FMa77Ks  
+**Discord:** https://discord.gg/zU3qv9v6Vn
 
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
 ![Swift](https://img.shields.io/badge/swift-5-orange)
@@ -23,10 +24,12 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 - **Shelves** — Four horizontal scroll sections: Recently Added, Recently Played, Frequently Played, and Random Albums
 - **Smart Mixes** — Three one-tap buttons that build a shuffled queue from your newest tracks, most played tracks, or recently played tracks
 - **Random Albums** — Refresh the random selection at any time with a dedicated shuffle button
+- **Insights** — A ranked overview of your most played artists, albums, and songs, pulled directly from your server's play count data. The top three entries are highlighted; play counts are shown as badges next to each entry. Accessible via the chart icon in the top-right corner of Discover
 
 ### Playback
 - **Persistent footer player** — Always-visible player bar at the bottom of the window with cover art, track info, seekbar with elapsed/remaining time, volume slider, and all transport controls (shuffle, previous, play/pause, next, repeat)
 - **Full controls** — Shuffle, three repeat modes (Off / All / One), and direct navigation to the artist or album of the current track
+- **Crossfade** — Smooth crossfade between tracks with a configurable duration (1–12 s); enable and adjust it in Settings
 - **Media key support** — Full integration with macOS media keys and the Now Playing widget via MPRemoteCommandCenter
 
 ### Queue
@@ -47,6 +50,13 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 - Rename or delete playlists directly from the playlist detail view
 - Can be enabled or disabled in Settings; when disabled, all related UI elements are hidden
 
+### Lyrics
+- Synced and plain-text lyrics displayed in a popover from the player bar, with automatic line highlighting and scrolling for time-coded tracks
+- Lyrics are fetched from your Navidrome server first; if none are stored there, Shelv Desktop falls back to [lrclib.net](https://lrclib.net) automatically
+- Each song's lyrics are cached locally so they load instantly after the first fetch
+- **Auto-load** — when enabled in Settings, lyrics are fetched in the background as soon as a song starts playing
+- **Bulk download** — a one-click option in Settings pre-fetches lyrics for your entire library in the background, with a live progress counter
+
 ### Search
 - Find artists, albums, and tracks on your server from a dedicated Search view in the sidebar
 
@@ -54,6 +64,8 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 - **Server** — View connection details and log out; run a full library scan with progress indicator and last-sync timestamp
 - **Appearance** — Choose between Light, Dark, and System mode; pick one of ten accent colors
 - **Cache** — See the current cover art cache size and clear it with a single tap
+- **Crossfade** — Enable crossfade and set the fade duration
+- **Lyrics** — Toggle auto-load and run a bulk download for your entire library
 - **Favorites & Playlists** — Toggle each feature on or off independently
 
 ### Cover Art
@@ -117,7 +129,7 @@ Credentials are authenticated using the Subsonic API's token-based method: `MD5(
 
 ## Contributing
 
-Pull requests are welcome. For larger changes, please open an issue first to discuss what you'd like to change.
+Pull requests are welcome. For larger changes, please open an issue first to discuss what you'd like to change. Feature ideas, feedback, and general discussion are welcome on the [Discord server](https://discord.gg/zU3qv9v6Vn).
 
 ## License
 

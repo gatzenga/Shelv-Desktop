@@ -15,6 +15,7 @@ Shelv_DesktopApp  (@main)
   │     ├── navigationPath: NavigationPath   ← single global path
   │     ├── serverStore: ServerStore
   │     └── player: AudioPlayerService.shared
+  ├── LyricsStore              (@StateObject, @EnvironmentObject — passed to main WindowGroup and lyrics-settings window)
   └── WindowGroup → ContentView
         ├── LoginView          (when !isLoggedIn)
         └── MainWindowView     (NavigationSplitView + PlayerBarView + ToastOverlay)
@@ -25,7 +26,14 @@ Shelv_DesktopApp  (@main)
                     └── .navigationDestination(for: Artist.self) → ArtistDetailView
 ```
 
-Settings Scene + Window("Server Management") are separate scenes in `Shelv_DesktopApp.swift`.
+Separate scenes in `Shelv_DesktopApp.swift`:
+- `Window("lyrics-settings")` → `LyricsSettingsPanel` (receives `appState` + `lyricsStore`)
+- `Window("crossfade")` → `CrossfadePanel`
+- `Window("insights")` → `InsightsView`
+- `Window("server-management")` → `ServerManagementView`
+- `Settings` → `SettingsView`
+
+All windows are opened via `@Environment(\.openWindow)` — never `NSWindow` directly. Menu items live as small `View` structs (`CrossfadeMenuItem`, `LyricsSettingsMenuItem`, `InsightsMenuItem`, `ServerManagementMenuItem`) inside the `CommandMenu("Playback")` / `CommandGroup(after: .sidebar)` blocks.
 
 ---
 
@@ -101,6 +109,27 @@ Desktop uses `[QueueItem]` for `queue` (not `[Song]` like iOS) — never mix the
 **UserDefaults keys:** `shelv_mac_queue`, `shelv_mac_currentIndex`, `shelv_mac_playNextQueue`, `shelv_mac_userQueue`, `shelv_mac_currentTime`, `shelv_mac_isShuffled`, `shelv_mac_repeatMode`, `shelv_mac_volume`, `shelv_mac_shuffleSnapshotQueue`, `shelv_mac_shuffleSnapshotPN`, `shelv_mac_shuffleSnapshotUQ`, `shelv_mac_shuffleSnapshotIndex`, `shelv_mac_isPlayingFromPlayNext`
 
 **App state keys:** `shelv_mac_servers`, `shelv_mac_active_server`, `themeColor`, `appColorScheme`, `enableFavorites`, `enablePlaylists`
+
+**Crossfade / Lyrics AppStorage keys:** `crossfadeEnabled`, `crossfadeDuration` (Int, seconds), `autoFetchLyrics`
+
+---
+
+## Lyrics
+
+- **`LyricsService`** (actor) — SQLite-backed store. `fetchAndSave(song:serverId:)` checks the local DB first, then queries the Subsonic `/getLyricsBySongId` endpoint, then falls back to lrclib.net. Returns a `LyricsRecord`.
+- **`LyricsStore`** (`@MainActor ObservableObject`) — thin wrapper; `loadLyrics(for:serverId:)` cancels any previous task and updates `currentLyrics`. `startBulkDownload(serverId:)` / `cancelBulkDownload()` manage background prefetch with progress counters.
+- **`LyricsPanel`** — popover shown from the player bar. Parses LRC timestamps, scrolls automatically, highlights the current line. User scroll temporarily pauses auto-scroll and resumes after 3 s.
+- **`LyricsSettingsPanel`** — separate window (`lyrics-settings`). Exposes auto-fetch toggle, stored-count + DB size, bulk download progress bar, and a destructive reset action.
+- `LyricsStore` is a `@StateObject` in `Shelv_DesktopApp` and injected as `@EnvironmentObject` into the main window and the lyrics-settings window. Child views that need it declare `@EnvironmentObject var lyricsStore: LyricsStore`.
+
+---
+
+## Crossfade
+
+- **`CrossfadeEngine`** (`ObservableObject`) — dual `AVPlayer` (A/B) implementation. When a track nears its end, the engine fades out the active player while fading in the next one over `crossfadeDuration` seconds. Volume, seek, and play/pause all delegate to the active player.
+- **`AudioPlayerService`** owns a single `CrossfadeEngine` instance and forwards all transport calls through it.
+- **`CrossfadePanel`** — separate window (`crossfade`). Toggle + duration slider (1–12 s). Writes to `@AppStorage("crossfadeEnabled")` and `@AppStorage("crossfadeDuration")`.
+- When crossfade is disabled, `CrossfadeEngine` behaves like a plain `AVPlayer` wrapper (no fade, no B-player activity).
 
 ---
 
