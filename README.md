@@ -11,7 +11,7 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
 ![Swift](https://img.shields.io/badge/swift-5-orange)
-![License](https://img.shields.io/badge/license-MIT-blue)
+![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
 ## Features
 
