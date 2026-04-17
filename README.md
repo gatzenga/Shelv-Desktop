@@ -146,10 +146,7 @@ See [LICENSE](LICENSE) for details.
   <img src="Screenshots/artists.png" width="48%" alt="Künstler"/>
 </p>
 <p align="center">
-  <img src="Screenshots/artist_overview.png" width="48%" alt="Künstler-Detail"/>
   <img src="Screenshots/favourites.png" width="48%" alt="Favoriten"/>
 </p>
-<p align="center">
-  <img src="Screenshots/search.png" width="48%" alt="Suche"/>
-</p>
+
 
