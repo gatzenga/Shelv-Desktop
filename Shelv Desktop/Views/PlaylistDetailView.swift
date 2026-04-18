@@ -176,7 +176,9 @@ struct PlaylistDetailView: View {
             await loadDetail()
         }
         .refreshable {
-            await loadDetail()
+            async let detail: Void = loadDetail()
+            async let sync:   Void = CloudKitSyncService.shared.syncNow()
+            _ = await (detail, sync)
         }
     }
 

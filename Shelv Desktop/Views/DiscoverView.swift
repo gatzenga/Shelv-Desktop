@@ -3,6 +3,7 @@ import SwiftUI
 struct DiscoverView: View {
     @StateObject private var vm = DiscoverViewModel()
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var libraryStore: LibraryViewModel
     @State private var mixLoading: String?
 
     var body: some View {
@@ -83,7 +84,14 @@ struct DiscoverView: View {
                 ThemePickerButton()
             }
             ToolbarItem(placement: .automatic) {
-                Button { Task { await vm.load() } } label: {
+                Button {
+                    Task {
+                        async let discover:  Void = vm.load()
+                        async let playlists: Void = libraryStore.loadPlaylists()
+                        async let sync:      Void = CloudKitSyncService.shared.syncNow()
+                        _ = await (discover, playlists, sync)
+                    }
+                } label: {
                     Image(systemName: "arrow.clockwise")
                 }
                 .disabled(vm.isLoading)

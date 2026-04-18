@@ -4,8 +4,9 @@ let appLang: String = Locale.preferredLanguages.first?.hasPrefix("de") == true ?
 func tr(_ en: String, _ de: String, _ lang: String = appLang) -> String { lang == "de" ? de : en }
 
 extension Notification.Name {
-    static let addSongsToPlaylist = Notification.Name("shelv.addSongsToPlaylist")
-    static let showToast = Notification.Name("shelv.showToast")
+    nonisolated(unsafe) static let addSongsToPlaylist = Notification.Name("shelv.addSongsToPlaylist")
+    nonisolated(unsafe) static let showToast = Notification.Name("shelv.showToast")
+    nonisolated(unsafe) static let recapRegistryUpdated = Notification.Name("shelv.recapRegistryUpdated")
 }
 
 @main
@@ -64,6 +65,10 @@ struct Shelv_DesktopApp: App {
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
                     Task { await CloudKitSyncService.shared.syncNow() }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .recapRegistryUpdated)) { _ in
+                    guard let server = appState.serverStore.activeServer else { return }
+                    Task { await recapStore.loadEntries(serverId: server.stableId) }
                 }
         }
         .windowResizability(.contentMinSize)

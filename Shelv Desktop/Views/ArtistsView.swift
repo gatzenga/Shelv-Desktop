@@ -71,7 +71,7 @@ struct ArtistGridItem: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            CoverArtView(url: coverURL, size: 140, cornerRadius: 70)
+            CoverArtView(url: coverURL, size: 140, isCircle: true)
                 .shadow(color: .black.opacity(isHovered ? 0.3 : 0.12), radius: isHovered ? 10 : 4)
                 .scaleEffect(isHovered ? 1.03 : 1.0)
                 .animation(.easeInOut(duration: 0.15), value: isHovered)

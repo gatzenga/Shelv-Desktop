@@ -7,11 +7,12 @@ struct CoverArtView: View {
     let url: URL?
     var size: CGFloat = 180
     var cornerRadius: CGFloat = 8
+    var isCircle: Bool = false
 
     @State private var image: NSImage?
 
     var body: some View {
-        Group {
+        let content = Group {
             if let img = image {
                 Image(nsImage: img)
                     .resizable()
@@ -19,14 +20,21 @@ struct CoverArtView: View {
             } else {
                 ZStack {
                     Color(nsColor: .windowBackgroundColor).opacity(0.6)
-                    Image(systemName: "music.note")
+                    Image(systemName: isCircle ? "person.fill" : "music.note")
                         .font(.system(size: size * 0.3))
                         .foregroundStyle(.secondary)
                 }
             }
         }
         .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+
+        return Group {
+            if isCircle {
+                content.clipShape(Circle())
+            } else {
+                content.clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+            }
+        }
         // onAppear: zuverlässiger Fallback für LazyVGrid auf macOS,
         // das .task manchmal erst bei Hover triggert.
         .onAppear { triggerLoad() }

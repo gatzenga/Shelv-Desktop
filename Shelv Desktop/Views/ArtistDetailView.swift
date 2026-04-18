@@ -19,7 +19,7 @@ struct ArtistDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         HStack(alignment: .top, spacing: 24) {
-                            CoverArtView(url: coverURL, size: 120, cornerRadius: 60)
+                            CoverArtView(url: coverURL, size: 120, isCircle: true)
                                 .shadow(color: .black.opacity(0.2), radius: 10)
 
                             VStack(alignment: .leading, spacing: 8) {

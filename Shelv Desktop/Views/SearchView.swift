@@ -199,7 +199,7 @@ struct SearchArtistRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            CoverArtView(url: artist.coverArt.flatMap { SubsonicAPIService.shared.coverArtURL(id: $0, size: 50) }, size: 44, cornerRadius: 22)
+            CoverArtView(url: artist.coverArt.flatMap { SubsonicAPIService.shared.coverArtURL(id: $0, size: 50) }, size: 44, isCircle: true)
                 .padding(.leading, 20)
             VStack(alignment: .leading) {
                 Text(artist.name).font(.callout.bold())

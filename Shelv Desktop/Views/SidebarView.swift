@@ -3,6 +3,7 @@ import SwiftUI
 struct SidebarView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var libraryStore: LibraryViewModel
+    @StateObject private var recapStore = RecapStore.shared
     @Binding var selection: SidebarItem?
     @Binding var selectedPlaylist: Playlist?
     @Environment(\.themeColor) private var themeColor
@@ -11,6 +12,10 @@ struct SidebarView: View {
 
     @State private var showCreatePlaylist = false
     @State private var newPlaylistName = ""
+
+    private var nonRecapPlaylists: [Playlist] {
+        libraryStore.playlists.filter { !recapStore.recapPlaylistIds.contains($0.id) }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -65,17 +70,17 @@ struct SidebarView: View {
                 .padding(.horizontal, 10)
                 .padding(.bottom, 4)
 
-                if libraryStore.isLoadingPlaylists && libraryStore.playlists.isEmpty {
+                if libraryStore.isLoadingPlaylists && nonRecapPlaylists.isEmpty {
                     ProgressView()
                         .scaleEffect(0.8)
                         .padding(.horizontal, 10)
-                } else if libraryStore.playlists.isEmpty {
+                } else if nonRecapPlaylists.isEmpty {
                     Text(tr("No Playlists", "Keine Wiedergabelisten"))
                         .font(.callout)
                         .foregroundStyle(.tertiary)
                         .padding(.horizontal, 10)
                 } else {
-                    ForEach(libraryStore.playlists) { playlist in
+                    ForEach(nonRecapPlaylists) { playlist in
                         PlaylistSidebarRow(
                             playlist: playlist,
                             isSelected: selectedPlaylist?.id == playlist.id,

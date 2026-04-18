@@ -23,7 +23,7 @@ struct RecapPeriod {
             }
         }
 
-        var retentionKey: String {
+        nonisolated var retentionKey: String {
             switch self {
             case .week:  return "recapWeeklyRetention"
             case .month: return "recapMonthlyRetention"
@@ -31,7 +31,7 @@ struct RecapPeriod {
             }
         }
 
-        var defaultRetention: Int {
+        nonisolated var defaultRetention: Int {
             switch self {
             case .week:  return 1
             case .month: return 12
@@ -99,7 +99,7 @@ extension RecapPeriod {
     }
 
     static func lastMonth(relativeTo now: Date = Date()) -> RecapPeriod? {
-        var cal = Calendar.current
+        let cal = Calendar.current
         guard
             let startOfThisMonth = cal.dateInterval(of: .month, for: now)?.start,
             let start = cal.date(byAdding: .month, value: -1, to: startOfThisMonth),
@@ -109,7 +109,7 @@ extension RecapPeriod {
     }
 
     static func lastYear(relativeTo now: Date = Date()) -> RecapPeriod? {
-        var cal = Calendar.current
+        let cal = Calendar.current
         guard
             let startOfThisYear = cal.dateInterval(of: .year, for: now)?.start,
             let start = cal.date(byAdding: .year, value: -1, to: startOfThisYear),
@@ -120,7 +120,7 @@ extension RecapPeriod {
 }
 
 extension RecapPeriod {
-    var periodKey: String {
+    nonisolated var periodKey: String {
         var cal = Calendar(identifier: .gregorian)
         cal.firstWeekday = 2
         cal.minimumDaysInFirstWeek = 4
@@ -177,10 +177,11 @@ actor RecapGenerator {
             ckRecordName: nil
         )
 
+        let recordName = "\(serverId.lowercased()).\(period.periodKey)"
         if let markerResult = try? await CloudKitSyncService.shared.saveRecapMarker(entry, periodKey: period.periodKey) {
             switch markerResult {
             case .created:
-                break
+                entry.ckRecordName = recordName
             case .conflict(let existingPlaylistId):
                 try? await SubsonicAPIService.shared.deletePlaylist(id: playlist.id)
                 entry = RecapRegistryRecord(
@@ -189,7 +190,7 @@ actor RecapGenerator {
                     periodType: period.type.rawValue,
                     periodStart: period.start.timeIntervalSince1970,
                     periodEnd: period.end.timeIntervalSince1970,
-                    ckRecordName: "\(serverId.lowercased()).\(period.periodKey)"
+                    ckRecordName: recordName
                 )
             }
         }
@@ -209,7 +210,11 @@ actor RecapGenerator {
 
         let toDelete = entries.suffix(entries.count - limit)
         for entry in toDelete {
+            CloudKitSyncService.debugLog("[Retention] deleting playlistId=\(entry.playlistId) marker=\(entry.ckRecordName ?? "nil") period=\(entry.periodType)/\(Date(timeIntervalSince1970: entry.periodStart))")
             try? await SubsonicAPIService.shared.deletePlaylist(id: entry.playlistId)
+            if let ckName = entry.ckRecordName {
+                await CloudKitSyncService.shared.deleteRecapMarker(ckRecordName: ckName)
+            }
             await PlayLogService.shared.deleteRegistryEntry(playlistId: entry.playlistId)
         }
     }

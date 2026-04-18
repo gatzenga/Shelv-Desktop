@@ -75,6 +75,9 @@ class SubsonicAPIService: ObservableObject {
         let wrapper = try await fetch(SubsonicResponse.self, endpoint: endpoint, params: params)
         let body = wrapper.subsonicResponse
         if body.status != "ok" {
+            if body.error?.code == 70 {
+                throw APIError.notFound
+            }
             throw APIError.serverError(body.error?.message ?? tr("Unknown error", "Unbekannter Fehler"))
         }
         return body
@@ -370,6 +373,7 @@ enum APIError: LocalizedError {
     case httpError
     case decodingError(Error)
     case serverError(String)
+    case notFound
     case missingData
 
     var errorDescription: String? {
@@ -384,6 +388,8 @@ enum APIError: LocalizedError {
             return tr("Could not read response: \(e.localizedDescription)", "Antwort konnte nicht gelesen werden: \(e.localizedDescription)")
         case .serverError(let msg):
             return tr("Server error: \(msg)", "Server-Fehler: \(msg)")
+        case .notFound:
+            return tr("Not found.", "Nicht gefunden.")
         case .missingData:
             return tr("Unexpected empty response.", "Unerwartete leere Antwort.")
         }

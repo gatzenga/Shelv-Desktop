@@ -18,7 +18,7 @@ struct SettingsView: View {
             AboutTab()
                 .tabItem { Label(tr("Info", "Info"), systemImage: "info.circle") }
         }
-        .frame(width: 540, height: 480)
+        .frame(width: 820, height: 660)
         .environmentObject(appState)
     }
 }
@@ -385,6 +385,7 @@ struct RecapTab: View {
     @Environment(\.themeColor) private var themeColor
 
     @AppStorage("recapEnabled")          private var recapEnabled          = false
+    @AppStorage("iCloudSyncEnabled")     private var iCloudSyncEnabled     = true
     @AppStorage("recapWeeklyEnabled")    private var recapWeeklyEnabled    = true
     @AppStorage("recapMonthlyEnabled")   private var recapMonthlyEnabled   = true
     @AppStorage("recapYearlyEnabled")    private var recapYearlyEnabled    = true
@@ -396,8 +397,12 @@ struct RecapTab: View {
     @State private var isPreparingExport = false
     @State private var exportError: String?
     @State private var isSyncingManually = false
+    @State private var showPlayLog = false
+    @State private var showRegistry = false
     @State private var showSyncLog = false
-    @State private var showDebug = false
+    @State private var showAdvanced = false
+    @State private var showVerify = false
+    @State private var totalPlays: Int = 0
 
     var body: some View {
         Form {
@@ -431,6 +436,18 @@ struct RecapTab: View {
                     }
                 }
 
+                Section(tr("Overview", "Übersicht")) {
+                    LabeledContent(tr("Total plays", "Gesamte Plays")) {
+                        Text("\(totalPlays)").foregroundStyle(.secondary).monospacedDigit()
+                    }
+                    Button {
+                        showVerify = true
+                    } label: {
+                        Label(tr("Sync with Navidrome", "Mit Navidrome abgleichen"),
+                              systemImage: "arrow.triangle.2.circlepath")
+                    }
+                }
+
                 Section(tr("Database", "Datenbank")) {
                     Button {
                         guard !isPreparingExport else { return }
@@ -458,16 +475,21 @@ struct RecapTab: View {
                     } label: {
                         Label(tr("Import database", "Datenbank importieren"), systemImage: "square.and.arrow.down")
                     }
-
-                    Button {
-                        showDebug = true
-                    } label: {
-                        Label(tr("Play Log", "Play Log"), systemImage: "list.bullet.clipboard")
-                    }
                 }
 
                 Section(tr("iCloud Sync", "iCloud-Sync")) {
-                    if !ckStatus.accountAvailable {
+                    Toggle(tr("Enable iCloud Sync", "iCloud-Sync aktivieren"), isOn: $iCloudSyncEnabled)
+                        .onChange(of: iCloudSyncEnabled) { _, _ in
+                            Task { await CloudKitSyncService.shared.handleSyncEnabledChange() }
+                        }
+
+                    if !iCloudSyncEnabled {
+                        Text(tr(
+                            "Data stays local. Multiple devices may create duplicate recap playlists.",
+                            "Daten bleiben lokal. Mehrere Geräte können doppelte Recap-Playlists erstellen."
+                        ))
+                        .font(.caption).foregroundStyle(.secondary)
+                    } else if !ckStatus.accountAvailable {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(tr("No iCloud account", "Kein iCloud-Konto"))
@@ -498,36 +520,58 @@ struct RecapTab: View {
                                     .foregroundStyle(.secondary).monospacedDigit()
                             }
                         }
-                        HStack {
-                            Button {
-                                guard !isSyncingManually else { return }
-                                isSyncingManually = true
-                                Task {
-                                    defer { isSyncingManually = false }
-                                    await CloudKitSyncService.shared.syncNow()
-                                }
-                            } label: {
-                                if isSyncingManually {
-                                    ProgressView().controlSize(.small)
-                                } else {
-                                    Label(tr("Sync now", "Jetzt synchronisieren"),
-                                          systemImage: "arrow.triangle.2.circlepath")
-                                }
+                        Button {
+                            guard !isSyncingManually else { return }
+                            isSyncingManually = true
+                            Task {
+                                defer { isSyncingManually = false }
+                                await CloudKitSyncService.shared.syncNow()
                             }
-                            .disabled(isSyncingManually)
-
-                            Button {
-                                showSyncLog = true
-                            } label: {
-                                Label(tr("Sync log", "Sync-Protokoll"), systemImage: "doc.text")
+                        } label: {
+                            if isSyncingManually {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Label(tr("Sync now", "Jetzt synchronisieren"),
+                                      systemImage: "arrow.triangle.2.circlepath")
                             }
                         }
+                        .disabled(isSyncingManually)
+                    }
+                }
+
+                Section(tr("Logs", "Logs")) {
+                    Button {
+                        showPlayLog = true
+                    } label: {
+                        Label(tr("Recent plays", "Letzte Plays"), systemImage: "list.bullet.clipboard")
+                    }
+                    Button {
+                        showRegistry = true
+                    } label: {
+                        Label(tr("Registry", "Registry"), systemImage: "square.stack.3d.up")
+                    }
+                    Button {
+                        showSyncLog = true
+                    } label: {
+                        Label(tr("Sync log", "Sync-Protokoll"), systemImage: "doc.text")
+                    }
+                }
+
+                Section {
+                    Button {
+                        showAdvanced = true
+                    } label: {
+                        Label(tr("Advanced", "Erweitert"), systemImage: "slider.horizontal.2.square")
                     }
                 }
             }
         }
         .formStyle(.grouped)
         .padding()
+        .task(id: appState.serverStore.activeServerID) { await refreshTotalPlays() }
+        .onReceive(NotificationCenter.default.publisher(for: .recapRegistryUpdated)) { _ in
+            Task { await refreshTotalPlays() }
+        }
         .alert(
             tr("Export failed", "Export fehlgeschlagen"),
             isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } }),
@@ -537,27 +581,45 @@ struct RecapTab: View {
         } message: { msg in
             Text(msg)
         }
-        .sheet(isPresented: $showSyncLog) {
-            SyncLogSheet(entries: ckStatus.logEntries)
-        }
-        .sheet(isPresented: $showDebug) {
+        .sheet(isPresented: $showPlayLog) {
             if let sid = appState.serverStore.activeServer?.stableId {
-                NavigationStack {
-                    RecapDebugView(serverId: sid)
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button(tr("Done", "Fertig")) { showDebug = false }
-                            }
-                        }
-                }
+                RecapPlayLogView(serverId: sid)
             }
         }
+        .sheet(isPresented: $showRegistry) {
+            if let sid = appState.serverStore.activeServer?.stableId {
+                RecapRegistryView(serverId: sid)
+            }
+        }
+        .sheet(isPresented: $showSyncLog) {
+            RecapSyncLogView()
+        }
+        .sheet(isPresented: $showAdvanced) {
+            if let sid = appState.serverStore.activeServer?.stableId {
+                RecapAdvancedView(serverId: sid)
+            }
+        }
+        .sheet(isPresented: $showVerify, onDismiss: {
+            Task { await refreshTotalPlays() }
+        }) {
+            if let sid = appState.serverStore.activeServer?.stableId {
+                RecapVerifyView(serverId: sid)
+            }
+        }
+    }
+
+    private func refreshTotalPlays() async {
+        guard let sid = appState.serverStore.activeServer?.stableId else {
+            totalPlays = 0
+            return
+        }
+        totalPlays = await PlayLogService.shared.logCount(serverId: sid)
     }
 
     @ViewBuilder
     private func periodRow(title: String, enabled: Binding<Bool>,
                            retention: Binding<Int>, range: ClosedRange<Int>) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 12) {
             Toggle(title, isOn: enabled)
             if enabled.wrappedValue {
                 Stepper(value: retention, in: range) {
@@ -567,9 +629,9 @@ struct RecapTab: View {
                         Text("\(retention.wrappedValue)").foregroundStyle(.secondary).monospacedDigit()
                     }
                 }
-                .padding(.leading, 4)
             }
         }
+        .padding(.vertical, 4)
     }
 
     @MainActor
@@ -601,37 +663,6 @@ struct RecapTab: View {
     }
 }
 
-private struct SyncLogSheet: View {
-    let entries: [SyncLogEntry]
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(tr("Sync log", "Sync-Protokoll")).font(.title3.bold())
-                Spacer()
-                Button(tr("Done", "Fertig")) { dismiss() }
-                    .keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 12)
-            Divider()
-            if entries.isEmpty {
-                Text(tr("No entries yet.", "Noch keine Einträge."))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                List(entries) { entry in
-                    Text(entry.text).font(.system(.caption, design: .monospaced))
-                }
-                .listStyle(.plain)
-            }
-        }
-        .frame(width: 480, height: 420)
-    }
-}
-
 private extension NSSavePanel {
     @MainActor
     func beginSheetModalForCurrentWindow() async -> NSApplication.ModalResponse {
@@ -659,9 +690,9 @@ struct AboutTab: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "books.vertical.fill")
-                .font(.system(size: 48))
-                .foregroundStyle(themeColor)
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 80, height: 80)
             Text("Shelv Desktop")
                 .font(.title2.bold())
             Text(appVersion)

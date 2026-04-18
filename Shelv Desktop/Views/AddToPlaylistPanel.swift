@@ -3,10 +3,15 @@ import SwiftUI
 struct AddToPlaylistPanel: View {
     let songIds: [String]
     @EnvironmentObject var libraryStore: LibraryViewModel
+    @StateObject private var recapStore = RecapStore.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.themeColor) private var themeColor
 
     @State private var newPlaylistName = ""
+
+    private var nonRecapPlaylists: [Playlist] {
+        libraryStore.playlists.filter { !recapStore.recapPlaylistIds.contains($0.id) }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,9 +34,9 @@ struct AddToPlaylistPanel: View {
 
             List {
                 // Existing playlists
-                if !libraryStore.playlists.isEmpty {
+                if !nonRecapPlaylists.isEmpty {
                     Section(tr("Existing Playlists", "Bestehende Wiedergabelisten")) {
-                        ForEach(libraryStore.playlists) { playlist in
+                        ForEach(nonRecapPlaylists) { playlist in
                             Button {
                                 Task {
                                     await libraryStore.addSongsToPlaylist(playlist, songIds: songIds)

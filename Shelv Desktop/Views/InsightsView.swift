@@ -195,7 +195,7 @@ struct InsightsView: View {
         let url = entry.coverArt.flatMap { SubsonicAPIService.shared.coverArtURL(id: $0, size: 100) }
         return rankCard(isTop3: isTop3) {
             rankLabel(rank: rank, isTop3: isTop3)
-            CoverArtView(url: url, size: 52, cornerRadius: 26)
+            CoverArtView(url: url, size: 52, isCircle: true)
             Text(entry.name)
                 .font(isTop3 ? .body.bold() : .body)
                 .foregroundStyle(.primary)

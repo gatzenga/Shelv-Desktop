@@ -81,6 +81,21 @@ struct RecapView: View {
             }
             .frame(width: 520, height: 580)
             .navigationTitle(tr("Recap", "Recap"))
+            .toolbar {
+                ToolbarItem(placement: .automatic) {
+                    Button {
+                        Task {
+                            guard let sid = appState.serverStore.activeServer?.stableId else { return }
+                            async let cleanup: Void = recapStore.refreshWithCleanup(serverId: sid)
+                            async let sync:    Void = CloudKitSyncService.shared.syncNow()
+                            _ = await (cleanup, sync)
+                        }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .help(tr("Reload", "Neu laden"))
+                }
+            }
             .navigationDestination(for: RecapRegistryRecord.self) { entry in
                 if let sid = appState.serverStore.activeServer?.stableId {
                     RecapDetailView(entry: entry, serverId: sid)
@@ -114,7 +129,7 @@ struct RecapView: View {
         }
         .task(id: appState.serverStore.activeServerID) {
             guard let sid = appState.serverStore.activeServer?.stableId else { return }
-            await recapStore.loadEntries(serverId: sid)
+            await recapStore.refreshWithCleanup(serverId: sid)
         }
     }
 

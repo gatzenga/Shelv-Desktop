@@ -59,14 +59,37 @@ class ServerStore: ObservableObject {
             activeServerID = nil
             activateStoredServer()
         }
+
+        let serverStableId = server.stableId
+        if !serverStableId.isEmpty {
+            Task.detached(priority: .utility) {
+                await PlayLogService.shared.resetLog(serverId: serverStableId)
+                await PlayLogService.shared.resetRegistry(serverId: serverStableId)
+                await PlayLogService.shared.removeScrobbles(serverId: serverStableId)
+                await CloudKitSyncService.shared.updatePendingCounts()
+                NotificationCenter.default.post(name: .recapRegistryUpdated, object: nil)
+            }
+        }
     }
 
     func clearAll() {
+        let stableIds = servers.map { $0.stableId }.filter { !$0.isEmpty }
         for server in servers { KeychainService.delete(for: server.id) }
         servers = []
         activeServerID = nil
         UserDefaults.standard.removeObject(forKey: saveKey)
         UserDefaults.standard.removeObject(forKey: activeKey)
+
+        guard !stableIds.isEmpty else { return }
+        Task.detached(priority: .utility) {
+            for sid in stableIds {
+                await PlayLogService.shared.resetLog(serverId: sid)
+                await PlayLogService.shared.resetRegistry(serverId: sid)
+                await PlayLogService.shared.removeScrobbles(serverId: sid)
+            }
+            await CloudKitSyncService.shared.updatePendingCounts()
+            NotificationCenter.default.post(name: .recapRegistryUpdated, object: nil)
+        }
     }
 
     func password(for server: SubsonicServer) -> String? {
