@@ -12,10 +12,14 @@ extension Notification.Name {
 struct Shelv_DesktopApp: App {
     @StateObject private var appState = AppState.shared
     @StateObject private var lyricsStore = LyricsStore()
+    @StateObject private var ckStatus = CloudKitSyncService.shared.status
+    @StateObject private var recapStore = RecapStore.shared
+    private let _playTracker = PlayTracker.shared
     @AppStorage("appColorScheme") private var storedColorScheme: AppColorScheme = .system
     @AppStorage("themeColor") private var themeColorName: String = "violet"
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         NSWindow.allowsAutomaticWindowTabbing = false
@@ -26,8 +30,41 @@ struct Shelv_DesktopApp: App {
             ContentView()
                 .environmentObject(appState)
                 .environmentObject(lyricsStore)
+                .environmentObject(ckStatus)
+                .environmentObject(recapStore)
                 .frame(minWidth: 900, minHeight: 600)
                 .task { await lyricsStore.setup() }
+                .task {
+                    await PlayLogService.shared.setup()
+                    let api = SubsonicAPIService.shared
+                    for server in appState.serverStore.servers where server.remoteUserId == nil {
+                        guard let pw = appState.serverStore.password(for: server) else { continue }
+                        let cfg = ServerConfig(serverURL: server.baseURL, username: server.username, password: pw)
+                        api.setConfig(cfg)
+                        do {
+                            let uid = try await api.authLogin()
+                            var updated = server
+                            updated.remoteUserId = uid
+                            appState.serverStore.update(server: updated, password: nil)
+                            print("[ServerID] Backfill OK \(server.displayName): \(uid)")
+                        } catch {
+                            print("[ServerID] Backfill FAILED \(server.displayName): \(error)")
+                        }
+                    }
+                    if let active = appState.serverStore.activeServer {
+                        appState.serverStore.activate(server: active)
+                        print("[ServerID] Active server stableId: \(active.stableId)")
+                    }
+                    await CloudKitSyncService.shared.setup()
+                }
+                .task(id: appState.serverStore.activeServerID) {
+                    guard let server = appState.serverStore.activeServer else { return }
+                    await recapStore.setup(serverId: server.stableId)
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    guard phase == .active else { return }
+                    Task { await CloudKitSyncService.shared.syncNow() }
+                }
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: 1200, height: 760)
@@ -119,6 +156,15 @@ struct Shelv_DesktopApp: App {
         }
         .windowResizability(.contentSize)
 
+        Window(tr("Recap", "Recap"), id: "recap") {
+            RecapView()
+                .environmentObject(appState)
+                .environmentObject(recapStore)
+                .tint(AppTheme.color(for: themeColorName))
+                .environment(\.themeColor, AppTheme.color(for: themeColorName))
+        }
+        .windowResizability(.contentSize)
+
         Window(tr("Manage Servers", "Server verwalten"), id: "server-management") {
             ServerManagementView()
                 .environmentObject(appState)
@@ -171,6 +217,16 @@ struct InsightsMenuItem: View {
     var body: some View {
         Button(tr("Insights…", "Insights…")) {
             openWindow(id: "insights")
+        }
+    }
+}
+
+struct RecapMenuItem: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button(tr("Recap…", "Recap…")) {
+            openWindow(id: "recap")
         }
     }
 }

@@ -31,7 +31,8 @@ class AppState: ObservableObject {
         api.setConfig(config)
         do {
             try await api.ping()
-            let server = SubsonicServer(name: name, baseURL: normalizedURL, username: username)
+            var server = SubsonicServer(name: name, baseURL: normalizedURL, username: username)
+            server.remoteUserId = try await api.authLogin()
             serverStore.add(server: server, password: password)
             isLoggedIn = true
             return true

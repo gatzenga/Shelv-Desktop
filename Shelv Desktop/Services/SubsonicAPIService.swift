@@ -133,11 +133,15 @@ class SubsonicAPIService: ObservableObject {
         return body.topSongs?.song ?? []
     }
 
-    func scrobble(songId: String, submission: Bool = true) async throws {
-        _ = try await fetchSubsonic(endpoint: "scrobble", params: [
+    func scrobble(songId: String, submission: Bool = true, playedAt: Double? = nil) async throws {
+        var params = [
             URLQueryItem(name: "id", value: songId),
             URLQueryItem(name: "submission", value: submission ? "true" : "false")
-        ])
+        ]
+        if let ts = playedAt {
+            params.append(URLQueryItem(name: "time", value: String(Int64(ts * 1000))))
+        }
+        _ = try await fetchSubsonic(endpoint: "scrobble", params: params)
     }
 
     func search(query: String) async throws -> SearchResult3 {
@@ -240,6 +244,24 @@ class SubsonicAPIService: ObservableObject {
         _ = try await fetchSubsonic(endpoint: "ping")
     }
 
+    func authLogin() async throws -> String {
+        guard let cfg = config else { throw APIError.notConfigured }
+        var base = cfg.serverURL
+        if base.hasSuffix("/") { base = String(base.dropLast()) }
+        guard let url = URL(string: "\(base)/auth/login") else { throw APIError.invalidURL }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["username": cfg.username, "password": cfg.password])
+        let (data, _) = try await URLSession.shared.data(for: request)
+        struct AuthResponse: Decodable { let id: String }
+        do {
+            return try JSONDecoder().decode(AuthResponse.self, from: data).id
+        } catch {
+            throw APIError.decodingError(error)
+        }
+    }
+
     func getServerInfo() async throws -> ServerInfo {
         let body = try await fetchSubsonic(endpoint: "ping")
         return ServerInfo(
@@ -279,20 +301,24 @@ class SubsonicAPIService: ObservableObject {
         return detail
     }
 
-    func createPlaylist(name: String, songIds: [String] = []) async throws -> Playlist {
+    func createPlaylist(name: String, songIds: [String] = [], comment: String? = nil) async throws -> Playlist {
         var params: [URLQueryItem] = [URLQueryItem(name: "name", value: name)]
         for id in songIds {
             params.append(URLQueryItem(name: "songId", value: id))
         }
         let body = try await fetchSubsonic(endpoint: "createPlaylist", params: params)
         guard let detail = body.playlist else { throw APIError.missingData }
-        return Playlist(id: detail.id, name: detail.name, comment: detail.comment,
+        if let comment {
+            try? await updatePlaylist(id: detail.id, comment: comment)
+        }
+        return Playlist(id: detail.id, name: detail.name, comment: comment ?? detail.comment,
                         songCount: detail.songCount, duration: detail.duration, coverArt: detail.coverArt)
     }
 
-    func updatePlaylist(id: String, name: String? = nil, songIdsToAdd: [String] = [], songIndicesToRemove: [Int] = []) async throws {
+    func updatePlaylist(id: String, name: String? = nil, comment: String? = nil, songIdsToAdd: [String] = [], songIndicesToRemove: [Int] = []) async throws {
         var params: [URLQueryItem] = [URLQueryItem(name: "playlistId", value: id)]
         if let name { params.append(URLQueryItem(name: "name", value: name)) }
+        if let comment { params.append(URLQueryItem(name: "comment", value: comment)) }
         for songId in songIdsToAdd {
             params.append(URLQueryItem(name: "songIdToAdd", value: songId))
         }

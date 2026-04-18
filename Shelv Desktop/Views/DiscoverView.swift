@@ -93,6 +93,9 @@ struct DiscoverView: View {
                 Divider()
             }
             ToolbarItem(placement: .automatic) {
+                RecapToolbarButton()
+            }
+            ToolbarItem(placement: .automatic) {
                 InsightsToolbarButton()
             }
         }
@@ -272,6 +275,21 @@ struct InsightsToolbarButton: View {
                 .foregroundStyle(themeColor)
         }
         .help(tr("Insights", "Insights"))
+    }
+}
+
+struct RecapToolbarButton: View {
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.themeColor) private var themeColor
+
+    var body: some View {
+        Button {
+            openWindow(id: "recap")
+        } label: {
+            Image(systemName: "calendar.badge.clock")
+                .foregroundStyle(themeColor)
+        }
+        .help(tr("Recap", "Recap"))
     }
 }
 

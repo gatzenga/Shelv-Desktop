@@ -667,7 +667,18 @@ class AudioPlayerService: ObservableObject {
         let threshold = min(duration * 0.5, 240)
         guard threshold > 0, currentTime >= threshold else { return }
         hasScrobbledCurrent = true
-        Task { try? await apiService.scrobble(songId: songId, submission: true) }
+        let serverId = AppState.shared.serverStore.activeServer?.stableId ?? ""
+        let scrobbleAt = Date().timeIntervalSince1970
+        Task {
+            do {
+                try await apiService.scrobble(songId: songId, submission: true, playedAt: scrobbleAt)
+            } catch {
+                guard !serverId.isEmpty else { return }
+                await PlayLogService.shared.addPendingScrobble(
+                    songId: songId, serverId: serverId, playedAt: scrobbleAt
+                )
+            }
+        }
     }
 
     // MARK: - Artwork

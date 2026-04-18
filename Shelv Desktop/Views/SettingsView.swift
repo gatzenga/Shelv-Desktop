@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @EnvironmentObject var appState: AppState
@@ -10,12 +11,14 @@ struct SettingsView: View {
                 .tabItem { Label(tr("Server", "Server"), systemImage: "server.rack") }
             AppearanceTab(colorScheme: $colorScheme)
                 .tabItem { Label(tr("Appearance", "Darstellung"), systemImage: "paintpalette") }
+            RecapTab()
+                .tabItem { Label(tr("Recap", "Recap"), systemImage: "calendar.badge.clock") }
             CacheTab()
                 .tabItem { Label(tr("Cache", "Cache"), systemImage: "internaldrive") }
             AboutTab()
                 .tabItem { Label(tr("Info", "Info"), systemImage: "info.circle") }
         }
-        .frame(width: 520, height: 420)
+        .frame(width: 540, height: 480)
         .environmentObject(appState)
     }
 }
@@ -104,6 +107,12 @@ struct ServerRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                if let uid = server.remoteUserId {
+                    Text("ID: \(uid)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
             }
 
             Spacer()
@@ -365,6 +374,277 @@ struct CacheTab: View {
         cacheSize = bytes > 0
             ? ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
             : "0 KB"
+    }
+}
+
+struct RecapTab: View {
+    @EnvironmentObject var appState: AppState
+    @StateObject private var recapStore = RecapStore.shared
+    @StateObject private var ckStatus = CloudKitSyncService.shared.status
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.themeColor) private var themeColor
+
+    @AppStorage("recapEnabled")          private var recapEnabled          = false
+    @AppStorage("recapWeeklyEnabled")    private var recapWeeklyEnabled    = true
+    @AppStorage("recapMonthlyEnabled")   private var recapMonthlyEnabled   = true
+    @AppStorage("recapYearlyEnabled")    private var recapYearlyEnabled    = true
+    @AppStorage("recapWeeklyRetention")  private var recapWeeklyRetention  = 1
+    @AppStorage("recapMonthlyRetention") private var recapMonthlyRetention = 12
+    @AppStorage("recapYearlyRetention")  private var recapYearlyRetention  = 3
+    @AppStorage("recapThreshold")        private var recapThreshold        = 30
+
+    @State private var isPreparingExport = false
+    @State private var exportError: String?
+    @State private var isSyncingManually = false
+    @State private var showSyncLog = false
+    @State private var showDebug = false
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle(tr("Enable Recap", "Recap aktivieren"), isOn: $recapEnabled)
+            } footer: {
+                if !recapEnabled {
+                    Text(tr(
+                        "Track your listening history and generate automatic playlists.",
+                        "Hörhistorie aufzeichnen und automatische Playlists erstellen."
+                    ))
+                    .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+
+            if recapEnabled {
+                Section(tr("Periods", "Perioden")) {
+                    periodRow(title: tr("Weekly", "Wöchentlich"),
+                              enabled: $recapWeeklyEnabled,
+                              retention: $recapWeeklyRetention, range: 1...52)
+                    periodRow(title: tr("Monthly", "Monatlich"),
+                              enabled: $recapMonthlyEnabled,
+                              retention: $recapMonthlyRetention, range: 1...24)
+                    periodRow(title: tr("Yearly", "Jährlich"),
+                              enabled: $recapYearlyEnabled,
+                              retention: $recapYearlyRetention, range: 1...10)
+                    Picker(tr("Count from", "Zählen ab"), selection: $recapThreshold) {
+                        ForEach([10, 20, 30, 40, 50], id: \.self) { pct in
+                            Text("\(pct)%").tag(pct)
+                        }
+                    }
+                }
+
+                Section(tr("Database", "Datenbank")) {
+                    Button {
+                        guard !isPreparingExport else { return }
+                        isPreparingExport = true
+                        Task {
+                            defer { isPreparingExport = false }
+                            do {
+                                let url = try await recapStore.exportBackupURL()
+                                await runExportSavePanel(sourceURL: url)
+                            } catch {
+                                exportError = error.localizedDescription
+                            }
+                        }
+                    } label: {
+                        if isPreparingExport {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Label(tr("Export database", "Datenbank exportieren"), systemImage: "square.and.arrow.up")
+                        }
+                    }
+                    .disabled(isPreparingExport)
+
+                    Button {
+                        runImportOpenPanel()
+                    } label: {
+                        Label(tr("Import database", "Datenbank importieren"), systemImage: "square.and.arrow.down")
+                    }
+
+                    Button {
+                        showDebug = true
+                    } label: {
+                        Label(tr("Play Log", "Play Log"), systemImage: "list.bullet.clipboard")
+                    }
+                }
+
+                Section(tr("iCloud Sync", "iCloud-Sync")) {
+                    if !ckStatus.accountAvailable {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(tr("No iCloud account", "Kein iCloud-Konto"))
+                                Text(tr("Use Export/Import as backup instead.",
+                                        "Export/Import als Datensicherung nutzen."))
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "icloud.slash").foregroundStyle(.secondary)
+                        }
+                    } else {
+                        LabeledContent(tr("Last sync", "Letzter Sync")) {
+                            if let date = ckStatus.lastSyncDate {
+                                Text(date, style: .relative).font(.caption).foregroundStyle(.secondary)
+                            } else {
+                                Text(tr("Never", "Noch nie")).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        if ckStatus.pendingUploads > 0 {
+                            LabeledContent(tr("Pending uploads", "Ausstehende Uploads")) {
+                                Text("\(ckStatus.pendingUploads)").font(.caption)
+                                    .foregroundStyle(.secondary).monospacedDigit()
+                            }
+                        }
+                        if ckStatus.pendingScrobbles > 0 {
+                            LabeledContent(tr("Pending scrobbles", "Ausstehende Scrobbles")) {
+                                Text("\(ckStatus.pendingScrobbles)").font(.caption)
+                                    .foregroundStyle(.secondary).monospacedDigit()
+                            }
+                        }
+                        HStack {
+                            Button {
+                                guard !isSyncingManually else { return }
+                                isSyncingManually = true
+                                Task {
+                                    defer { isSyncingManually = false }
+                                    await CloudKitSyncService.shared.syncNow()
+                                }
+                            } label: {
+                                if isSyncingManually {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Label(tr("Sync now", "Jetzt synchronisieren"),
+                                          systemImage: "arrow.triangle.2.circlepath")
+                                }
+                            }
+                            .disabled(isSyncingManually)
+
+                            Button {
+                                showSyncLog = true
+                            } label: {
+                                Label(tr("Sync log", "Sync-Protokoll"), systemImage: "doc.text")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+        .alert(
+            tr("Export failed", "Export fehlgeschlagen"),
+            isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } }),
+            presenting: exportError
+        ) { _ in
+            Button(tr("OK", "OK"), role: .cancel) {}
+        } message: { msg in
+            Text(msg)
+        }
+        .sheet(isPresented: $showSyncLog) {
+            SyncLogSheet(entries: ckStatus.logEntries)
+        }
+        .sheet(isPresented: $showDebug) {
+            if let sid = appState.serverStore.activeServer?.stableId {
+                NavigationStack {
+                    RecapDebugView(serverId: sid)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button(tr("Done", "Fertig")) { showDebug = false }
+                            }
+                        }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func periodRow(title: String, enabled: Binding<Bool>,
+                           retention: Binding<Int>, range: ClosedRange<Int>) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle(title, isOn: enabled)
+            if enabled.wrappedValue {
+                Stepper(value: retention, in: range) {
+                    HStack {
+                        Text(tr("Keep", "Behalten")).foregroundStyle(.secondary)
+                        Spacer()
+                        Text("\(retention.wrappedValue)").foregroundStyle(.secondary).monospacedDigit()
+                    }
+                }
+                .padding(.leading, 4)
+            }
+        }
+    }
+
+    @MainActor
+    private func runExportSavePanel(sourceURL: URL) async {
+        let panel = NSSavePanel()
+        panel.title = tr("Save Recap database", "Recap-Datenbank speichern")
+        panel.nameFieldStringValue = "shelv_recap_export.db"
+        let response = await panel.beginSheetModalForCurrentWindow()
+        guard response == .OK, let dest = panel.url else { return }
+        do {
+            if FileManager.default.fileExists(atPath: dest.path) {
+                try FileManager.default.removeItem(at: dest)
+            }
+            try FileManager.default.copyItem(at: sourceURL, to: dest)
+        } catch {
+            exportError = error.localizedDescription
+        }
+    }
+
+    private func runImportOpenPanel() {
+        let panel = NSOpenPanel()
+        panel.title = tr("Import Recap database", "Recap-Datenbank importieren")
+        panel.allowedContentTypes = [.data]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url,
+              let sid = appState.serverStore.activeServer?.stableId else { return }
+        Task { await recapStore.importDatabase(from: url, serverId: sid) }
+    }
+}
+
+private struct SyncLogSheet: View {
+    let entries: [SyncLogEntry]
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(tr("Sync log", "Sync-Protokoll")).font(.title3.bold())
+                Spacer()
+                Button(tr("Done", "Fertig")) { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
+            Divider()
+            if entries.isEmpty {
+                Text(tr("No entries yet.", "Noch keine Einträge."))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                List(entries) { entry in
+                    Text(entry.text).font(.system(.caption, design: .monospaced))
+                }
+                .listStyle(.plain)
+            }
+        }
+        .frame(width: 480, height: 420)
+    }
+}
+
+private extension NSSavePanel {
+    @MainActor
+    func beginSheetModalForCurrentWindow() async -> NSApplication.ModalResponse {
+        await withCheckedContinuation { continuation in
+            if let window = NSApp.keyWindow {
+                self.beginSheetModal(for: window) { response in
+                    continuation.resume(returning: response)
+                }
+            } else {
+                let response = self.runModal()
+                continuation.resume(returning: response)
+            }
+        }
     }
 }
 
