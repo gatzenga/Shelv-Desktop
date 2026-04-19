@@ -62,7 +62,7 @@ class ServerStore: ObservableObject {
 
         let serverStableId = server.stableId
         if !serverStableId.isEmpty {
-            Task.detached(priority: .utility) {
+            Task.detached(priority: .userInitiated) {
                 await PlayLogService.shared.resetLog(serverId: serverStableId)
                 await PlayLogService.shared.resetRegistry(serverId: serverStableId)
                 await PlayLogService.shared.removeScrobbles(serverId: serverStableId)
@@ -81,7 +81,7 @@ class ServerStore: ObservableObject {
         UserDefaults.standard.removeObject(forKey: activeKey)
 
         guard !stableIds.isEmpty else { return }
-        Task.detached(priority: .utility) {
+        Task.detached(priority: .userInitiated) {
             for sid in stableIds {
                 await PlayLogService.shared.resetLog(serverId: sid)
                 await PlayLogService.shared.resetRegistry(serverId: sid)

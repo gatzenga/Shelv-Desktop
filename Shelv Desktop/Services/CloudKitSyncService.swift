@@ -374,7 +374,9 @@ actor CloudKitSyncService {
                 ckRecordName: name
             )
             await PlayLogService.shared.registerPlaylist(entry)
-            NotificationCenter.default.post(name: .recapRegistryUpdated, object: nil)
+            await MainActor.run {
+                NotificationCenter.default.post(name: .recapRegistryUpdated, object: nil)
+            }
 
         default:
             break
@@ -385,7 +387,9 @@ actor CloudKitSyncService {
         switch type {
         case "RecapMarker":
             await PlayLogService.shared.deleteRegistryEntry(byCKRecordName: id.recordName)
-            NotificationCenter.default.post(name: .recapRegistryUpdated, object: nil)
+            await MainActor.run {
+                NotificationCenter.default.post(name: .recapRegistryUpdated, object: nil)
+            }
         case "PlayEvent":
             await PlayLogService.shared.deletePlayLog(uuid: id.recordName)
             await updatePendingCounts()

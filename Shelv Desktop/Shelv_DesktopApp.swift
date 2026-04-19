@@ -4,9 +4,9 @@ let appLang: String = Locale.preferredLanguages.first?.hasPrefix("de") == true ?
 func tr(_ en: String, _ de: String, _ lang: String = appLang) -> String { lang == "de" ? de : en }
 
 extension Notification.Name {
-    nonisolated(unsafe) static let addSongsToPlaylist = Notification.Name("shelv.addSongsToPlaylist")
-    nonisolated(unsafe) static let showToast = Notification.Name("shelv.showToast")
-    nonisolated(unsafe) static let recapRegistryUpdated = Notification.Name("shelv.recapRegistryUpdated")
+    static let addSongsToPlaylist = Notification.Name("shelv.addSongsToPlaylist")
+    static let showToast = Notification.Name("shelv.showToast")
+    static let recapRegistryUpdated = Notification.Name("shelv.recapRegistryUpdated")
 }
 
 @main
@@ -15,6 +15,7 @@ struct Shelv_DesktopApp: App {
     @StateObject private var lyricsStore = LyricsStore()
     @StateObject private var ckStatus = CloudKitSyncService.shared.status
     @StateObject private var recapStore = RecapStore.shared
+    @StateObject private var libraryStore = LibraryViewModel()
     private let _playTracker = PlayTracker.shared
     @AppStorage("appColorScheme") private var storedColorScheme: AppColorScheme = .system
     @AppStorage("themeColor") private var themeColorName: String = "violet"
@@ -33,6 +34,7 @@ struct Shelv_DesktopApp: App {
                 .environmentObject(lyricsStore)
                 .environmentObject(ckStatus)
                 .environmentObject(recapStore)
+                .environmentObject(libraryStore)
                 .frame(minWidth: 900, minHeight: 600)
                 .task { await lyricsStore.setup() }
                 .task {
@@ -165,6 +167,7 @@ struct Shelv_DesktopApp: App {
             RecapView()
                 .environmentObject(appState)
                 .environmentObject(recapStore)
+                .environmentObject(libraryStore)
                 .tint(AppTheme.color(for: themeColorName))
                 .environment(\.themeColor, AppTheme.color(for: themeColorName))
         }

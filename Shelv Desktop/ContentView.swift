@@ -38,7 +38,7 @@ struct ToastView: View {
 struct MainWindowView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var lyricsStore: LyricsStore
-    @StateObject private var libraryStore = LibraryViewModel()
+    @EnvironmentObject var libraryStore: LibraryViewModel
 
     @State private var showAddToPlaylist = false
     @State private var playlistSongIds: [String] = []

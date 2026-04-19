@@ -66,7 +66,7 @@ final class PlayTracker {
         let threshold = pct > 0 ? pct / 100.0 : 0.3
         if playedSeconds / trackedDuration >= threshold {
             let dur = trackedDuration
-            Task.detached(priority: .utility) {
+            Task.detached(priority: .userInitiated) {
                 await PlayLogService.shared.log(songId: songId, serverId: serverId, songDuration: dur)
                 await CloudKitSyncService.shared.uploadPendingEvents()
             }
