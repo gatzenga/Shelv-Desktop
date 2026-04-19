@@ -87,9 +87,10 @@ struct RecapView: View {
                     Button {
                         Task {
                             guard let sid = appState.serverStore.activeServer?.stableId else { return }
-                            async let cleanup: Void = recapStore.refreshWithCleanup(serverId: sid)
-                            async let sync:    Void = CloudKitSyncService.shared.syncNow()
-                            _ = await (cleanup, sync)
+                            async let cleanup:   Void = recapStore.refreshWithCleanup(serverId: sid)
+                            async let sync:      Void = CloudKitSyncService.shared.syncNow()
+                            async let playlists: Void = libraryStore.loadPlaylists()
+                            _ = await (cleanup, sync, playlists)
                         }
                     } label: {
                         Image(systemName: "arrow.clockwise")
@@ -130,7 +131,9 @@ struct RecapView: View {
         }
         .task(id: appState.serverStore.activeServerID) {
             guard let sid = appState.serverStore.activeServer?.stableId else { return }
-            await recapStore.refreshWithCleanup(serverId: sid)
+            async let cleanup:   Void = recapStore.refreshWithCleanup(serverId: sid)
+            async let playlists: Void = libraryStore.loadPlaylists()
+            _ = await (cleanup, playlists)
         }
     }
 

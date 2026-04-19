@@ -66,7 +66,7 @@ When a Recap playlist is created, a marker is written to iCloud. If another devi
 
 ### Retention
 
-Shelv keeps a configurable number of Recaps per period type. Once the limit is exceeded, the oldest Recap — its Navidrome playlist, its local registry entry, and its iCloud marker — is deleted automatically. The default limits are:
+Shelv keeps a configurable number of Recaps per period type. When a new Recap is created and the limit is exceeded, the oldest Recap — its Navidrome playlist, its local registry entry, and its iCloud marker — is deleted automatically. The default limits are:
 
 | Period | Default |
 |--------|---------|
@@ -74,11 +74,13 @@ Shelv keeps a configurable number of Recaps per period type. Once the limit is e
 | Monthly | 12 |
 | Yearly | 3 |
 
-You can change these limits in Settings.
+You can change these limits in Settings. If you lower a limit below the current number of stored Recaps, Shelv asks you to confirm before deleting the excess playlists — this applies the change immediately rather than waiting for the next generation cycle.
 
-### Automatic cleanup when playlists go missing
+### When playlists go missing on Navidrome
 
-If you delete a Recap playlist directly on your Navidrome server (for example through the web interface), Shelv detects this on the next refresh and automatically removes the corresponding registry entry from the local database and iCloud. This cleanup only runs after a successful server response, so being offline won't accidentally trigger it.
+If you delete a Recap playlist directly on your Navidrome server (for example through the web interface), Shelv does **not** automatically remove the corresponding Recap entry from its database. Instead, the Recap view shows a warning icon on the affected entry so you can see at a glance that the playlist is no longer available. You can then delete the Recap entry manually via its context menu or swipe action — this will also clean up the iCloud marker.
+
+This is deliberate: an earlier version of Shelv did perform automatic cleanup based on server responses, but this turned out to be unreliable. A temporarily unreachable or slow-responding Navidrome server could be mistaken for a missing playlist, causing permanent loss of Recap metadata. By requiring manual confirmation, Shelv guarantees that no Recap entry is ever deleted because of transient server issues.
 
 ---
 
@@ -113,6 +115,7 @@ Beyond the main settings, Shelv offers several tools in *Recap Settings*:
 
 ### Logs
 
+- **Recap log** — step-by-step output of every Recap creation attempt (auto-trigger or manual test button), including which deduplication check ran, whether an iCloud marker was found or created, and how a conflict (if any) was resolved. Useful for understanding exactly why a Recap was or wasn't created on a given device.
 - **Recent plays** — the last 100 plays, with per-entry delete. Useful for spot-checking what's being counted.
 - **Registry** — all active Recap playlist entries, with per-entry delete (deletes the Navidrome playlist + local entry + iCloud marker).
 - **Sync log** — verbose CloudKit debug output, useful when troubleshooting sync behaviour.
@@ -122,12 +125,12 @@ Beyond the main settings, Shelv offers several tools in *Recap Settings*:
 Three clearly separated reset options, each with confirmation:
 
 - **Reset local database** — clears only the local cache on this device. Nothing on iCloud or Navidrome is touched. On the next sync, the local database is re-filled from iCloud.
-- **Delete iCloud data** — removes all CloudKit records for the current server. Local database and Navidrome playlists stay intact. If sync is on, the next upload will re-populate iCloud from the local state.
-- **Delete everything** — removes the Navidrome Recap playlists for this server, the local database, and the iCloud records. This bypasses the iCloud sync toggle.
+- **Delete iCloud data** — wipes all Recap data from iCloud for the current server. Local databases and Navidrome playlists stay intact on every device. On the next sync, each device automatically re-uploads its local plays, so iCloud refills with the union of all devices' histories. Useful when iCloud's state is corrupted or you want to start the cloud side fresh without losing anything.
+- **Delete everything** — removes the Navidrome Recap playlists, the local database, and the iCloud data — **on this device**. Other devices keep their local plays and will re-upload them on the next sync, and those plays then flow back down to this device. This is not a cross-device wipe; to fully clear history across all devices, run *Delete everything* on each device. Bypasses the iCloud sync toggle.
 
 ### Generate test recap
 
-A manual trigger for creating a Recap from the last 7 days' plays. Useful for testing the end-to-end flow.
+A manual trigger that creates a Recap for the **current calendar week** (from Monday 00:00 until now). Useful for testing the end-to-end flow — especially cross-device deduplication: press it on one device, wait for iCloud to sync, press it on the second device, and confirm that no duplicate playlist is created.
 
 ---
 

@@ -50,6 +50,7 @@ struct RecapVerifyView: View {
                             "Alle Recap-Playlists entsprechen der Datenbank."
                         ))
                     )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
                         ForEach(diffs) { diff in

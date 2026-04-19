@@ -400,10 +400,23 @@ struct RecapTab: View {
     @State private var showPlayLog = false
     @State private var showRegistry = false
     @State private var showSyncLog = false
+    @State private var showRecapLog = false
     @State private var showDBLog = false
     @State private var showAdvanced = false
     @State private var showVerify = false
     @State private var totalPlays: Int = 0
+
+    @State private var weekRetentionDraft: Int = 1
+    @State private var monthRetentionDraft: Int = 12
+    @State private var yearRetentionDraft: Int = 3
+    @State private var pendingRetention: PendingRetentionChange?
+
+    private struct PendingRetentionChange: Identifiable {
+        let id = UUID()
+        let type: RecapPeriod.PeriodType
+        let newValue: Int
+        let excess: Int
+    }
 
     var body: some View {
         Form {
@@ -423,13 +436,16 @@ struct RecapTab: View {
                 Section(tr("Periods", "Perioden")) {
                     periodRow(title: tr("Weekly", "Wöchentlich"),
                               enabled: $recapWeeklyEnabled,
-                              retention: $recapWeeklyRetention, range: 1...52)
+                              retention: $weekRetentionDraft, range: 1...52,
+                              type: .week)
                     periodRow(title: tr("Monthly", "Monatlich"),
                               enabled: $recapMonthlyEnabled,
-                              retention: $recapMonthlyRetention, range: 1...24)
+                              retention: $monthRetentionDraft, range: 1...24,
+                              type: .month)
                     periodRow(title: tr("Yearly", "Jährlich"),
                               enabled: $recapYearlyEnabled,
-                              retention: $recapYearlyRetention, range: 1...10)
+                              retention: $yearRetentionDraft, range: 1...10,
+                              type: .year)
                     Picker(tr("Count from", "Zählen ab"), selection: $recapThreshold) {
                         ForEach([10, 20, 30, 40, 50], id: \.self) { pct in
                             Text("\(pct)%").tag(pct)
@@ -552,6 +568,11 @@ struct RecapTab: View {
                         Label(tr("Registry", "Registry"), systemImage: "square.stack.3d.up")
                     }
                     Button {
+                        showRecapLog = true
+                    } label: {
+                        Label(tr("Recap log", "Recap-Protokoll"), systemImage: "sparkles.rectangle.stack")
+                    }
+                    Button {
                         showSyncLog = true
                     } label: {
                         Label(tr("Sync log", "Sync-Protokoll"), systemImage: "doc.text")
@@ -575,7 +596,50 @@ struct RecapTab: View {
         .formStyle(.grouped)
         .padding()
         .task(id: appState.serverStore.activeServerID) { await refreshTotalPlays() }
+        .task {
+            weekRetentionDraft  = recapWeeklyRetention
+            monthRetentionDraft = recapMonthlyRetention
+            yearRetentionDraft  = recapYearlyRetention
+        }
+        .alert(
+            pendingRetention.map {
+                tr(
+                    "Delete \($0.excess) \(periodTypeName($0.type))?",
+                    "\($0.excess) \(periodTypeName($0.type)) löschen?"
+                )
+            } ?? "",
+            isPresented: Binding(
+                get: { pendingRetention != nil },
+                set: { if !$0 { pendingRetention = nil } }
+            ),
+            presenting: pendingRetention
+        ) { pending in
+            Button(tr("Delete", "Löschen"), role: .destructive) {
+                guard let sid = appState.serverStore.activeServer?.stableId else { return }
+                let type = pending.type
+                let newValue = pending.newValue
+                Task {
+                    await recapStore.applyRetention(
+                        periodType: type, limit: newValue, serverId: sid
+                    )
+                    setStoredRetention(type, newValue)
+                }
+                pendingRetention = nil
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) {
+                setDraft(pending.type, storedRetention(for: pending.type))
+                pendingRetention = nil
+            }
+        } message: { _ in
+            Text(tr(
+                "These playlists will be permanently deleted from Navidrome and iCloud.",
+                "Diese Playlists werden unwiderruflich aus Navidrome und iCloud gelöscht."
+            ))
+        }
         .onReceive(NotificationCenter.default.publisher(for: .recapRegistryUpdated)) { _ in
+            Task { await refreshTotalPlays() }
+        }
+        .onChange(of: ckStatus.lastSyncDate) { _, _ in
             Task { await refreshTotalPlays() }
         }
         .alert(
@@ -600,10 +664,15 @@ struct RecapTab: View {
         .sheet(isPresented: $showSyncLog) {
             RecapSyncLogView()
         }
+        .sheet(isPresented: $showRecapLog) {
+            RecapCreationLogView()
+        }
         .sheet(isPresented: $showDBLog) {
             RecapDBLogView()
         }
-        .sheet(isPresented: $showAdvanced) {
+        .sheet(isPresented: $showAdvanced, onDismiss: {
+            Task { await refreshTotalPlays() }
+        }) {
             if let sid = appState.serverStore.activeServer?.stableId {
                 RecapAdvancedView(serverId: sid)
             }
@@ -627,7 +696,8 @@ struct RecapTab: View {
 
     @ViewBuilder
     private func periodRow(title: String, enabled: Binding<Bool>,
-                           retention: Binding<Int>, range: ClosedRange<Int>) -> some View {
+                           retention: Binding<Int>, range: ClosedRange<Int>,
+                           type: RecapPeriod.PeriodType) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle(title, isOn: enabled)
             if enabled.wrappedValue {
@@ -638,9 +708,67 @@ struct RecapTab: View {
                         Text("\(retention.wrappedValue)").foregroundStyle(.secondary).monospacedDigit()
                     }
                 }
+                .onChange(of: retention.wrappedValue) { _, newValue in
+                    handleRetentionChange(type: type, newValue: newValue)
+                }
             }
         }
         .padding(.vertical, 4)
+    }
+
+    private func storedRetention(for type: RecapPeriod.PeriodType) -> Int {
+        switch type {
+        case .week:  return recapWeeklyRetention
+        case .month: return recapMonthlyRetention
+        case .year:  return recapYearlyRetention
+        }
+    }
+
+    private func setStoredRetention(_ type: RecapPeriod.PeriodType, _ value: Int) {
+        switch type {
+        case .week:  recapWeeklyRetention = value
+        case .month: recapMonthlyRetention = value
+        case .year:  recapYearlyRetention = value
+        }
+    }
+
+    private func setDraft(_ type: RecapPeriod.PeriodType, _ value: Int) {
+        switch type {
+        case .week:  weekRetentionDraft = value
+        case .month: monthRetentionDraft = value
+        case .year:  yearRetentionDraft = value
+        }
+    }
+
+    private func handleRetentionChange(type: RecapPeriod.PeriodType, newValue: Int) {
+        let current = storedRetention(for: type)
+        guard newValue != current else { return }
+        guard newValue < current else {
+            setStoredRetention(type, newValue)
+            return
+        }
+        guard let sid = appState.serverStore.activeServer?.stableId else {
+            setDraft(type, current)
+            return
+        }
+        Task {
+            let excess = await recapStore.excessRetentionCount(
+                periodType: type, limit: newValue, serverId: sid
+            )
+            if excess > 0 {
+                pendingRetention = PendingRetentionChange(type: type, newValue: newValue, excess: excess)
+            } else {
+                setStoredRetention(type, newValue)
+            }
+        }
+    }
+
+    private func periodTypeName(_ type: RecapPeriod.PeriodType) -> String {
+        switch type {
+        case .week:  return tr("weekly recaps", "Wochen-Recaps")
+        case .month: return tr("monthly recaps", "Monats-Recaps")
+        case .year:  return tr("yearly recaps", "Jahres-Recaps")
+        }
     }
 
     @MainActor
