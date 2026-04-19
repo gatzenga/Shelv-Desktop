@@ -66,27 +66,6 @@ class RecapStore: ObservableObject {
     }
 
     func refreshWithCleanup(serverId: String) async {
-        let api = SubsonicAPIService.shared
-        if let playlists = try? await api.getPlaylists() {
-            let activeIds = Set(playlists.map { $0.id })
-            if !activeIds.isEmpty {
-                let regEntries = await PlayLogService.shared.allRegistryEntries(serverId: serverId)
-                let candidates = regEntries.filter { !activeIds.contains($0.playlistId) }
-                for entry in candidates {
-                    do {
-                        _ = try await api.getPlaylist(id: entry.playlistId)
-                    } catch APIError.notFound {
-                        CloudKitSyncService.debugLog("[OrphanCleanup:recap] playlistId=\(entry.playlistId) confirmed missing (APIError.notFound), deleting marker=\(entry.ckRecordName ?? "nil")")
-                        if let ckName = entry.ckRecordName {
-                            await CloudKitSyncService.shared.deleteRecapMarker(ckRecordName: ckName)
-                        }
-                        await PlayLogService.shared.deleteRegistryEntry(playlistId: entry.playlistId)
-                    } catch {
-                        continue
-                    }
-                }
-            }
-        }
         await loadEntries(serverId: serverId)
     }
 

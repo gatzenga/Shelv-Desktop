@@ -198,41 +198,11 @@ class LibraryViewModel: ObservableObject {
     func loadPlaylists() async {
         isLoadingPlaylists = true
         do {
-            let result = try await api.getPlaylists()
-            playlists = result
-            await cleanupOrphanRecaps(activePlaylistIds: Set(result.map { $0.id }))
+            playlists = try await api.getPlaylists()
         } catch {
             errorMessage = error.localizedDescription
         }
         isLoadingPlaylists = false
-    }
-
-    private func cleanupOrphanRecaps(activePlaylistIds: Set<String>) async {
-        let serverStableId = AppState.shared.serverStore.activeServer?.stableId ?? ""
-        guard !serverStableId.isEmpty else { return }
-        guard !activePlaylistIds.isEmpty else { return }
-        let entries = await PlayLogService.shared.allRegistryEntries(serverId: serverStableId)
-        let candidates = entries.filter { !activePlaylistIds.contains($0.playlistId) }
-        guard !candidates.isEmpty else { return }
-
-        var didCleanup = false
-        for entry in candidates {
-            do {
-                _ = try await api.getPlaylist(id: entry.playlistId)
-            } catch APIError.notFound {
-                CloudKitSyncService.debugLog("[OrphanCleanup:library] playlistId=\(entry.playlistId) confirmed missing (APIError.notFound), deleting marker=\(entry.ckRecordName ?? "nil")")
-                if let ckName = entry.ckRecordName {
-                    await CloudKitSyncService.shared.deleteRecapMarker(ckRecordName: ckName)
-                }
-                await PlayLogService.shared.deleteRegistryEntry(playlistId: entry.playlistId)
-                didCleanup = true
-            } catch {
-                continue
-            }
-        }
-        if didCleanup {
-            NotificationCenter.default.post(name: .recapRegistryUpdated, object: nil)
-        }
     }
 
     func loadPlaylistDetail(id: String) async -> PlaylistDetail? {

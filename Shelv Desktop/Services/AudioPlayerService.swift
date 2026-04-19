@@ -64,17 +64,25 @@ class AudioPlayerService: ObservableObject {
         static let isPlayingFromPlayNext = "shelv_mac_isPlayingFromPlayNext"
     }
 
+    private var willTerminateObserver: NSObjectProtocol?
+
     private init() {
         setupRemoteControls()
         setupEngine()
         restoreState()
-        NotificationCenter.default.addObserver(
+        willTerminateObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor [self] in self.saveState() }
+        }
+    }
+
+    deinit {
+        if let obs = willTerminateObserver {
+            NotificationCenter.default.removeObserver(obs)
         }
     }
 

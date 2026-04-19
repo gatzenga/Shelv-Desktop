@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RecapView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var libraryStore: LibraryViewModel
     @StateObject private var recapStore = RecapStore.shared
     @Environment(\.themeColor) private var themeColor
     @AppStorage("recapEnabled") private var recapEnabled = false
@@ -140,13 +141,17 @@ struct RecapView: View {
             start: Date(timeIntervalSince1970: entry.periodStart),
             end: Date(timeIntervalSince1970: entry.periodEnd)
         )
+        let isMissing = !libraryStore.playlists.isEmpty
+            && !libraryStore.playlists.contains { $0.id == entry.playlistId }
+        let iconColor: Color = isMissing ? .orange : themeColor
+        let iconName = isMissing ? "exclamationmark.triangle.fill" : type.icon
         return HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(themeColor.opacity(0.12))
-                Image(systemName: type.icon)
+                    .fill(iconColor.opacity(0.12))
+                Image(systemName: iconName)
                     .font(.title3)
-                    .foregroundStyle(themeColor)
+                    .foregroundStyle(iconColor)
             }
             .frame(width: 48, height: 48)
 

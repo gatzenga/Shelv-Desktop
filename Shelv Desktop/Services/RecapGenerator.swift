@@ -48,7 +48,7 @@ struct RecapPeriod {
         switch type {
         case .week:
             var cal = Calendar(identifier: .gregorian)
-            cal.locale = Locale.current
+            cal.locale = Locale(identifier: "en_US_POSIX")
             let startComps = cal.dateComponents([.month], from: start)
             let endComps   = cal.dateComponents([.month], from: end)
 
@@ -57,7 +57,7 @@ struct RecapPeriod {
 
             let monthFmt = DateFormatter()
             monthFmt.dateFormat = "MMM"
-            monthFmt.locale = Locale.current
+            monthFmt.locale = Locale(identifier: "en_US_POSIX")
 
             let yearFmt = DateFormatter()
             yearFmt.dateFormat = "yyyy"
@@ -76,7 +76,7 @@ struct RecapPeriod {
         case .month:
             let fmt = DateFormatter()
             fmt.dateFormat = "MMMM yyyy"
-            fmt.locale = Locale.current
+            fmt.locale = Locale(identifier: "en_US_POSIX")
             return fmt.string(from: start)
         case .year:
             let fmt = DateFormatter()
@@ -124,7 +124,7 @@ extension RecapPeriod {
         var cal = Calendar(identifier: .gregorian)
         cal.firstWeekday = 2
         cal.minimumDaysInFirstWeek = 4
-        cal.timeZone = TimeZone(identifier: "UTC")!
+        cal.timeZone = TimeZone(identifier: "UTC") ?? .gmt
         switch type {
         case .week:
             let week = cal.component(.weekOfYear, from: start)

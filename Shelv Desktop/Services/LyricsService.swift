@@ -52,6 +52,14 @@ extension LrcLibResponse: Decodable {
 actor LyricsService {
     static let shared = LyricsService()
 
+    private static let lrcLibSession: URLSession = {
+        let cfg = URLSessionConfiguration.default
+        cfg.httpMaximumConnectionsPerHost = 12
+        cfg.timeoutIntervalForRequest = 8
+        cfg.waitsForConnectivity = false
+        return URLSession(configuration: cfg)
+    }()
+
     private var records: [String: LyricsRecord] = [:]
     private var isSetup = false
 
@@ -88,12 +96,16 @@ actor LyricsService {
 
     private func persist() {
         let url = Self.storeURL
-        try? FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        guard let data = try? JSONEncoder().encode(records) else { return }
-        try? data.write(to: url, options: .atomic)
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            let data = try JSONEncoder().encode(records)
+            try data.write(to: url, options: .atomic)
+        } catch {
+            DBErrorLog.logLyrics("persist: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Read / Write
@@ -231,10 +243,10 @@ actor LyricsService {
         comps.queryItems = items
         guard let url = comps.url else { return nil }
 
-        var req = URLRequest(url: url, timeoutInterval: 10)
+        var req = URLRequest(url: url, timeoutInterval: 8)
         req.setValue("Shelv/1.0 (https://github.com/gatzenga/Shelv-Desktop)", forHTTPHeaderField: "User-Agent")
 
-        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+        guard let (data, resp) = try? await Self.lrcLibSession.data(for: req),
               (resp as? HTTPURLResponse)?.statusCode == 200
         else { return nil }
 

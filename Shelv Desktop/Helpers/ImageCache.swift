@@ -70,6 +70,11 @@ actor ImageCacheService {
     private let memory = NSCache<NSString, NSImage>()
     private let cacheDir: URL
     private var inflight: [String: Task<NSImage?, Never>] = [:]
+    private var writesSinceTrim = 0
+
+    private static let diskLimitBytes  = 1_073_741_824
+    private static let diskTrimTarget  = 900 * 1024 * 1024
+    private static let writesPerTrimCheck = 20
 
     private static let session: URLSession = {
         let cfg = URLSessionConfiguration.default
@@ -118,8 +123,38 @@ actor ImageCacheService {
         if let img {
             let cost = Int(img.size.width * img.size.height * 4)
             memory.setObject(img, forKey: nsKey, cost: cost)
+            writesSinceTrim += 1
+            if writesSinceTrim >= Self.writesPerTrimCheck {
+                writesSinceTrim = 0
+                let dir = cacheDir
+                Task.detached(priority: .utility) {
+                    Self.trimDiskCache(cacheDir: dir)
+                }
+            }
         }
         return img
+    }
+
+    private nonisolated static func trimDiskCache(cacheDir: URL) {
+        let fm = FileManager.default
+        guard fm.directorySize(at: cacheDir) > diskLimitBytes else { return }
+        guard let items = try? fm.contentsOfDirectory(
+            at: cacheDir,
+            includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey]
+        ) else { return }
+        let sorted = items.compactMap { url -> (URL, Date, Int)? in
+            let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .fileSizeKey])
+            guard let date = values?.contentModificationDate,
+                  let size = values?.fileSize else { return nil }
+            return (url, date, size)
+        }.sorted { $0.1 < $1.1 }
+
+        var total = sorted.reduce(0) { $0 + $1.2 }
+        for (url, _, size) in sorted {
+            if total <= diskTrimTarget { break }
+            try? fm.removeItem(at: url)
+            total -= size
+        }
     }
 
     func clearAll() {

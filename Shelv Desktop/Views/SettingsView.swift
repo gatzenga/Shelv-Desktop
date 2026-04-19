@@ -400,6 +400,7 @@ struct RecapTab: View {
     @State private var showPlayLog = false
     @State private var showRegistry = false
     @State private var showSyncLog = false
+    @State private var showDBLog = false
     @State private var showAdvanced = false
     @State private var showVerify = false
     @State private var totalPlays: Int = 0
@@ -555,6 +556,11 @@ struct RecapTab: View {
                     } label: {
                         Label(tr("Sync log", "Sync-Protokoll"), systemImage: "doc.text")
                     }
+                    Button {
+                        showDBLog = true
+                    } label: {
+                        Label(tr("Database errors", "Datenbank-Fehler"), systemImage: "exclamationmark.octagon")
+                    }
                 }
 
                 Section {
@@ -593,6 +599,9 @@ struct RecapTab: View {
         }
         .sheet(isPresented: $showSyncLog) {
             RecapSyncLogView()
+        }
+        .sheet(isPresented: $showDBLog) {
+            RecapDBLogView()
         }
         .sheet(isPresented: $showAdvanced) {
             if let sid = appState.serverStore.activeServer?.stableId {
