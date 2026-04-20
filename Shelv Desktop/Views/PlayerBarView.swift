@@ -107,17 +107,22 @@ struct PlayerBarView: View {
 
                 VStack(spacing: 10) {
                     HStack(spacing: 22) {
-                        if enablePlaylists, let song = player.currentSong {
-                            Button {
-                                NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
-                            } label: {
+                        Group {
+                            if enablePlaylists, let song = player.currentSong {
+                                Button {
+                                    NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
+                                } label: {
+                                    Image(systemName: "music.note.list")
+                                        .foregroundStyle(AnyShapeStyle(.primary.opacity(0.35)))
+                                }
+                                .buttonStyle(.plain)
+                                .help(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…"))
+                            } else {
                                 Image(systemName: "music.note.list")
-                                    .foregroundStyle(AnyShapeStyle(.primary.opacity(0.35)))
+                                    .hidden()
                             }
-                            .buttonStyle(.plain)
-                            .font(.title2)
-                            .help(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…"))
                         }
+                        .font(.title2)
 
                         Button { player.toggleShuffle() } label: {
                             Image(systemName: "shuffle")
@@ -171,23 +176,28 @@ struct PlayerBarView: View {
                         .font(.title2)
                         .help(repeatHelpText)
 
-                        if enableFavorites, let song = player.currentSong {
-                            let isStarred = libraryStore.isSongStarred(song)
-                            Button {
-                                Task {
-                                    await libraryStore.toggleStarSong(song)
-                                    player.setCurrentSongStarred(!isStarred)
+                        Group {
+                            if enableFavorites, let song = player.currentSong {
+                                let isStarred = libraryStore.isSongStarred(song)
+                                Button {
+                                    Task {
+                                        await libraryStore.toggleStarSong(song)
+                                        player.setCurrentSongStarred(!isStarred)
+                                    }
+                                } label: {
+                                    Image(systemName: isStarred ? "heart.fill" : "heart")
+                                        .foregroundStyle(isStarred ? AnyShapeStyle(themeColor) : AnyShapeStyle(.primary.opacity(0.35)))
                                 }
-                            } label: {
-                                Image(systemName: isStarred ? "heart.fill" : "heart")
-                                    .foregroundStyle(isStarred ? AnyShapeStyle(themeColor) : AnyShapeStyle(.primary.opacity(0.35)))
+                                .buttonStyle(.plain)
+                                .help(isStarred
+                                      ? tr("Remove from Favorites", "Aus Favoriten entfernen")
+                                      : tr("Add to Favorites", "Zu Favoriten hinzufügen"))
+                            } else {
+                                Image(systemName: "heart")
+                                    .hidden()
                             }
-                            .buttonStyle(.plain)
-                            .font(.title2)
-                            .help(isStarred
-                                  ? tr("Remove from Favorites", "Aus Favoriten entfernen")
-                                  : tr("Add to Favorites", "Zu Favoriten hinzufügen"))
                         }
+                        .font(.title2)
                     }
 
                     HStack(spacing: 10) {
@@ -322,6 +332,7 @@ private struct QueueEntry: Identifiable {
 
 struct QueuePopover: View {
     @ObservedObject private var player = AudioPlayerService.shared
+    @State private var showClearConfirm = false
 
     private var playNextEntries: [QueueEntry] {
         player.playNextQueue.enumerated().map {
@@ -358,7 +369,7 @@ struct QueuePopover: View {
                 Text(tr("Queue", "Warteschlange")).font(.headline)
                 Spacer()
                 if hasUpcoming {
-                    Button(tr("Clear", "Leeren")) { player.clearAllQueues() }
+                    Button(tr("Clear", "Leeren")) { showClearConfirm = true }
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .buttonStyle(.plain)
@@ -388,12 +399,12 @@ struct QueuePopover: View {
                             onDelete: { player.removeFromPlayNextQueue(at: $0.index) },
                             onMove:  { player.moveInPlayNextQueue(from: $0, to: $1) })
 
-                        queueSection(tr("From this album", "Von diesem Album"), entries: albumEntries,
+                        queueSection(tr("Up Next", "Nächste Titel"), entries: albumEntries,
                             onTap:   { player.jumpToAlbumTrack(at: $0.index) },
                             onDelete: { player.removeFromQueue(at: $0.index) },
                             onMove:  { player.moveInAlbumQueue(from: $0, to: $1) })
 
-                        queueSection(tr("Queue", "Warteschlange"), entries: userQueueEntries,
+                        queueSection(tr("Your Queue", "Deine Warteschlange"), entries: userQueueEntries,
                             onTap:   { player.jumpToUserQueueTrack(at: $0.index) },
                             onDelete: { player.removeFromUserQueue(at: $0.index) },
                             onMove:  { player.moveInUserQueue(from: $0, to: $1) })
@@ -401,6 +412,17 @@ struct QueuePopover: View {
                 }
                 .listStyle(.inset)
             }
+        }
+        .alert(tr("Clear Queue?", "Warteschlange leeren?"), isPresented: $showClearConfirm) {
+            Button(tr("Clear", "Leeren"), role: .destructive) {
+                player.clearAllQueues()
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+        } message: {
+            Text(tr(
+                "All upcoming songs will be removed from the queue.",
+                "Alle kommenden Songs werden aus der Warteschlange entfernt."
+            ))
         }
     }
 
@@ -414,16 +436,17 @@ struct QueuePopover: View {
     ) -> some View {
         if !entries.isEmpty {
             Section(title) {
-                ForEach(entries) { entry in
-                    QueueSongRow(song: entry.song)
-                        .onTapGesture { onTap(entry) }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) { onDelete(entry) } label: {
-                                Label(tr("Remove", "Entfernen"), systemImage: "trash")
-                            }
-                        }
+                ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+                    QueueSongRow(
+                        song: entry.song,
+                        canMoveUp: index > 0,
+                        canMoveDown: index < entries.count - 1,
+                        onMoveUp: { onMove(IndexSet(integer: index), index - 1) },
+                        onMoveDown: { onMove(IndexSet(integer: index), index + 2) },
+                        onDelete: { onDelete(entry) }
+                    )
+                    .onTapGesture { onTap(entry) }
                 }
-                .onMove { onMove($0, $1) }
             }
         }
     }
@@ -431,6 +454,13 @@ struct QueuePopover: View {
 
 struct QueueSongRow: View {
     let song: Song
+    var canMoveUp: Bool = false
+    var canMoveDown: Bool = false
+    var onMoveUp: () -> Void = {}
+    var onMoveDown: () -> Void = {}
+    var onDelete: (() -> Void)? = nil
+
+    @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -446,9 +476,37 @@ struct QueueSongRow: View {
                 }
             }
             Spacer()
+            if isHovered {
+                HStack(spacing: 2) {
+                    Button { onMoveUp() } label: {
+                        Image(systemName: "chevron.up")
+                            .font(.caption2.bold())
+                            .frame(width: 22, height: 22)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(!canMoveUp)
+                    Button { onMoveDown() } label: {
+                        Image(systemName: "chevron.down")
+                            .font(.caption2.bold())
+                            .frame(width: 22, height: 22)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(!canMoveDown)
+                    if let onDelete {
+                        Button { onDelete() } label: {
+                            Image(systemName: "trash")
+                                .font(.caption2.bold())
+                                .frame(width: 22, height: 22)
+                                .foregroundStyle(.red)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+            }
             Text(song.durationString).font(.caption2).foregroundStyle(.tertiary).monospacedDigit()
         }
         .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
     }
 }
 

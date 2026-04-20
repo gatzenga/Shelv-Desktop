@@ -4,16 +4,16 @@ struct RecapPeriod {
     enum PeriodType: String {
         case week, month, year
 
-        var songLimit: Int {
+        nonisolated var songLimit: Int {
             switch self {
             case .week:         return 25
             case .month, .year: return 50
             }
         }
 
-        static let weekGraceHours  = 24
-        static let monthGraceHours = 48
-        static let yearGraceHours  = 96
+        static let weekGraceHours  = 6
+        static let monthGraceHours = 6
+        static let yearGraceHours  = 6
 
         var gracePeriodHours: Int {
             switch self {
@@ -44,7 +44,7 @@ struct RecapPeriod {
     let start: Date
     let end: Date
 
-    var playlistName: String {
+    nonisolated var playlistName: String {
         switch type {
         case .week:
             var cal = Calendar(identifier: .gregorian)

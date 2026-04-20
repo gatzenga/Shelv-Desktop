@@ -11,156 +11,53 @@ struct PlaylistDetailView: View {
     @State private var detail: PlaylistDetail?
     @State private var songs: [Song] = []
     @State private var isLoading = true
-    @State private var showRenameAlert = false
-    @State private var newName = ""
     @State private var showDeleteConfirm = false
+    @State private var isSyncingOrder = false
+    @State private var isEditMode = false
+    @State private var editName: String = ""
+    @State private var editComment: String = ""
+    @State private var displayName: String = ""
+    @State private var displayComment: String = ""
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-
-                HStack(alignment: .top, spacing: 24) {
-                    CoverArtView(
-                        url: playlist.coverArt.flatMap { SubsonicAPIService.shared.coverArtURL(id: $0, size: 320) },
-                        size: 160,
-                        cornerRadius: 12
-                    )
-                    .shadow(color: .black.opacity(0.25), radius: 14)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(playlist.name)
-                            .font(.title.bold())
-                            .lineLimit(2)
-
-                        if let comment = playlist.comment, !comment.isEmpty {
-                            Text(comment)
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        HStack(spacing: 10) {
-                            if let count = playlist.songCount {
-                                Text(tr("\(count) Tracks", "\(count) Titel"))
-                            }
-                            if let dur = playlist.duration, dur > 0 {
-                                Text("·")
-                                Text(formatDuration(dur))
-                            }
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 2)
-
-                        Spacer(minLength: 12)
-
-                        HStack(spacing: 10) {
-                            Button {
-                                if !songs.isEmpty { appState.player.play(songs: songs) }
-                            } label: {
-                                Label(tr("Play", "Abspielen"), systemImage: "play.fill")
-                                    .frame(minWidth: 110)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(themeColor)
-                            .controlSize(.large)
-                            .disabled(isLoading || songs.isEmpty)
-
-                            Button {
-                                if !songs.isEmpty { appState.player.playShuffled(songs: songs) }
-                            } label: {
-                                Label(tr("Shuffle", "Zufall"), systemImage: "shuffle")
-                                    .frame(minWidth: 100)
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.large)
-                            .disabled(isLoading || songs.isEmpty)
-                        }
-                    }
-
-                    Spacer()
-                }
-                .padding(28)
-
-                Divider()
-                    .padding(.horizontal, 28)
-                    .padding(.bottom, 8)
-
-                if isLoading {
-                    ProgressView(tr("Loading tracks…", "Titel laden…"))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 60)
-                } else if songs.isEmpty {
-                    ContentUnavailableView(
-                        tr("Empty Playlist", "Leere Wiedergabeliste"),
-                        systemImage: "music.note.list",
-                        description: Text(tr("Add songs to this playlist.", "Füge Titel zu dieser Wiedergabeliste hinzu."))
-                    )
-                    .padding(.vertical, 40)
-                } else {
-                    VStack(spacing: 0) {
-                        ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
-                            PlaylistTrackRow(
-                                song: song,
-                                index: index,
-                                isPlaying: appState.player.currentSong?.id == song.id,
-                                showFavorite: enableFavorites,
-                                showPlaylist: enablePlaylists,
-                                isStarred: libraryStore.isSongStarred(song),
-                                themeColor: themeColor
-                            ) {
-                                appState.player.play(songs: songs, startIndex: index)
-                            } onPlayNext: {
-                                appState.player.addPlayNext(song)
-                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
-                            } onAddToQueue: {
-                                appState.player.addToUserQueue(song)
-                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
-                            } onFavorite: {
-                                Task { await libraryStore.toggleStarSong(song) }
-                            } onAddToPlaylist: {
-                                NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
-                            } onRemoveFromPlaylist: {
-                                let songId = song.id
-                                Task {
-                                    await libraryStore.removeSongsFromPlaylist(playlist, indices: [index])
-                                    songs.removeAll { $0.id == songId }
-                                }
-                            }
-                        }
-                    }
-                    .padding(.bottom, 20)
-                }
+        List {
+            Section {
+                headerView
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .moveDisabled(true)
+                    .deleteDisabled(true)
             }
-        }
-        .navigationTitle(playlist.name)
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button {
-                    newName = playlist.name
-                    showRenameAlert = true
-                } label: {
-                    Label(tr("Rename", "Umbenennen"), systemImage: "pencil")
-                }
-                .help(tr("Rename Playlist", "Wiedergabeliste umbenennen"))
 
-                Button(role: .destructive) {
-                    showDeleteConfirm = true
-                } label: {
-                    Label(tr("Delete", "Löschen"), systemImage: "trash")
-                }
-                .help(tr("Delete Playlist", "Wiedergabeliste löschen"))
-                .tint(.red)
-            }
+            PlaylistTracksList(
+                playlist: playlist,
+                songs: $songs,
+                isLoading: isLoading,
+                isEditMode: isEditMode,
+                enableFavorites: enableFavorites,
+                enablePlaylists: enablePlaylists,
+                themeColor: themeColor,
+                currentSongId: appState.player.currentSong?.id,
+                libraryStore: libraryStore,
+                onPlayAt: { index in appState.player.play(songs: songs, startIndex: index) },
+                onPlayNext: { song in
+                    appState.player.addPlayNext(song)
+                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                },
+                onAddToQueue: { song in
+                    appState.player.addToUserQueue(song)
+                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                },
+                onRemoveAt: { index in removeSong(at: index) },
+                onMove: moveSongs,
+                onDelete: deleteSongs
+            )
         }
-        .alert(tr("Rename Playlist", "Wiedergabeliste umbenennen"), isPresented: $showRenameAlert) {
-            TextField(tr("Name", "Name"), text: $newName)
-            Button(tr("Rename", "Umbenennen")) {
-                let name = newName.trimmingCharacters(in: .whitespaces)
-                guard !name.isEmpty else { return }
-                Task { await libraryStore.renamePlaylist(playlist, newName: name) }
-            }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) { }
-        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .navigationTitle(displayName.isEmpty ? playlist.name : displayName)
+        .toolbar(content: toolbarContent)
         .alert(tr("Delete Playlist?", "Wiedergabeliste löschen?"), isPresented: $showDeleteConfirm) {
             Button(tr("Delete", "Löschen"), role: .destructive) {
                 Task {
@@ -173,6 +70,8 @@ struct PlaylistDetailView: View {
             Text(tr("This action cannot be undone.", "Diese Aktion kann nicht rückgängig gemacht werden."))
         }
         .task {
+            displayName = playlist.name
+            displayComment = playlist.comment ?? ""
             await loadDetail()
         }
         .refreshable {
@@ -182,13 +81,197 @@ struct PlaylistDetailView: View {
         }
     }
 
+    @ToolbarContentBuilder
+    private func toolbarContent() -> some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                if isEditMode {
+                    commitEdits()
+                } else {
+                    editName = displayName
+                    editComment = displayComment
+                }
+                isEditMode.toggle()
+            } label: {
+                Label(
+                    isEditMode ? tr("Done", "Fertig") : tr("Edit", "Bearbeiten"),
+                    systemImage: isEditMode ? "checkmark" : "pencil"
+                )
+            }
+            .help(isEditMode ? tr("Finish Editing", "Bearbeiten beenden") : tr("Edit Playlist", "Wiedergabeliste bearbeiten"))
+            .disabled(isLoading)
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button(role: .destructive) {
+                showDeleteConfirm = true
+            } label: {
+                Label(tr("Delete", "Löschen"), systemImage: "trash")
+            }
+            .help(tr("Delete Playlist", "Wiedergabeliste löschen"))
+            .tint(.red)
+        }
+    }
+
+    @ViewBuilder
+    private var headerView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 24) {
+                CoverArtView(
+                    url: playlist.coverArt.flatMap { SubsonicAPIService.shared.coverArtURL(id: $0, size: 320) },
+                    size: 160,
+                    cornerRadius: 12
+                )
+                .shadow(color: .black.opacity(0.25), radius: 14)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    if isEditMode {
+                        TextField(tr("Name", "Name"), text: $editName)
+                            .font(.title.bold())
+                            .textFieldStyle(.roundedBorder)
+                        TextField(tr("Comment (optional)", "Kommentar (optional)"), text: $editComment, axis: .vertical)
+                            .font(.body)
+                            .textFieldStyle(.roundedBorder)
+                            .lineLimit(1...3)
+                    } else {
+                        Text(displayName)
+                            .font(.title.bold())
+                            .lineLimit(2)
+                        if !displayComment.isEmpty {
+                            Text(displayComment)
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    HStack(spacing: 10) {
+                        Text(tr("\(songs.count) Tracks", "\(songs.count) Titel"))
+                        if let dur = playlist.duration, dur > 0 {
+                            Text("·")
+                            Text(formatDuration(dur))
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+
+                    Spacer(minLength: 12)
+
+                    HStack(spacing: 10) {
+                        Button {
+                            if !songs.isEmpty { appState.player.play(songs: songs) }
+                        } label: {
+                            Label(tr("Play", "Abspielen"), systemImage: "play.fill")
+                                .frame(minWidth: 110)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(themeColor)
+                        .controlSize(.large)
+                        .disabled(isLoading || songs.isEmpty)
+
+                        Button {
+                            if !songs.isEmpty { appState.player.playShuffled(songs: songs) }
+                        } label: {
+                            Label(tr("Shuffle", "Zufall"), systemImage: "shuffle")
+                                .frame(minWidth: 100)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                        .disabled(isLoading || songs.isEmpty)
+                    }
+                }
+
+                Spacer()
+            }
+            .padding(28)
+
+            Divider()
+                .padding(.horizontal, 28)
+                .padding(.bottom, 8)
+        }
+    }
+
     private func loadDetail() async {
         isLoading = true
         if let loaded = await libraryStore.loadPlaylistDetail(id: playlist.id) {
             detail = loaded
             songs = loaded.songs ?? []
+            displayName = loaded.name
+            displayComment = loaded.comment ?? ""
         }
         isLoading = false
+    }
+
+    private func moveSongs(from: IndexSet, to: Int) {
+        songs.move(fromOffsets: from, toOffset: to)
+        Task { await syncOrder() }
+    }
+
+    private func deleteSongs(at offsets: IndexSet) {
+        Task {
+            let indices = Array(offsets)
+            await libraryStore.removeSongsFromPlaylist(playlist, indices: indices)
+            songs.remove(atOffsets: offsets)
+        }
+    }
+
+    private func removeSong(at index: Int) {
+        guard songs.indices.contains(index) else { return }
+        let songId = songs[index].id
+        Task {
+            await libraryStore.removeSongsFromPlaylist(playlist, indices: [index])
+            songs.removeAll { $0.id == songId }
+        }
+    }
+
+    private func commitEdits() {
+        let name = editName.trimmingCharacters(in: .whitespaces)
+        let comment = editComment.trimmingCharacters(in: .whitespaces)
+        let nameChanged = !name.isEmpty && name != displayName
+        let commentChanged = comment != displayComment
+        guard nameChanged || commentChanged else { return }
+
+        let newName = nameChanged ? name : displayName
+        let newComment = commentChanged ? comment : displayComment
+        displayName = newName
+        displayComment = newComment
+
+        Task {
+            do {
+                try await SubsonicAPIService.shared.updatePlaylist(
+                    id: playlist.id,
+                    name: nameChanged ? name : nil,
+                    comment: commentChanged ? comment : nil
+                )
+                await libraryStore.loadPlaylists()
+            } catch {
+                NotificationCenter.default.post(
+                    name: .showToast,
+                    object: tr("Changes could not be saved", "Änderungen konnten nicht gespeichert werden")
+                )
+                await loadDetail()
+            }
+        }
+    }
+
+    private func syncOrder() async {
+        guard !isSyncingOrder else { return }
+        isSyncingOrder = true
+        let newIds = songs.map(\.id)
+        let allOldIndices = Array(0..<newIds.count)
+        do {
+            try await SubsonicAPIService.shared.updatePlaylist(
+                id: playlist.id,
+                songIdsToAdd: newIds,
+                songIndicesToRemove: allOldIndices
+            )
+        } catch {
+            NotificationCenter.default.post(
+                name: .showToast,
+                object: tr("Order could not be saved", "Reihenfolge konnte nicht gespeichert werden")
+            )
+            await loadDetail()
+        }
+        isSyncingOrder = false
     }
 
     private func formatDuration(_ seconds: Int) -> String {
@@ -206,19 +289,27 @@ struct PlaylistTrackRow: View {
     var showPlaylist: Bool = false
     var isStarred: Bool = false
     let themeColor: Color
+    var isEditMode: Bool = false
+    var canMoveUp: Bool = false
+    var canMoveDown: Bool = false
     let onPlay: () -> Void
     let onPlayNext: () -> Void
     let onAddToQueue: () -> Void
     let onFavorite: () -> Void
     let onAddToPlaylist: () -> Void
     let onRemoveFromPlaylist: () -> Void
+    var onMoveUp: () -> Void = {}
+    var onMoveDown: () -> Void = {}
 
     @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 0) {
             Group {
-                if isPlaying {
+                if isEditMode {
+                    Image(systemName: "line.3.horizontal")
+                        .foregroundStyle(.secondary)
+                } else if isPlaying {
                     Image(systemName: "waveform")
                         .foregroundStyle(themeColor)
                         .symbolEffect(.variableColor.iterative)
@@ -230,6 +321,13 @@ struct PlaylistTrackRow: View {
             .font(.callout)
             .frame(width: 36, alignment: .trailing)
             .padding(.leading, 20)
+
+            CoverArtView(
+                url: song.coverArt.flatMap { SubsonicAPIService.shared.coverArtURL(id: $0, size: 80) },
+                size: 40,
+                cornerRadius: 4
+            )
+            .padding(.leading, 14)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(song.title)
@@ -244,9 +342,38 @@ struct PlaylistTrackRow: View {
                         .lineLimit(1)
                 }
             }
-            .padding(.leading, 14)
+            .padding(.leading, 12)
 
             Spacer()
+
+            if isEditMode {
+                HStack(spacing: 4) {
+                    Button { onMoveUp() } label: {
+                        Image(systemName: "chevron.up")
+                            .font(.body.bold())
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!canMoveUp)
+
+                    Button { onMoveDown() } label: {
+                        Image(systemName: "chevron.down")
+                            .font(.body.bold())
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!canMoveDown)
+
+                    Button(role: .destructive) { onRemoveFromPlaylist() } label: {
+                        Image(systemName: "trash")
+                            .font(.body)
+                            .foregroundStyle(.red)
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.borderless)
+                }
+                .padding(.trailing, 12)
+            }
 
             Text(song.durationString)
                 .font(.callout)
@@ -289,6 +416,79 @@ struct PlaylistTrackRow: View {
                         onAddToPlaylist()
                     }
                 }
+            }
+        }
+    }
+}
+
+struct PlaylistTracksList: View {
+    let playlist: Playlist
+    @Binding var songs: [Song]
+    let isLoading: Bool
+    let isEditMode: Bool
+    let enableFavorites: Bool
+    let enablePlaylists: Bool
+    let themeColor: Color
+    let currentSongId: String?
+    @ObservedObject var libraryStore: LibraryViewModel
+    let onPlayAt: (Int) -> Void
+    let onPlayNext: (Song) -> Void
+    let onAddToQueue: (Song) -> Void
+    let onRemoveAt: (Int) -> Void
+    let onMove: (IndexSet, Int) -> Void
+    let onDelete: (IndexSet) -> Void
+
+    var body: some View {
+        if isLoading {
+            ProgressView(tr("Loading tracks…", "Titel laden…"))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 60)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .moveDisabled(true)
+                .deleteDisabled(true)
+        } else if songs.isEmpty {
+            ContentUnavailableView(
+                tr("Empty Playlist", "Leere Wiedergabeliste"),
+                systemImage: "music.note.list",
+                description: Text(tr("Add songs to this playlist.", "Füge Titel zu dieser Wiedergabeliste hinzu."))
+            )
+            .padding(.vertical, 40)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .moveDisabled(true)
+            .deleteDisabled(true)
+        } else {
+            Section {
+                ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
+                    PlaylistTrackRow(
+                        song: song,
+                        index: index,
+                        isPlaying: currentSongId == song.id,
+                        showFavorite: enableFavorites,
+                        showPlaylist: enablePlaylists,
+                        isStarred: libraryStore.isSongStarred(song),
+                        themeColor: themeColor,
+                        isEditMode: isEditMode,
+                        canMoveUp: index > 0,
+                        canMoveDown: index < songs.count - 1,
+                        onPlay: { onPlayAt(index) },
+                        onPlayNext: { onPlayNext(song) },
+                        onAddToQueue: { onAddToQueue(song) },
+                        onFavorite: { Task { await libraryStore.toggleStarSong(song) } },
+                        onAddToPlaylist: {
+                            NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
+                        },
+                        onRemoveFromPlaylist: { onRemoveAt(index) },
+                        onMoveUp: { onMove(IndexSet(integer: index), index - 1) },
+                        onMoveDown: { onMove(IndexSet(integer: index), index + 2) }
+                    )
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                }
+                .onMove(perform: isEditMode ? onMove : nil)
+                .onDelete(perform: isEditMode ? onDelete : nil)
             }
         }
     }

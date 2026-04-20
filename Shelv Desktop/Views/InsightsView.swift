@@ -14,7 +14,9 @@ private struct TopAlbumEntry: Identifiable {
 }
 
 struct InsightsView: View {
+    @EnvironmentObject private var appState: AppState
     @Environment(\.themeColor) private var themeColor
+    @Environment(\.dismiss) private var dismiss
 
     private enum Segment: Int, CaseIterable {
         case artists, albums, songs
@@ -91,10 +93,15 @@ struct InsightsView: View {
         } else {
             List {
                 ForEach(Array(topArtists.enumerated()), id: \.element.id) { idx, entry in
-                    artistRow(rank: idx + 1, entry: entry)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                        .listRowBackground(Color.clear)
+                    Button {
+                        openArtist(entry)
+                    } label: {
+                        artistRow(rank: idx + 1, entry: entry)
+                    }
+                    .buttonStyle(.plain)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .listRowBackground(Color.clear)
                 }
             }
             .listStyle(.plain)
@@ -109,10 +116,15 @@ struct InsightsView: View {
         } else {
             List {
                 ForEach(Array(topAlbums.enumerated()), id: \.element.id) { idx, entry in
-                    albumRow(rank: idx + 1, entry: entry)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                        .listRowBackground(Color.clear)
+                    Button {
+                        openAlbum(entry.album)
+                    } label: {
+                        albumRow(rank: idx + 1, entry: entry)
+                    }
+                    .buttonStyle(.plain)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .listRowBackground(Color.clear)
                 }
             }
             .listStyle(.plain)
@@ -135,15 +147,36 @@ struct InsightsView: View {
         } else {
             List {
                 ForEach(Array(topSongs.enumerated()), id: \.element.id) { idx, song in
-                    songRow(rank: idx + 1, song: song)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
-                        .listRowBackground(Color.clear)
+                    Button {
+                        AudioPlayerService.shared.play(songs: topSongs, startIndex: idx)
+                    } label: {
+                        songRow(rank: idx + 1, song: song)
+                    }
+                    .buttonStyle(.plain)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                    .listRowBackground(Color.clear)
                 }
             }
             .listStyle(.plain)
             .scrollIndicators(.hidden)
         }
+    }
+
+    private func openArtist(_ entry: TopArtistEntry) {
+        appState.selectedPlaylist = nil
+        appState.selectedSidebar = .artists
+        appState.navigationPath = NavigationPath()
+        appState.navigationPath.append(
+            Artist(id: entry.id, name: entry.name, albumCount: nil, coverArt: entry.coverArt, starred: nil)
+        )
+    }
+
+    private func openAlbum(_ album: Album) {
+        appState.selectedPlaylist = nil
+        appState.selectedSidebar = .albums
+        appState.navigationPath = NavigationPath()
+        appState.navigationPath.append(album)
     }
 
     @ViewBuilder

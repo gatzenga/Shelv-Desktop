@@ -234,7 +234,7 @@ struct PlaylistDetail: Codable, Identifiable, Hashable {
 }
 
 struct PlaylistsResult: Codable {
-    let playlist: [Playlist]
+    let playlist: [Playlist]?
 }
 
 enum SidebarItem: String, CaseIterable, Identifiable {

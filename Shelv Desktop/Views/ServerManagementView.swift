@@ -104,7 +104,7 @@ struct ServerManagementView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 620)
+        .frame(width: 620, height: 640)
         .padding(.vertical, 8)
         .task { await loadInfo() }
     }

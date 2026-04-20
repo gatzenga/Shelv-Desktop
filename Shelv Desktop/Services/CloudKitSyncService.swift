@@ -629,6 +629,7 @@ actor CloudKitSyncService {
         await uploadPendingEvents()
         await downloadChanges()
         await uploadPendingEvents()
+        await reuploadRecapMarkers(onlyLocalOnly: true)
         await flushScrobbleQueue()
         log("Sync done")
     }
@@ -677,12 +678,20 @@ actor CloudKitSyncService {
     }
 
     private func reuploadAllRecapMarkers() async {
+        await reuploadRecapMarkers(onlyLocalOnly: false)
+    }
+
+    private func reuploadRecapMarkers(onlyLocalOnly: Bool) async {
         let stableId: String = await MainActor.run {
             AppState.shared.serverStore.activeServer?.stableId ?? ""
         }
         guard !stableId.isEmpty else { return }
-        let entries = await PlayLogService.shared.allRegistryEntries(serverId: stableId)
+        let all = await PlayLogService.shared.allRegistryEntries(serverId: stableId)
+        let entries = onlyLocalOnly ? all.filter { $0.ckRecordName == nil } : all
         guard !entries.isEmpty else { return }
+        if onlyLocalOnly {
+            log("Reconciling \(entries.count) local-only recap marker(s)")
+        }
 
         let conflicts: [(entry: RecapRegistryRecord, existingPlaylistId: String, periodKey: String)] = await withTaskGroup(
             of: (RecapRegistryRecord, String, String)?.self

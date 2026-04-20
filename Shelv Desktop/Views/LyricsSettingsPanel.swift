@@ -6,7 +6,6 @@ struct LyricsSettingsPanel: View {
     @Environment(\.themeColor) private var themeColor
     @AppStorage("autoFetchLyrics") private var autoFetchLyrics = true
 
-    @State private var fetchedCount: Int = 0
     @State private var showResetConfirm = false
 
     private var serverId: String {
@@ -29,7 +28,7 @@ struct LyricsSettingsPanel: View {
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     } else {
-                        Text("\(fetchedCount) · \(lyricsStore.dbSize)")
+                        Text("\(lyricsStore.fetchedCount) · \(lyricsStore.dbSize)")
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
@@ -71,7 +70,6 @@ struct LyricsSettingsPanel: View {
                     Button(tr("Reset", "Zurücksetzen"), role: .destructive) {
                         Task {
                             await lyricsStore.reset(serverId: serverId)
-                            fetchedCount = await lyricsStore.fetchedCount(serverId: serverId)
                         }
                     }
                     Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
@@ -87,7 +85,7 @@ struct LyricsSettingsPanel: View {
         .frame(width: 340)
         .fixedSize()
         .task {
-            fetchedCount = await lyricsStore.fetchedCount(serverId: serverId)
+            await lyricsStore.refreshFetchedCount(serverId: serverId)
             lyricsStore.refreshDbSize()
         }
     }

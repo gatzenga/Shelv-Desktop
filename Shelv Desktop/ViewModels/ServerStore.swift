@@ -67,7 +67,9 @@ class ServerStore: ObservableObject {
                 await PlayLogService.shared.resetRegistry(serverId: serverStableId)
                 await PlayLogService.shared.removeScrobbles(serverId: serverStableId)
                 await CloudKitSyncService.shared.updatePendingCounts()
-                NotificationCenter.default.post(name: .recapRegistryUpdated, object: nil)
+                await MainActor.run {
+                    NotificationCenter.default.post(name: .recapRegistryUpdated, object: nil)
+                }
             }
         }
     }
@@ -88,7 +90,9 @@ class ServerStore: ObservableObject {
                 await PlayLogService.shared.removeScrobbles(serverId: sid)
             }
             await CloudKitSyncService.shared.updatePendingCounts()
-            NotificationCenter.default.post(name: .recapRegistryUpdated, object: nil)
+            await MainActor.run {
+                NotificationCenter.default.post(name: .recapRegistryUpdated, object: nil)
+            }
         }
     }
 

@@ -114,6 +114,12 @@ struct SidebarView: View {
         .onChange(of: enablePlaylists) { _, new in
             if new { Task { await libraryStore.loadPlaylists() } }
         }
+        .onChange(of: selection) { _, _ in
+            if enablePlaylists { Task { await libraryStore.loadPlaylists() } }
+        }
+        .onChange(of: selectedPlaylist) { _, _ in
+            if enablePlaylists { Task { await libraryStore.loadPlaylists() } }
+        }
         .alert(tr("New Playlist", "Neue Wiedergabeliste"), isPresented: $showCreatePlaylist) {
             TextField(tr("Name", "Name"), text: $newPlaylistName)
             Button(tr("Create", "Erstellen")) {

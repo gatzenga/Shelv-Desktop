@@ -60,7 +60,10 @@ class SubsonicAPIService: ObservableObject {
 
     private func fetch<T: Decodable>(_ type: T.Type, endpoint: String, params: [URLQueryItem] = []) async throws -> T {
         let url = try buildURL(endpoint: endpoint, params: params)
-        let (data, response) = try await URLSession.shared.data(from: url)
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData)
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
+        let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw APIError.httpError
         }

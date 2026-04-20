@@ -1,8 +1,9 @@
 import Foundation
+import GRDB
 
-// MARK: - Models
+// MARK: - Database Record
 
-struct LyricsRecord: Codable {
+struct LyricsRecord: Codable, FetchableRecord, PersistableRecord {
     var songId: String
     var serverId: String
     var source: String
@@ -12,10 +13,14 @@ struct LyricsRecord: Codable {
     var isInstrumental: Bool
     var language: String?
     var fetchedAt: Double
-    var songTitle: String? = nil
-    var artistName: String? = nil
-    var coverArt: String? = nil
+    var songTitle: String?   = nil
+    var artistName: String?  = nil
+    var coverArt: String?    = nil
+
+    static let databaseTableName = "lyrics"
 }
+
+// MARK: - Lyrics Search Result
 
 struct LyricsSearchResult: Identifiable {
     var id: String { songId }
@@ -28,23 +33,10 @@ struct LyricsSearchResult: Identifiable {
 
 // MARK: - LRCLIB Response
 
-private struct LrcLibResponse: Sendable {
+nonisolated private struct LrcLibResponse: Decodable, Sendable {
     let instrumental: Bool?
     let plainLyrics: String?
     let syncedLyrics: String?
-}
-
-extension LrcLibResponse: Decodable {
-    private enum CodingKeys: String, CodingKey {
-        case instrumental, plainLyrics, syncedLyrics
-    }
-
-    nonisolated init(from decoder: any Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        instrumental = try c.decodeIfPresent(Bool.self,   forKey: .instrumental)
-        plainLyrics  = try c.decodeIfPresent(String.self, forKey: .plainLyrics)
-        syncedLyrics = try c.decodeIfPresent(String.self, forKey: .syncedLyrics)
-    }
 }
 
 // MARK: - LyricsService
@@ -60,111 +52,176 @@ actor LyricsService {
         return URLSession(configuration: cfg)
     }()
 
-    private var records: [String: LyricsRecord] = [:]
-    private var isSetup = false
-
+    private var pool: DatabasePool?
     private init() {}
 
     // MARK: - Setup
 
     func setup() {
-        guard !isSetup else { return }
-        isSetup = true
-        load()
-    }
-
-    static var storeURL: URL {
-        FileManager.default
-            .urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("shelv_lyrics/lyrics.json")
-    }
-
-    nonisolated static func diskSizeBytes() -> Int {
-        (try? storeURL.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
-    }
-
-    // MARK: - Persistence
-
-    private func key(_ songId: String, _ serverId: String) -> String { "\(songId):\(serverId)" }
-
-    private func load() {
-        guard let data = try? Data(contentsOf: Self.storeURL),
-              let decoded = try? JSONDecoder().decode([String: LyricsRecord].self, from: data)
-        else { return }
-        records = decoded
-    }
-
-    private func persist() {
-        let url = Self.storeURL
+        let url = Self.dbURL
         do {
             try FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-            let data = try JSONEncoder().encode(records)
-            try data.write(to: url, options: .atomic)
+            let p = try DatabasePool(path: url.path)
+            var m = DatabaseMigrator()
+            m.registerMigration("v1_createLyrics") { db in
+                try db.create(table: "lyrics", ifNotExists: true) { t in
+                    t.column("songId",         .text).notNull()
+                    t.column("serverId",       .text).notNull()
+                    t.column("source",         .text).notNull().defaults(to: "none")
+                    t.column("plainText",      .text)
+                    t.column("syncedLrc",      .text)
+                    t.column("isSynced",       .boolean).notNull().defaults(to: false)
+                    t.column("isInstrumental", .boolean).notNull().defaults(to: false)
+                    t.column("language",       .text)
+                    t.column("fetchedAt",      .double).notNull()
+                    t.column("songTitle",      .text)
+                    t.column("artistName",     .text)
+                    t.column("coverArt",       .text)
+                    t.primaryKey(["songId", "serverId"])
+                }
+            }
+            try m.migrate(p)
+            pool = p
         } catch {
-            DBErrorLog.logLyrics("persist: \(error.localizedDescription)")
+            DBErrorLog.logLyrics("setup: \(error.localizedDescription)")
+        }
+    }
+
+    static var dbURL: URL {
+        FileManager.default
+            .urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("shelv_lyrics/lyrics.db")
+    }
+
+    nonisolated static func diskSizeBytes() -> Int {
+        // SQLite im WAL-Modus: Haupt-DB + -wal + -shm zusammen zählen.
+        let base = dbURL
+        let suffixes = ["", "-wal", "-shm"]
+        return suffixes.reduce(0) { total, suffix in
+            let url = base.deletingLastPathComponent()
+                .appendingPathComponent(base.lastPathComponent + suffix)
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
+            return total + size
         }
     }
 
     // MARK: - Read / Write
 
     func lyrics(songId: String, serverId: String) -> LyricsRecord? {
-        records[key(songId, serverId)]
+        guard let pool else { return nil }
+        return try? pool.read { db in
+            try LyricsRecord
+                .filter(Column("songId") == songId && Column("serverId") == serverId)
+                .fetchOne(db)
+        }
+    }
+
+    private func safeWrite(_ label: String = #function, _ block: (Database) throws -> Void) {
+        guard let pool else {
+            DBErrorLog.logLyrics("\(label): pool not initialized")
+            return
+        }
+        do {
+            try pool.write(block)
+        } catch {
+            DBErrorLog.logLyrics("\(label): \(error.localizedDescription)")
+        }
     }
 
     func save(_ record: LyricsRecord) {
-        records[key(record.songId, record.serverId)] = record
-        persist()
+        safeWrite { db in try record.insert(db, onConflict: .replace) }
     }
 
     // MARK: - Stats
 
     func fetchedCount(serverId: String) -> Int {
-        records.values.filter { $0.serverId == serverId && $0.source != "none" }.count
+        guard let pool else { return 0 }
+        return (try? pool.read { db in
+            try Int.fetchOne(db,
+                sql: "SELECT COUNT(*) FROM lyrics WHERE serverId = ? AND source != 'none'",
+                arguments: [serverId])
+        }) ?? 0
+    }
+
+    func totalRowCount() -> Int {
+        guard let pool else { return 0 }
+        return (try? pool.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM lyrics")
+        }) ?? 0
     }
 
     // MARK: - Metadata Backfill
 
     func updateMetadata(songId: String, serverId: String, title: String, artist: String?, coverArt: String?) {
-        let k = key(songId, serverId)
-        guard var r = records[k] else { return }
-        r.songTitle = title
-        r.artistName = artist
-        r.coverArt = coverArt
-        records[k] = r
-        persist()
+        safeWrite { db in
+            try db.execute(
+                sql: """
+                    UPDATE lyrics SET songTitle = ?, artistName = ?, coverArt = ?
+                    WHERE songId = ? AND serverId = ?
+                """,
+                arguments: [title, artist, coverArt, songId, serverId]
+            )
+        }
     }
 
     // MARK: - Reset
 
     func reset(serverId: String) {
-        records = records.filter { $0.value.serverId != serverId }
-        persist()
+        safeWrite { db in
+            try db.execute(sql: "DELETE FROM lyrics WHERE serverId = ?", arguments: [serverId])
+        }
+        guard let pool else { return }
+        // VACUUM + WAL-Checkpoint(TRUNCATE): schrumpft sowohl .db als auch .db-wal.
+        // Beides muss außerhalb einer Transaktion laufen.
+        do {
+            try pool.writeWithoutTransaction { db in
+                try db.execute(sql: "PRAGMA wal_checkpoint(TRUNCATE)")
+                try db.execute(sql: "VACUUM")
+            }
+        } catch {
+            DBErrorLog.logLyrics("reset VACUUM: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Search
 
     func searchLyrics(text: String, serverId: String, limit: Int = 40) -> [LyricsSearchResult] {
-        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
-        let lower = text.lowercased()
-        return Array(
-            records.values
-                .filter { $0.serverId == serverId && $0.source != "none" && !$0.isInstrumental }
-                .filter { $0.plainText?.lowercased().contains(lower) == true }
-                .prefix(limit)
-                .compactMap { r -> LyricsSearchResult? in
-                    let snippet = r.plainText
-                        .flatMap { t in t.components(separatedBy: "\n").first { $0.lowercased().contains(lower) } }?
-                        .trimmingCharacters(in: .whitespaces) ?? ""
-                    return LyricsSearchResult(
-                        songId: r.songId, songTitle: r.songTitle,
-                        artistName: r.artistName, coverArt: r.coverArt,
-                        snippet: snippet
-                    )
-                }
-        )
+        guard let pool, !text.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
+        let pattern = "%\(text)%"
+        return (try? pool.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT songId, songTitle, artistName, coverArt, plainText
+                FROM lyrics
+                WHERE serverId = ?
+                  AND source != 'none'
+                  AND isInstrumental = 0
+                  AND plainText LIKE ? COLLATE NOCASE
+                ORDER BY COALESCE(songTitle, songId)
+                LIMIT ?
+                """, arguments: [serverId, pattern, limit])
+            .compactMap { row -> LyricsSearchResult? in
+                guard let songId: String = row["songId"] else { return nil }
+                let songTitle: String? = row["songTitle"]
+                let plainText: String? = row["plainText"]
+                let snippet = plainText.flatMap { extractSnippet(from: $0, query: text) } ?? ""
+                return LyricsSearchResult(
+                    songId: songId,
+                    songTitle: songTitle,
+                    artistName: row["artistName"], coverArt: row["coverArt"],
+                    snippet: snippet
+                )
+            }
+        }) ?? []
+    }
+
+    private func extractSnippet(from text: String, query: String) -> String? {
+        let lower = query.lowercased()
+        return text.components(separatedBy: "\n")
+            .first { $0.lowercased().contains(lower) }?
+            .trimmingCharacters(in: .whitespaces)
     }
 
     // MARK: - Fetch & Cache
@@ -252,7 +309,7 @@ actor LyricsService {
     // MARK: - LRCLIB
 
     private func fetchFromLrcLib(song: Song, serverId: String) async -> LrcLibOutcome {
-        var comps = URLComponents(string: "https://lrclib.net/api/get")!
+        guard var comps = URLComponents(string: "https://lrclib.net/api/get") else { return .indeterminate }
         var items: [URLQueryItem] = [URLQueryItem(name: "track_name", value: song.title)]
         if let a = song.artist  { items.append(URLQueryItem(name: "artist_name", value: a)) }
         if let a = song.album   { items.append(URLQueryItem(name: "album_name",  value: a)) }
@@ -260,19 +317,33 @@ actor LyricsService {
         comps.queryItems = items
         guard let url = comps.url else { return .indeterminate }
 
-        var req = URLRequest(url: url, timeoutInterval: 8)
+        var req = URLRequest(url: url, timeoutInterval: 10)
         req.setValue("Shelv/1.0 (https://github.com/gatzenga/Shelv-Desktop)", forHTTPHeaderField: "User-Agent")
 
-        let data: Data
-        let resp: URLResponse
-        do {
-            (data, resp) = try await Self.lrcLibSession.data(for: req)
-        } catch {
-            return .indeterminate
+        // Retry bei transient errors (Timeout, 5xx, 429) mit exponential backoff + jitter.
+        // Jitter verhindert, dass 5 parallele Bulk-Requests synchron retry'n.
+        let backoffsMs: [UInt64] = [0, 400, 1500]
+        var data = Data()
+        var http: HTTPURLResponse?
+        for (attempt, delay) in backoffsMs.enumerated() {
+            if delay > 0 {
+                let jitter = UInt64.random(in: 0...250)
+                try? await Task.sleep(nanoseconds: (delay + jitter) * 1_000_000)
+            }
+            do {
+                let (d, resp) = try await Self.lrcLibSession.data(for: req)
+                guard let h = resp as? HTTPURLResponse else { continue }
+                http = h
+                data = d
+                if h.statusCode == 404 { return .notFound }
+                if h.statusCode == 200 { break }
+                // 429, 5xx → nächster Versuch
+                if attempt == backoffsMs.count - 1 { return .indeterminate }
+            } catch {
+                if attempt == backoffsMs.count - 1 { return .indeterminate }
+            }
         }
-        guard let http = resp as? HTTPURLResponse else { return .indeterminate }
-        if http.statusCode == 404 { return .notFound }
-        guard http.statusCode == 200 else { return .indeterminate }
+        guard http?.statusCode == 200 else { return .indeterminate }
 
         guard let lrc = try? JSONDecoder().decode(LrcLibResponse.self, from: data) else {
             return .indeterminate

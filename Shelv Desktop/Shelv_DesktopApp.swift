@@ -25,6 +25,11 @@ struct Shelv_DesktopApp: App {
 
     init() {
         NSWindow.allowsAutomaticWindowTabbing = false
+        UserDefaults.standard.register(defaults: [
+            "recapWeeklyEnabled": true,
+            "recapMonthlyEnabled": true,
+            "recapYearlyEnabled": true,
+        ])
     }
 
     var body: some Scene {
@@ -66,6 +71,9 @@ struct Shelv_DesktopApp: App {
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
+                    Task { await CloudKitSyncService.shared.syncNow() }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                     Task { await CloudKitSyncService.shared.syncNow() }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .recapRegistryUpdated)) { _ in
@@ -158,6 +166,7 @@ struct Shelv_DesktopApp: App {
 
         Window(tr("Insights", "Insights"), id: "insights") {
             InsightsView()
+                .environmentObject(appState)
                 .tint(AppTheme.color(for: themeColorName))
                 .environment(\.themeColor, AppTheme.color(for: themeColorName))
         }
@@ -178,7 +187,7 @@ struct Shelv_DesktopApp: App {
                 .environmentObject(appState)
         }
         .windowResizability(.contentSize)
-        .defaultSize(width: 660, height: 420)
+        .defaultSize(width: 660, height: 660)
 
         Settings {
             SettingsView()
