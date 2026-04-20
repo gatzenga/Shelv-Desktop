@@ -33,6 +33,37 @@ enum RecapDiffDecision {
     case createNew
 }
 
+enum RecapProcessedWeeks {
+    static let storageKey = "recap_processed_weeks"
+
+    static func load() -> Set<Double> {
+        let raw = UserDefaults.standard.array(forKey: storageKey) as? [Double] ?? []
+        return Set(raw)
+    }
+
+    static func save(_ set: Set<Double>) {
+        let cutoff = Date().addingTimeInterval(-10 * 7 * 24 * 3600).timeIntervalSince1970
+        let trimmed = set.filter { $0 >= cutoff }
+        UserDefaults.standard.set(Array(trimmed), forKey: storageKey)
+    }
+
+    static func insert(_ periodStart: Double) {
+        var set = load()
+        set.insert(periodStart)
+        save(set)
+    }
+
+    static func remove(_ periodStart: Double) {
+        var set = load()
+        set.remove(periodStart)
+        save(set)
+    }
+
+    static func contains(_ periodStart: Double) -> Bool {
+        load().contains(periodStart)
+    }
+}
+
 @MainActor
 class RecapStore: ObservableObject {
     static let shared = RecapStore()
@@ -72,6 +103,9 @@ class RecapStore: ObservableObject {
     func deleteRegistryEntryOnly(playlistId: String, serverId: String) async {
         let entry = await PlayLogService.shared.registryEntry(playlistId: playlistId)
         CloudKitSyncService.debugLog("[UserAction:registryOnly] playlistId=\(playlistId) marker=\(entry?.ckRecordName ?? "nil")")
+        if let entry, entry.periodType == RecapPeriod.PeriodType.week.rawValue, !entry.isTest {
+            RecapProcessedWeeks.insert(entry.periodStart)
+        }
         if let ckName = entry?.ckRecordName {
             await CloudKitSyncService.shared.deleteRecapMarker(ckRecordName: ckName)
         }
@@ -162,14 +196,16 @@ class RecapStore: ObservableObject {
                 await PlayLogService.shared.deleteRegistryEntry(playlistId: entry.playlistId)
 
                 let periodKey = period.periodKey
-                let recordName = "\(serverId.lowercased()).\(periodKey)"
+                let basePart = "\(serverId.lowercased()).\(periodKey)"
+                let recordName = entry.isTest ? "test.\(basePart)" : basePart
                 var newEntry = RecapRegistryRecord(
                     playlistId: newPlaylist.id,
                     serverId: serverId,
                     periodType: entry.periodType,
                     periodStart: entry.periodStart,
                     periodEnd: entry.periodEnd,
-                    ckRecordName: nil
+                    ckRecordName: nil,
+                    isTest: entry.isTest
                 )
                 if let result = try? await CloudKitSyncService.shared.saveRecapMarker(newEntry, periodKey: periodKey) {
                     switch result {
@@ -183,7 +219,8 @@ class RecapStore: ObservableObject {
                             periodType: entry.periodType,
                             periodStart: entry.periodStart,
                             periodEnd: entry.periodEnd,
-                            ckRecordName: recordName
+                            ckRecordName: recordName,
+                            isTest: entry.isTest
                         )
                     }
                 }
@@ -271,14 +308,16 @@ class RecapStore: ObservableObject {
                     await PlayLogService.shared.deleteRegistryEntry(playlistId: entry.playlistId)
 
                     let periodKey = period.periodKey
-                    let recordName = "\(serverId.lowercased()).\(periodKey)"
+                    let basePart = "\(serverId.lowercased()).\(periodKey)"
+                    let recordName = entry.isTest ? "test.\(basePart)" : basePart
                     var updatedEntry = RecapRegistryRecord(
                         playlistId: newPlaylist.id,
                         serverId: serverId,
                         periodType: entry.periodType,
                         periodStart: entry.periodStart,
                         periodEnd: entry.periodEnd,
-                        ckRecordName: nil
+                        ckRecordName: nil,
+                        isTest: entry.isTest
                     )
 
                     if let markerResult = try? await CloudKitSyncService.shared.saveRecapMarker(updatedEntry, periodKey: periodKey) {
@@ -293,7 +332,8 @@ class RecapStore: ObservableObject {
                                 periodType: entry.periodType,
                                 periodStart: entry.periodStart,
                                 periodEnd: entry.periodEnd,
-                                ckRecordName: recordName
+                                ckRecordName: recordName,
+                                isTest: entry.isTest
                             )
                         }
                     }
@@ -477,7 +517,8 @@ class RecapStore: ObservableObject {
                 end: Date(timeIntervalSince1970: diff.entry.periodEnd)
             )
             let periodKey = period.periodKey
-            let recordName = "\(serverId.lowercased()).\(periodKey)"
+            let basePart = "\(serverId.lowercased()).\(periodKey)"
+            let recordName = diff.entry.isTest ? "test.\(basePart)" : basePart
 
             var newEntry = RecapRegistryRecord(
                 playlistId: newPlaylist.id,
@@ -485,7 +526,8 @@ class RecapStore: ObservableObject {
                 periodType: diff.entry.periodType,
                 periodStart: diff.entry.periodStart,
                 periodEnd: diff.entry.periodEnd,
-                ckRecordName: nil
+                ckRecordName: nil,
+                isTest: diff.entry.isTest
             )
 
             if let markerResult = try? await CloudKitSyncService.shared.saveRecapMarker(newEntry, periodKey: periodKey) {
@@ -500,7 +542,8 @@ class RecapStore: ObservableObject {
                         periodType: diff.entry.periodType,
                         periodStart: diff.entry.periodStart,
                         periodEnd: diff.entry.periodEnd,
-                        ckRecordName: recordName
+                        ckRecordName: recordName,
+                        isTest: diff.entry.isTest
                     )
                 }
             }
@@ -520,7 +563,7 @@ class RecapStore: ObservableObject {
         guard let start = cal.dateInterval(of: .weekOfYear, for: now)?.start else { return false }
         let period = RecapPeriod(type: .week, start: start, end: now)
         do {
-            try await RecapGenerator.shared.generate(period: period, serverId: serverId, trigger: "test-button")
+            _ = try await RecapGenerator.shared.generate(period: period, serverId: serverId, trigger: "test-button", isTest: true)
             await loadEntries(serverId: serverId)
         } catch {
             generationError = error.localizedDescription
@@ -531,12 +574,80 @@ class RecapStore: ObservableObject {
     func deleteEntry(playlistId: String, serverId: String) async {
         let entry = await PlayLogService.shared.registryEntry(playlistId: playlistId)
         CloudKitSyncService.debugLog("[UserAction:deleteEntry] playlistId=\(playlistId) marker=\(entry?.ckRecordName ?? "nil")")
+        if let entry, entry.periodType == RecapPeriod.PeriodType.week.rawValue, !entry.isTest {
+            RecapProcessedWeeks.insert(entry.periodStart)
+        }
         try? await SubsonicAPIService.shared.deletePlaylist(id: playlistId)
         await PlayLogService.shared.deleteRegistryEntry(playlistId: playlistId)
         if let ckName = entry?.ckRecordName {
             await CloudKitSyncService.shared.deleteRecapMarker(ckRecordName: ckName)
         }
         await loadEntries(serverId: serverId)
+    }
+
+    @discardableResult
+    func resetLastWeek(serverId: String) async -> Bool {
+        let all = await PlayLogService.shared.allRegistryEntries(serverId: serverId)
+        if let target = all.first(where: { $0.periodType == RecapPeriod.PeriodType.week.rawValue && !$0.isTest }) {
+            CloudKitSyncService.debugLog("[UserAction:resetLastWeek] playlistId=\(target.playlistId) marker=\(target.ckRecordName ?? "nil") period=\(target.periodStart)")
+            try? await SubsonicAPIService.shared.deletePlaylist(id: target.playlistId)
+            if let ckName = target.ckRecordName {
+                await CloudKitSyncService.shared.deleteRecapMarker(ckRecordName: ckName)
+            }
+            await PlayLogService.shared.deleteRegistryEntry(playlistId: target.playlistId)
+            RecapProcessedWeeks.remove(target.periodStart)
+            await loadEntries(serverId: serverId)
+            return true
+        }
+
+        CloudKitSyncService.debugLog("[UserAction:resetLastWeek] no weekly registry entry found — clearing lastWeek marker")
+        if let lastWeek = RecapPeriod.lastWeek() {
+            RecapProcessedWeeks.remove(lastWeek.start.timeIntervalSince1970)
+        }
+        return false
+    }
+
+    @discardableResult
+    func resetLastMonth(serverId: String) async -> Bool {
+        await resetSinglePeriod(
+            serverId: serverId,
+            periodType: .month,
+            genKey: GenKey.lastMonth,
+            logTag: "[UserAction:resetLastMonth]"
+        )
+    }
+
+    @discardableResult
+    func resetLastYear(serverId: String) async -> Bool {
+        await resetSinglePeriod(
+            serverId: serverId,
+            periodType: .year,
+            genKey: GenKey.lastYear,
+            logTag: "[UserAction:resetLastYear]"
+        )
+    }
+
+    private func resetSinglePeriod(
+        serverId: String,
+        periodType: RecapPeriod.PeriodType,
+        genKey: String,
+        logTag: String
+    ) async -> Bool {
+        let all = await PlayLogService.shared.allRegistryEntries(serverId: serverId)
+        if let target = all.first(where: { $0.periodType == periodType.rawValue && !$0.isTest }) {
+            CloudKitSyncService.debugLog("\(logTag) playlistId=\(target.playlistId) marker=\(target.ckRecordName ?? "nil") period=\(target.periodStart)")
+            try? await SubsonicAPIService.shared.deletePlaylist(id: target.playlistId)
+            if let ckName = target.ckRecordName {
+                await CloudKitSyncService.shared.deleteRecapMarker(ckRecordName: ckName)
+            }
+            await PlayLogService.shared.deleteRegistryEntry(playlistId: target.playlistId)
+            UserDefaults.standard.removeObject(forKey: genKey)
+            await loadEntries(serverId: serverId)
+            return true
+        }
+        CloudKitSyncService.debugLog("\(logTag) no registry entry — clearing UserDefault")
+        UserDefaults.standard.removeObject(forKey: genKey)
+        return false
     }
 
     func excessRetentionCount(periodType: RecapPeriod.PeriodType, limit: Int, serverId: String) async -> Int {
@@ -568,49 +679,107 @@ class RecapStore: ObservableObject {
         CloudKitSyncService.recapLog("[RecapGen] ══ Auto-trigger check ══")
 
         let defaults = UserDefaults.standard
-        var tasks: [(RecapPeriod, String)] = []
 
-        logAutoCheck(
-            label: "Weekly", enabled: defaults.bool(forKey: "recapWeeklyEnabled"),
-            period: RecapPeriod.lastWeek(), genKey: GenKey.lastWeek,
-            graceHours: RecapPeriod.PeriodType.weekGraceHours,
-            tasks: &tasks
-        )
-        logAutoCheck(
-            label: "Monthly", enabled: defaults.bool(forKey: "recapMonthlyEnabled"),
-            period: RecapPeriod.lastMonth(), genKey: GenKey.lastMonth,
-            graceHours: RecapPeriod.PeriodType.monthGraceHours,
-            tasks: &tasks
-        )
-        logAutoCheck(
-            label: "Yearly", enabled: defaults.bool(forKey: "recapYearlyEnabled"),
-            period: RecapPeriod.lastYear(), genKey: GenKey.lastYear,
-            graceHours: RecapPeriod.PeriodType.yearGraceHours,
-            tasks: &tasks
-        )
-
-        if tasks.isEmpty {
-            CloudKitSyncService.recapLog("[RecapGen] Auto-trigger: nothing to do")
+        if defaults.bool(forKey: "recapWeeklyEnabled") {
+            await processWeeklyBackfill(serverId: serverId)
+        } else {
+            CloudKitSyncService.recapLog("[RecapGen] Weekly: disabled")
         }
 
-        for (period, genKey) in tasks {
+        await processSingleShot(
+            label: "Monthly",
+            enabled: defaults.bool(forKey: "recapMonthlyEnabled"),
+            period: RecapPeriod.lastMonth(),
+            genKey: GenKey.lastMonth,
+            graceHours: RecapPeriod.PeriodType.monthGraceHours,
+            serverId: serverId
+        )
+        await processSingleShot(
+            label: "Yearly",
+            enabled: defaults.bool(forKey: "recapYearlyEnabled"),
+            period: RecapPeriod.lastYear(),
+            genKey: GenKey.lastYear,
+            graceHours: RecapPeriod.PeriodType.yearGraceHours,
+            serverId: serverId
+        )
+    }
+
+    private func processWeeklyBackfill(serverId: String) async {
+        guard let mostRecent = RecapPeriod.lastWeek() else {
+            CloudKitSyncService.recapLog("[RecapGen] Weekly: period calculation failed")
+            return
+        }
+
+        let graceHours = RecapPeriod.PeriodType.weekGraceHours
+        let graceDeadline = mostRecent.end.addingTimeInterval(Double(graceHours) * 3600)
+        guard Date() >= graceDeadline else {
+            let hoursLeft = max(0, graceDeadline.timeIntervalSinceNow / 3600)
+            CloudKitSyncService.recapLog("[RecapGen] Weekly \(mostRecent.periodKey): grace not passed (\(String(format: "%.1f", hoursLeft))h remaining)")
+            return
+        }
+
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2
+        var candidates: [RecapPeriod] = [mostRecent]
+        var current = mostRecent
+        for _ in 0..<3 {
+            guard
+                let prevStart = cal.date(byAdding: .weekOfYear, value: -1, to: current.start),
+                let prevEnd   = cal.date(byAdding: .second, value: -1, to: current.start)
+            else { break }
+            current = RecapPeriod(type: .week, start: prevStart, end: prevEnd)
+            candidates.append(current)
+        }
+        candidates.sort { $0.start < $1.start }
+
+        var processed = RecapProcessedWeeks.load()
+        let initial = processed
+        CloudKitSyncService.recapLog("[RecapGen] Weekly: \(candidates.count) week(s) in window: \(candidates.map { $0.periodKey }.joined(separator: ", "))")
+
+        for week in candidates {
+            let ts = week.start.timeIntervalSince1970
+            if processed.contains(ts) {
+                logAlreadyProcessed(period: week, serverId: serverId, trigger: "auto:week")
+                continue
+            }
             do {
-                try await RecapGenerator.shared.generate(period: period, serverId: serverId, trigger: "auto:\(period.type.rawValue)")
-                defaults.set(period.start.timeIntervalSince1970, forKey: genKey)
+                let outcome = try await RecapGenerator.shared.generate(
+                    period: week, serverId: serverId, trigger: "auto:week"
+                )
+                switch outcome {
+                case .skippedNoPlays:
+                    CloudKitSyncService.recapLog("[RecapGen] Weekly \(week.periodKey): no plays — will retry next run")
+                case .created, .adopted, .skippedExistingEntry:
+                    processed.insert(ts)
+                    CloudKitSyncService.recapLog("[RecapGen] Weekly \(week.periodKey): marked processed")
+                }
             } catch {
                 generationError = error.localizedDescription
             }
         }
+
+        if processed != initial {
+            RecapProcessedWeeks.save(processed)
+        }
     }
 
-    private func logAutoCheck(
+    private func logAlreadyProcessed(period: RecapPeriod, serverId: String, trigger: String) {
+        let recordName = "\(serverId.lowercased()).\(period.periodKey)"
+        CloudKitSyncService.recapLog("[RecapGen] ── Trigger: \(trigger) (already processed) ──")
+        CloudKitSyncService.recapLog("[RecapGen] Period: \(period.type.rawValue) \(period.playlistName)")
+        CloudKitSyncService.recapLog("[RecapGen] periodKey: \(period.periodKey)")
+        CloudKitSyncService.recapLog("[RecapGen] recordName: \(recordName)")
+        CloudKitSyncService.recapLog("[RecapGen] Result: SKIPPED — already processed (marker set)")
+    }
+
+    private func processSingleShot(
         label: String,
         enabled: Bool,
         period: RecapPeriod?,
         genKey: String,
         graceHours: Int,
-        tasks: inout [(RecapPeriod, String)]
-    ) {
+        serverId: String
+    ) async {
         guard enabled else {
             CloudKitSyncService.recapLog("[RecapGen] \(label): disabled")
             return
@@ -626,7 +795,7 @@ class RecapStore: ObservableObject {
         let gracePassed = Date() >= graceDeadline
 
         if !periodFresh {
-            CloudKitSyncService.recapLog("[RecapGen] \(label) \(period.periodKey): already generated (lastGen >= periodStart)")
+            logAlreadyProcessed(period: period, serverId: serverId, trigger: "auto:\(period.type.rawValue)")
             return
         }
         if !gracePassed {
@@ -634,7 +803,18 @@ class RecapStore: ObservableObject {
             CloudKitSyncService.recapLog("[RecapGen] \(label) \(period.periodKey): grace not passed (\(String(format: "%.1f", hoursLeft))h remaining)")
             return
         }
-        CloudKitSyncService.recapLog("[RecapGen] \(label) \(period.periodKey): queued")
-        tasks.append((period, genKey))
+        do {
+            let outcome = try await RecapGenerator.shared.generate(
+                period: period, serverId: serverId, trigger: "auto:\(period.type.rawValue)"
+            )
+            switch outcome {
+            case .created, .adopted, .skippedExistingEntry:
+                defaults.set(period.start.timeIntervalSince1970, forKey: genKey)
+            case .skippedNoPlays:
+                CloudKitSyncService.recapLog("[RecapGen] \(label) \(period.periodKey): no plays — will retry next run")
+            }
+        } catch {
+            generationError = error.localizedDescription
+        }
     }
 }

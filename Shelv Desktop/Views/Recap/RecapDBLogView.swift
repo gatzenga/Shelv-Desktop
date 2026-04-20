@@ -45,11 +45,12 @@ struct RecapDBLogView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 4) {
-                        ForEach(entries, id: \.self) { entry in
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
                             Text(entry)
                                 .font(.system(.caption2, design: .monospaced))
                                 .textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }

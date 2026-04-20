@@ -275,10 +275,42 @@ enum LibrarySortOption: String, CaseIterable {
 
     var label: String {
         switch self {
-        case .name:          return tr("Name (A–Z)", "Name (A–Z)")
+        case .name:          return tr("Name", "Name")
         case .mostPlayed:    return tr("Most Played", "Meist gespielt")
         case .recentlyAdded: return tr("Recently Added", "Zuletzt hinzugefügt")
-        case .year:          return tr("Year (newest)", "Jahr (neueste zuerst)")
+        case .year:          return tr("Year", "Jahr")
+        }
+    }
+
+    /// Natürliche Richtung laut Serverantwort (alphabetisch aufsteigend, alle anderen absteigend)
+    var naturalDirection: SortDirection {
+        self == .name ? .ascending : .descending
+    }
+}
+
+enum ArtistSortOption: String, CaseIterable {
+    case name = "name"
+    case mostPlayed = "mostPlayed"
+
+    var label: String {
+        switch self {
+        case .name:       return tr("Name", "Name")
+        case .mostPlayed: return tr("Most Played", "Meist gespielt")
+        }
+    }
+
+    var naturalDirection: SortDirection {
+        self == .name ? .ascending : .descending
+    }
+}
+
+enum SortDirection: String, CaseIterable {
+    case ascending, descending
+
+    var label: String {
+        switch self {
+        case .ascending:  return tr("Ascending", "Aufsteigend")
+        case .descending: return tr("Descending", "Absteigend")
         }
     }
 }

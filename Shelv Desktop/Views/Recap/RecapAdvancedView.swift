@@ -7,11 +7,20 @@ struct RecapAdvancedView: View {
     @Environment(\.themeColor) private var themeColor
 
     @State private var testResult: String?
+    @State private var resetLastWeekResult: String?
+    @State private var resetLastMonthResult: String?
+    @State private var resetLastYearResult: String?
     @State private var showResetConfirm = false
     @State private var showIcloudResetConfirm = false
     @State private var showFullResetConfirm = false
+    @State private var showResetLastWeekConfirm = false
+    @State private var showResetLastMonthConfirm = false
+    @State private var showResetLastYearConfirm = false
     @State private var isIcloudResetting = false
     @State private var isFullResetting = false
+    @State private var isResettingLastWeek = false
+    @State private var isResettingLastMonth = false
+    @State private var isResettingLastYear = false
 
     var body: some View {
         Form {
@@ -41,6 +50,66 @@ struct RecapAdvancedView: View {
                 }
                 if let err = recapStore.generationError {
                     Text(err).font(.caption).foregroundStyle(.red)
+                }
+
+                Button(role: .destructive) {
+                    showResetLastWeekConfirm = true
+                } label: {
+                    if isResettingLastWeek {
+                        HStack {
+                            ProgressView().controlSize(.small)
+                            Text(tr("Resetting…", "Setze zurück…")).foregroundStyle(.red)
+                        }
+                    } else {
+                        Label(tr("Reset latest weekly recap", "Letzten Wochen-Recap zurücksetzen"),
+                              systemImage: "arrow.uturn.backward.circle")
+                            .foregroundStyle(.red)
+                    }
+                }
+                .disabled(isResettingLastWeek)
+
+                if let result = resetLastWeekResult {
+                    Text(result).font(.caption).foregroundStyle(.secondary)
+                }
+
+                Button(role: .destructive) {
+                    showResetLastMonthConfirm = true
+                } label: {
+                    if isResettingLastMonth {
+                        HStack {
+                            ProgressView().controlSize(.small)
+                            Text(tr("Resetting…", "Setze zurück…")).foregroundStyle(.red)
+                        }
+                    } else {
+                        Label(tr("Reset latest monthly recap", "Letzten Monats-Recap zurücksetzen"),
+                              systemImage: "arrow.uturn.backward.circle")
+                            .foregroundStyle(.red)
+                    }
+                }
+                .disabled(isResettingLastMonth)
+
+                if let result = resetLastMonthResult {
+                    Text(result).font(.caption).foregroundStyle(.secondary)
+                }
+
+                Button(role: .destructive) {
+                    showResetLastYearConfirm = true
+                } label: {
+                    if isResettingLastYear {
+                        HStack {
+                            ProgressView().controlSize(.small)
+                            Text(tr("Resetting…", "Setze zurück…")).foregroundStyle(.red)
+                        }
+                    } else {
+                        Label(tr("Reset latest yearly recap", "Letzten Jahres-Recap zurücksetzen"),
+                              systemImage: "arrow.uturn.backward.circle")
+                            .foregroundStyle(.red)
+                    }
+                }
+                .disabled(isResettingLastYear)
+
+                if let result = resetLastYearResult {
+                    Text(result).font(.caption).foregroundStyle(.secondary)
                 }
             }
 
@@ -131,6 +200,48 @@ struct RecapAdvancedView: View {
             ))
         }
         .confirmationDialog(
+            tr("Reset latest weekly recap?", "Letzten Wochen-Recap zurücksetzen?"),
+            isPresented: $showResetLastWeekConfirm
+        ) {
+            Button(tr("Reset", "Zurücksetzen"), role: .destructive) {
+                Task { await performResetLastWeek() }
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+        } message: {
+            Text(tr(
+                "Deletes the newest weekly recap (playlist, iCloud marker, local entry) and clears the auto-generation timestamp. Restart the app to trigger regeneration.",
+                "Löscht den neuesten Wochen-Recap (Playlist, iCloud-Marker, DB-Eintrag) und setzt den Zeitstempel der Auto-Generation zurück. App neu starten, um die Neu-Generation auszulösen."
+            ))
+        }
+        .confirmationDialog(
+            tr("Reset latest monthly recap?", "Letzten Monats-Recap zurücksetzen?"),
+            isPresented: $showResetLastMonthConfirm
+        ) {
+            Button(tr("Reset", "Zurücksetzen"), role: .destructive) {
+                Task { await performResetLastMonth() }
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+        } message: {
+            Text(tr(
+                "Deletes the newest monthly recap and clears its auto-generation timestamp. Restart the app to trigger regeneration.",
+                "Löscht den neuesten Monats-Recap und setzt den Zeitstempel der Auto-Generation zurück. App neu starten, um die Neu-Generation auszulösen."
+            ))
+        }
+        .confirmationDialog(
+            tr("Reset latest yearly recap?", "Letzten Jahres-Recap zurücksetzen?"),
+            isPresented: $showResetLastYearConfirm
+        ) {
+            Button(tr("Reset", "Zurücksetzen"), role: .destructive) {
+                Task { await performResetLastYear() }
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+        } message: {
+            Text(tr(
+                "Deletes the newest yearly recap and clears its auto-generation timestamp. Restart the app to trigger regeneration.",
+                "Löscht den neuesten Jahres-Recap und setzt den Zeitstempel der Auto-Generation zurück. App neu starten, um die Neu-Generation auszulösen."
+            ))
+        }
+        .confirmationDialog(
             tr("Delete everything?", "Alles löschen?"),
             isPresented: $showFullResetConfirm
         ) {
@@ -144,6 +255,36 @@ struct RecapAdvancedView: View {
                 "Alle Recap-Playlists auf Navidrome, lokale Plays und iCloud-Einträge für diesen Server werden unwiderruflich gelöscht. Umgeht den iCloud-Sync-Schalter."
             ))
         }
+    }
+
+    private func performResetLastWeek() async {
+        isResettingLastWeek = true
+        defer { isResettingLastWeek = false }
+        resetLastWeekResult = nil
+        let removed = await recapStore.resetLastWeek(serverId: serverId)
+        resetLastWeekResult = removed
+            ? tr("Removed — restart the app to regenerate.", "Entfernt — App neu starten zum Regenerieren.")
+            : tr("No weekly recap to reset.", "Kein Wochen-Recap vorhanden.")
+    }
+
+    private func performResetLastMonth() async {
+        isResettingLastMonth = true
+        defer { isResettingLastMonth = false }
+        resetLastMonthResult = nil
+        let removed = await recapStore.resetLastMonth(serverId: serverId)
+        resetLastMonthResult = removed
+            ? tr("Removed — restart the app to regenerate.", "Entfernt — App neu starten zum Regenerieren.")
+            : tr("No monthly recap to reset.", "Kein Monats-Recap vorhanden.")
+    }
+
+    private func performResetLastYear() async {
+        isResettingLastYear = true
+        defer { isResettingLastYear = false }
+        resetLastYearResult = nil
+        let removed = await recapStore.resetLastYear(serverId: serverId)
+        resetLastYearResult = removed
+            ? tr("Removed — restart the app to regenerate.", "Entfernt — App neu starten zum Regenerieren.")
+            : tr("No yearly recap to reset.", "Kein Jahres-Recap vorhanden.")
     }
 
     private func performIcloudReset() async {

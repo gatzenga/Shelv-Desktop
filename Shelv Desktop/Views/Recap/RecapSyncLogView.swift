@@ -17,11 +17,12 @@ struct RecapSyncLogView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 4) {
                         ForEach(ckStatus.debugLogEntries) { entry in
                             Text(entry.text)
                                 .font(.system(.caption2, design: .monospaced))
                                 .textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }

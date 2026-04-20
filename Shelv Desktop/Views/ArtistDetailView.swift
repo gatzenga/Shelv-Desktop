@@ -8,7 +8,32 @@ struct ArtistDetailView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var libraryStore: LibraryViewModel
     @AppStorage("enableFavorites") private var enableFavorites = true
+    @AppStorage("artistDetailAlbumSort") private var sortRaw: String = LibrarySortOption.recentlyAdded.rawValue
+    @AppStorage("artistDetailAlbumDirection") private var directionRaw: String = SortDirection.descending.rawValue
+    @AppStorage("artistDetailAlbumIsGrid") private var isGrid: Bool = true
     @Environment(\.themeColor) private var themeColor
+
+    private var sortOption: LibrarySortOption {
+        LibrarySortOption(rawValue: sortRaw) ?? .recentlyAdded
+    }
+
+    private var direction: SortDirection {
+        SortDirection(rawValue: directionRaw) ?? .descending
+    }
+
+    private var sortedAlbums: [Album] {
+        switch sortOption {
+        case .name:
+            // Name immer A-Z, unabhängig von direction
+            return vm.albums.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case .mostPlayed:
+            let base = vm.albums.sorted { ($0.playCount ?? 0) < ($1.playCount ?? 0) }
+            return direction == .ascending ? base : Array(base.reversed())
+        case .recentlyAdded, .year:
+            let base = vm.albums.sorted { ($0.year ?? 0) < ($1.year ?? 0) }
+            return direction == .ascending ? base : Array(base.reversed())
+        }
+    }
 
     var body: some View {
         Group {
@@ -89,20 +114,66 @@ struct ArtistDetailView: View {
                         .padding(.top, 20)
 
                         if !vm.albums.isEmpty {
-                            LazyVGrid(
-                                columns: [GridItem(.adaptive(minimum: 150, maximum: 190), spacing: 16)],
-                                spacing: 20
-                            ) {
-                                ForEach(vm.albums) { album in
-                                    NavigationLink(value: album) {
-                                        AlbumGridItem(album: album)
+                            HStack(spacing: 8) {
+                                Picker(tr("Sort", "Sortieren"), selection: $sortRaw) {
+                                    ForEach(LibrarySortOption.allCases, id: \.self) { opt in
+                                        Text(opt.label).tag(opt.rawValue)
                                     }
-                                    .buttonStyle(.plain)
-                                    .albumContextMenu(album)
                                 }
+                                .pickerStyle(.menu)
+                                .frame(width: 180)
+                                if sortOption != .name {
+                                    Button {
+                                        directionRaw = direction == .ascending
+                                            ? SortDirection.descending.rawValue
+                                            : SortDirection.ascending.rawValue
+                                    } label: {
+                                        Image(systemName: direction == .ascending ? "arrow.up" : "arrow.down")
+                                            .font(.title3)
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .help(direction == .ascending ? tr("Ascending", "Aufsteigend") : tr("Descending", "Absteigend"))
+                                }
+                                Spacer()
+                                Button { isGrid.toggle() } label: {
+                                    Image(systemName: isGrid ? "list.bullet" : "square.grid.2x2")
+                                        .font(.title3)
+                                }
+                                .buttonStyle(.borderless)
+                                .help(isGrid ? tr("List view", "Listenansicht") : tr("Grid view", "Rasteransicht"))
                             }
                             .padding(.horizontal, 24)
-                            .padding(.bottom, 24)
+
+                            if isGrid {
+                                LazyVGrid(
+                                    columns: [GridItem(.adaptive(minimum: 150, maximum: 190), spacing: 16)],
+                                    spacing: 20
+                                ) {
+                                    ForEach(sortedAlbums) { album in
+                                        NavigationLink(value: album) {
+                                            AlbumGridItem(album: album)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .albumContextMenu(album)
+                                    }
+                                }
+                                .padding(.horizontal, 24)
+                                .padding(.bottom, 24)
+                            } else {
+                                LazyVStack(spacing: 0) {
+                                    ForEach(sortedAlbums) { album in
+                                        NavigationLink(value: album) {
+                                            AlbumListRow(album: album)
+                                        }
+                                        .buttonStyle(.plain)
+                                        .albumContextMenu(album)
+                                        if album.id != sortedAlbums.last?.id {
+                                            Divider().padding(.leading, 92)
+                                        }
+                                    }
+                                }
+                                .padding(.bottom, 24)
+                            }
                         }
                     }
                 }

@@ -19,6 +19,7 @@ struct RecapRegistryRecord: Codable, FetchableRecord, PersistableRecord, Hashabl
     var periodStart: Double
     var periodEnd: Double
     var ckRecordName: String?
+    var isTest: Bool = false
 
     static let databaseTableName = "recap_registry"
 }
@@ -105,6 +106,11 @@ actor PlayLogService {
                     t.column("serverId", .text).notNull()
                     t.column("playedAt", .double).notNull()
                     t.column("retries",  .integer).notNull().defaults(to: 0)
+                }
+            }
+            m.registerMigration("v5_registry_is_test") { db in
+                try db.alter(table: "recap_registry") { t in
+                    t.add(column: "isTest", .boolean).notNull().defaults(to: false)
                 }
             }
             try m.migrate(p)
@@ -214,13 +220,17 @@ actor PlayLogService {
         }
     }
 
-    func registryEntry(serverId: String, periodType: String, periodStart: Double) -> RecapRegistryRecord? {
+    func registryEntry(serverId: String, periodType: String, periodStart: Double, isTest: Bool? = nil) -> RecapRegistryRecord? {
         guard let pool else { return nil }
         return try? pool.read { db in
-            try RecapRegistryRecord
-                .filter(Column("serverId") == serverId
-                     && Column("periodType") == periodType
-                     && Column("periodStart") == periodStart)
+            var filter = Column("serverId") == serverId
+                && Column("periodType") == periodType
+                && Column("periodStart") == periodStart
+            if let isTest {
+                filter = filter && Column("isTest") == isTest
+            }
+            return try RecapRegistryRecord
+                .filter(filter)
                 .fetchOne(db)
         }
     }
@@ -362,6 +372,16 @@ actor PlayLogService {
         return (try? pool.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM play_log WHERE serverId = ?",
                              arguments: [serverId])
+        }) ?? 0
+    }
+
+    func playCount(serverId: String, from start: Date, to end: Date) -> Int {
+        guard let pool else { return 0 }
+        return (try? pool.read { db in
+            try Int.fetchOne(db, sql: """
+                SELECT COUNT(*) FROM play_log
+                WHERE serverId = ? AND playedAt >= ? AND playedAt < ?
+                """, arguments: [serverId, start.timeIntervalSince1970, end.timeIntervalSince1970])
         }) ?? 0
     }
 

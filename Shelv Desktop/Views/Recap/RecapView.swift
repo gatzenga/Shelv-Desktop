@@ -159,10 +159,23 @@ struct RecapView: View {
             .frame(width: 48, height: 48)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(period.playlistName)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(period.playlistName)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    if entry.isTest {
+                        Text("TEST")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.orange)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 1)
+                            .background(
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(Color.orange, lineWidth: 1)
+                            )
+                    }
+                }
                 Text(tr("Top \(type.songLimit)", "Top \(type.songLimit)"))
                     .font(.caption)
                     .foregroundStyle(.secondary)

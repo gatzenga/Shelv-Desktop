@@ -267,15 +267,9 @@ actor CloudKitSyncService {
             debug("[CloudKitSync] Fetching changes with token: \(hasToken ? "hasToken" : "noToken")")
             let (records, deletions, newToken) = try await fetchZoneChanges()
             debug("[CloudKitSync] Received \(records.count) new records, \(deletions.count) deletions")
-            var playsIn = 0, recapsIn = 0
-            for record in records {
-                switch record.recordType {
-                case "PlayEvent": playsIn += 1
-                case "RecapMarker": recapsIn += 1
-                default: break
-                }
-                await handleIncomingRecord(record)
-            }
+            // Deletionen zuerst: verhindert, dass ein Add mit gleichem recordName
+            // (z.B. Recap-Marker Reset + Neu-Erzeugung auf anderem Gerät) durch
+            // eine nachfolgende Delete-Meldung wieder entfernt wird.
             var playsDel = 0, recapsDel = 0
             for (recordID, recordType) in deletions {
                 switch recordType {
@@ -284,6 +278,15 @@ actor CloudKitSyncService {
                 default: break
                 }
                 await handleDeletedRecord(id: recordID, type: recordType)
+            }
+            var playsIn = 0, recapsIn = 0
+            for record in records {
+                switch record.recordType {
+                case "PlayEvent": playsIn += 1
+                case "RecapMarker": recapsIn += 1
+                default: break
+                }
+                await handleIncomingRecord(record)
             }
             if let token = newToken { changeToken = token }
             if playsIn + recapsIn > 0 {
@@ -389,11 +392,15 @@ actor CloudKitSyncService {
                 let periodEnd   = record["periodEnd"]    as? Double
             else { return }
             let name = record.recordID.recordName
-            guard await PlayLogService.shared.registryEntry(byCKRecordName: name) == nil else { return }
+            if let existing = await PlayLogService.shared.registryEntry(byCKRecordName: name) {
+                guard existing.playlistId != playlistId else { return }
+                await PlayLogService.shared.deleteRegistryEntry(playlistId: existing.playlistId)
+            }
+            let isTest = (record["isTest"] as? Int64 ?? 0) == 1 || name.hasPrefix("test.")
             let entry = RecapRegistryRecord(
                 playlistId: playlistId, serverId: serverId,
                 periodType: periodType, periodStart: periodStart, periodEnd: periodEnd,
-                ckRecordName: name
+                ckRecordName: name, isTest: isTest
             )
             await PlayLogService.shared.registerPlaylist(entry)
             await MainActor.run {
@@ -408,6 +415,12 @@ actor CloudKitSyncService {
     private func handleDeletedRecord(id: CKRecord.ID, type: CKRecord.RecordType) async {
         switch type {
         case "RecapMarker":
+            if let entry = await PlayLogService.shared.registryEntry(byCKRecordName: id.recordName),
+               entry.periodType == RecapPeriod.PeriodType.week.rawValue,
+               !entry.isTest {
+                let periodStart = entry.periodStart
+                await MainActor.run { RecapProcessedWeeks.insert(periodStart) }
+            }
             await PlayLogService.shared.deleteRegistryEntry(byCKRecordName: id.recordName)
             await MainActor.run {
                 NotificationCenter.default.post(name: .recapRegistryUpdated, object: nil)
@@ -423,7 +436,7 @@ actor CloudKitSyncService {
     func saveRecapMarker(_ entry: RecapRegistryRecord, periodKey: String) async throws -> RecapMarkerSaveResult {
         guard syncEnabled else { return .created }
         try await ensureZoneExists()
-        let recordName = makeRecapMarkerRecordName(serverId: entry.serverId, periodKey: periodKey)
+        let recordName = makeRecapMarkerRecordName(serverId: entry.serverId, periodKey: periodKey, isTest: entry.isTest)
         let rid = CKRecord.ID(recordName: recordName, zoneID: zoneID)
         let record = CKRecord(recordType: "RecapMarker", recordID: rid)
         record["serverId"]    = entry.serverId
@@ -431,6 +444,7 @@ actor CloudKitSyncService {
         record["periodType"]  = entry.periodType
         record["periodStart"] = entry.periodStart
         record["periodEnd"]   = entry.periodEnd
+        record["isTest"]      = entry.isTest ? 1 : 0
 
         await MainActor.run { status.isSyncing = true }
         log("Syncing…")
@@ -459,8 +473,8 @@ actor CloudKitSyncService {
         }
     }
 
-    func fetchRecapMarker(serverId: String, periodKey: String) async -> RecapRegistryRecord? {
-        let recordName = makeRecapMarkerRecordName(serverId: serverId, periodKey: periodKey)
+    func fetchRecapMarker(serverId: String, periodKey: String, isTest: Bool = false) async -> RecapRegistryRecord? {
+        let recordName = makeRecapMarkerRecordName(serverId: serverId, periodKey: periodKey, isTest: isTest)
         let rid = CKRecord.ID(recordName: recordName, zoneID: zoneID)
         guard let record = try? await db.record(for: rid) else { return nil }
         guard
@@ -470,10 +484,11 @@ actor CloudKitSyncService {
             let periodStart = record["periodStart"]  as? Double,
             let periodEnd   = record["periodEnd"]    as? Double
         else { return nil }
+        let testFlag = (record["isTest"] as? Int64 ?? 0) == 1 || recordName.hasPrefix("test.")
         return RecapRegistryRecord(
             playlistId: playlistId, serverId: serverId,
             periodType: periodType, periodStart: periodStart, periodEnd: periodEnd,
-            ckRecordName: recordName
+            ckRecordName: recordName, isTest: testFlag
         )
     }
 
@@ -596,8 +611,9 @@ actor CloudKitSyncService {
         }
     }
 
-    private func makeRecapMarkerRecordName(serverId: String, periodKey: String) -> String {
-        "\(serverId.lowercased()).\(periodKey)"
+    private func makeRecapMarkerRecordName(serverId: String, periodKey: String, isTest: Bool = false) -> String {
+        let base = "\(serverId.lowercased()).\(periodKey)"
+        return isTest ? "test.\(base)" : base
     }
 
     func flushScrobbleQueue() async {
@@ -733,14 +749,15 @@ actor CloudKitSyncService {
         for conflict in conflicts {
             CloudKitSyncService.debugLog("[Reupload] conflict: iCloud has playlistId=\(conflict.existingPlaylistId), local had \(conflict.entry.playlistId) — adopting iCloud")
             try? await SubsonicAPIService.shared.deletePlaylist(id: conflict.entry.playlistId)
-            let recordName = makeRecapMarkerRecordName(serverId: stableId, periodKey: conflict.periodKey)
+            let recordName = makeRecapMarkerRecordName(serverId: stableId, periodKey: conflict.periodKey, isTest: conflict.entry.isTest)
             let updated = RecapRegistryRecord(
                 playlistId: conflict.existingPlaylistId,
                 serverId: conflict.entry.serverId,
                 periodType: conflict.entry.periodType,
                 periodStart: conflict.entry.periodStart,
                 periodEnd: conflict.entry.periodEnd,
-                ckRecordName: recordName
+                ckRecordName: recordName,
+                isTest: conflict.entry.isTest
             )
             await PlayLogService.shared.deleteRegistryEntry(playlistId: conflict.entry.playlistId)
             await PlayLogService.shared.registerPlaylist(updated)

@@ -6,9 +6,35 @@ class LibraryViewModel: ObservableObject {
     @Published var albums: [Album] = []
     @Published var artists: [Artist] = []
     @Published var sortOption: LibrarySortOption = .name
+    @Published var albumSortDirection: SortDirection = .ascending
+    @Published var artistSortOption: ArtistSortOption = .name
+    @Published var artistSortDirection: SortDirection = .ascending
     @Published var isLoadingAlbums: Bool = false
     @Published var isLoadingArtists: Bool = false
     @Published var errorMessage: String?
+
+    var sortedAlbums: [Album] {
+        // Name immer A-Z, unabhängig von direction
+        if sortOption == .name { return albums }
+        return albumSortDirection == sortOption.naturalDirection
+            ? albums
+            : Array(albums.reversed())
+    }
+
+    var sortedArtists: [Artist] {
+        let base: [Artist]
+        switch artistSortOption {
+        case .name:
+            return artists.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        case .mostPlayed:
+            let counts = Dictionary(grouping: albums, by: { $0.artistId ?? "" })
+                .mapValues { $0.compactMap { $0.playCount }.reduce(0, +) }
+            base = artists.sorted { (counts[$0.id] ?? 0) > (counts[$1.id] ?? 0) }
+        }
+        return artistSortDirection == artistSortOption.naturalDirection
+            ? base
+            : Array(base.reversed())
+    }
 
     // MARK: - Favorites
     @Published var starredSongs: [Song] = []
@@ -41,13 +67,13 @@ class LibraryViewModel: ObservableObject {
         isLoadingAlbums = true
         errorMessage = nil
         do {
-            let type: AlbumListType = switch sortOption {
-            case .name: .alphabeticalByName
-            case .mostPlayed: .frequent
-            case .recentlyAdded: .newest
-            case .year: .alphabeticalByName
+            // "year" und "mostPlayed" client-seitig sortieren, damit auch Alben ohne
+            // Plays/Jahr in der Liste erscheinen. "recentlyAdded" bleibt serverseitig.
+            let type: AlbumListType
+            switch sortOption {
+            case .name, .year, .mostPlayed: type = .alphabeticalByName
+            case .recentlyAdded:            type = .newest
             }
-            // Subsonic API liefert max. 500 pro Anfrage → paginieren
             var all: [Album] = []
             let pageSize = 500
             var offset = 0
@@ -60,6 +86,8 @@ class LibraryViewModel: ObservableObject {
             albums = all
             if sortOption == .year {
                 albums = albums.sorted { ($0.year ?? 0) > ($1.year ?? 0) }
+            } else if sortOption == .mostPlayed {
+                albums = albums.sorted { ($0.playCount ?? 0) > ($1.playCount ?? 0) }
             }
         } catch {
             errorMessage = error.localizedDescription

@@ -402,6 +402,7 @@ struct RecapTab: View {
     @State private var showSyncLog = false
     @State private var showRecapLog = false
     @State private var showDBLog = false
+    @State private var showMarkersLog = false
     @State private var showAdvanced = false
     @State private var showVerify = false
     @State private var totalPlays: Int = 0
@@ -582,6 +583,11 @@ struct RecapTab: View {
                     } label: {
                         Label(tr("Database errors", "Datenbank-Fehler"), systemImage: "exclamationmark.octagon")
                     }
+                    Button {
+                        showMarkersLog = true
+                    } label: {
+                        Label(tr("Auto-gen markers", "Auto-Gen-Marker"), systemImage: "checkmark.circle.badge.questionmark")
+                    }
                 }
 
                 Section {
@@ -669,6 +675,11 @@ struct RecapTab: View {
         }
         .sheet(isPresented: $showDBLog) {
             RecapDBLogView()
+        }
+        .sheet(isPresented: $showMarkersLog) {
+            if let sid = appState.serverStore.activeServer?.stableId {
+                RecapMarkersLogView(serverId: sid)
+            }
         }
         .sheet(isPresented: $showAdvanced, onDismiss: {
             Task { await refreshTotalPlays() }
