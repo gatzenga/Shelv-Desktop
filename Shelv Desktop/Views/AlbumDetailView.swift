@@ -90,7 +90,8 @@ struct AlbumDetailView: View {
                                                        artistId: album.artistId, coverArt: album.coverArt,
                                                        songCount: album.songCount, duration: album.duration,
                                                        year: album.year, genre: album.genre,
-                                                       starred: album.starred, playCount: nil)
+                                                       starred: album.starred, playCount: nil,
+                                                       created: nil)
                                 let isStarred = libraryStore.isAlbumStarred(albumModel)
                                 Button {
                                     Task { await libraryStore.toggleStarAlbum(albumModel) }

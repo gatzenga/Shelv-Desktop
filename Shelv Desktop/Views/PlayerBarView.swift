@@ -80,7 +80,8 @@ struct PlayerBarView: View {
                                             Album(id: id, name: name, artist: song.artist,
                                                   artistId: song.artistId, coverArt: song.coverArt,
                                                   songCount: nil, duration: nil, year: nil,
-                                                  genre: nil, starred: nil, playCount: nil)
+                                                  genre: nil, starred: nil, playCount: nil,
+                                                  created: nil)
                                         )
                                     }
                                     .buttonStyle(.plain)

@@ -29,7 +29,10 @@ struct ArtistDetailView: View {
         case .mostPlayed:
             let base = vm.albums.sorted { ($0.playCount ?? 0) < ($1.playCount ?? 0) }
             return direction == .ascending ? base : Array(base.reversed())
-        case .recentlyAdded, .year:
+        case .recentlyAdded:
+            let base = vm.albums.sorted { ($0.created ?? "") < ($1.created ?? "") }
+            return direction == .ascending ? base : Array(base.reversed())
+        case .year:
             let base = vm.albums.sorted { ($0.year ?? 0) < ($1.year ?? 0) }
             return direction == .ascending ? base : Array(base.reversed())
         }
@@ -142,11 +145,11 @@ struct ArtistDetailView: View {
                                 .buttonStyle(.borderless)
                                 .help(isGrid ? tr("List view", "Listenansicht") : tr("Grid view", "Rasteransicht"))
                             }
-                            .padding(.horizontal, 24)
+                            .padding(.horizontal, 20)
 
                             if isGrid {
                                 LazyVGrid(
-                                    columns: [GridItem(.adaptive(minimum: 150, maximum: 190), spacing: 16)],
+                                    columns: [GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 16)],
                                     spacing: 20
                                 ) {
                                     ForEach(sortedAlbums) { album in
@@ -157,8 +160,7 @@ struct ArtistDetailView: View {
                                         .albumContextMenu(album)
                                     }
                                 }
-                                .padding(.horizontal, 24)
-                                .padding(.bottom, 24)
+                                .padding(20)
                             } else {
                                 LazyVStack(spacing: 0) {
                                     ForEach(sortedAlbums) { album in

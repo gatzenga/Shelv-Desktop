@@ -134,6 +134,7 @@ struct Album: Codable, Identifiable, Hashable {
     let genre: String?
     let starred: String?
     let playCount: Int?
+    let created: String?
 
     var isStarred: Bool { starred != nil }
 
