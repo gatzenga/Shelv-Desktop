@@ -873,7 +873,7 @@ struct AboutTab: View {
                 Text("·").foregroundStyle(.secondary)
                 Link(tr("Contact", "Kontakt"), destination: URL(string: "mailto:kontakt@vkugler.ch")!)
                 Text("·").foregroundStyle(.secondary)
-                Link("Discord", destination: URL(string: "https://discord.gg/a8VvwDeR")!)
+                Link("Discord", destination: URL(string: "https://discord.gg/UdJK5mpmZu")!)
             }
             .font(.callout)
         }
