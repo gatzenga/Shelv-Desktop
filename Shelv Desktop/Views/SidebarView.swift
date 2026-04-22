@@ -2,13 +2,16 @@ import SwiftUI
 
 struct SidebarView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
+    @ObservedObject var offlineMode = OfflineModeService.shared
     @StateObject private var recapStore = RecapStore.shared
     @Binding var selection: SidebarItem?
     @Binding var selectedPlaylist: Playlist?
     @Environment(\.themeColor) private var themeColor
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
+    @AppStorage("enableDownloads") private var enableDownloads = false
+    @AppStorage("downloadsOnlyFilter") private var showDownloadsOnly: Bool = false
 
     @State private var showCreatePlaylist = false
     @State private var newPlaylistName = ""
@@ -95,6 +98,14 @@ struct SidebarView: View {
             }
 
             Spacer()
+
+            if enableDownloads {
+                Divider()
+                SidebarBatchProgress()
+                downloadsFooter
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+            }
         }
         .padding(.horizontal, 8)
         .padding(.top, 8)
@@ -130,6 +141,68 @@ struct SidebarView: View {
             Button(tr("Cancel", "Abbrechen"), role: .cancel) { }
         } message: {
             Text(tr("Enter a name for the new playlist.", "Namen für die neue Wiedergabeliste eingeben."))
+        }
+    }
+
+    @ViewBuilder
+    private var downloadsFooter: some View {
+        if offlineMode.isOffline {
+            HStack(spacing: 8) {
+                Image(systemName: "wifi.slash")
+                    .foregroundStyle(themeColor)
+                Text(tr("Offline Mode", "Offline-Modus"))
+                    .font(.caption.bold())
+                    .foregroundStyle(themeColor)
+                Spacer()
+                Button {
+                    offlineMode.exitOfflineMode()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help(tr("Exit offline mode", "Offline-Modus verlassen"))
+            }
+        } else {
+            Toggle(isOn: $showDownloadsOnly) {
+                Label(tr("Downloads only", "Nur Downloads"), systemImage: "arrow.down.circle")
+                    .font(.callout)
+            }
+            .toggleStyle(.checkbox)
+        }
+    }
+}
+
+private struct SidebarBatchProgress: View {
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @Environment(\.themeColor) private var themeColor
+
+    var body: some View {
+        if let progress = downloadStore.batchProgress {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.caption)
+                        .foregroundStyle(themeColor)
+                    Text("\(progress.completed)/\(progress.total)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button {
+                        Task { await DownloadService.shared.cancelBatch() }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(tr("Cancel download", "Download abbrechen"))
+                }
+                ProgressView(value: progress.fraction)
+                    .tint(themeColor)
+                    .scaleEffect(y: 0.7, anchor: .center)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
         }
     }
 }
