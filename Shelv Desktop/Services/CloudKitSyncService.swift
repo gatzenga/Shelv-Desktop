@@ -133,8 +133,7 @@ actor CloudKitSyncService {
         monitor.pathUpdateHandler = { path in
             guard path.status == .satisfied else { return }
             Task {
-                await CloudKitSyncService.shared.uploadPendingEvents()
-                await CloudKitSyncService.shared.flushScrobbleQueue()
+                await CloudKitSyncService.shared.syncNow()
             }
         }
         monitor.start(queue: DispatchQueue(label: "ch.vkugler.shelv.netmonitor", qos: .utility))
@@ -308,8 +307,13 @@ actor CloudKitSyncService {
                 isZoneReady = false
                 log("iCloud zone was reset on another device — marking local data for re-upload")
             } else if isChangeTokenExpired(error) {
+                // Zone was wiped and recreated on another device (typical when that device
+                // re-enabled sync in the same flow). Treat like zoneNotFound so our local
+                // truth gets re-uploaded.
+                await markLocalAsUnsyncedForActiveServer()
                 changeToken = nil
-                log("Change token expired — next sync fetches all")
+                isZoneReady = false
+                log("Change token expired — marking local data for re-upload")
             } else {
                 log("Download error: \(error.localizedDescription)", isError: true)
             }
@@ -474,6 +478,7 @@ actor CloudKitSyncService {
     }
 
     func fetchRecapMarker(serverId: String, periodKey: String, isTest: Bool = false) async -> RecapRegistryRecord? {
+        guard syncEnabled else { return nil }
         let recordName = makeRecapMarkerRecordName(serverId: serverId, periodKey: periodKey, isTest: isTest)
         let rid = CKRecord.ID(recordName: recordName, zoneID: zoneID)
         guard let record = try? await db.record(for: rid) else { return nil }
@@ -684,8 +689,13 @@ actor CloudKitSyncService {
             log("iCloud sync disabled")
             return
         }
-        log("iCloud sync enabled — merging")
+        log("iCloud sync enabled — purging iCloud and re-uploading local truth")
         await setup()
+        // Wipe iCloud so stale markers (from sync-off periods) can't be adopted.
+        // Local data is preserved; markServerUnsyncedForReUpload re-flags everything
+        // for re-upload. Other devices detect zoneNotFound on next sync and do the same.
+        await deleteZone(force: true)
+        await markLocalAsUnsyncedForActiveServer()
         resetChangeToken()
         await uploadPendingEvents()
         await reuploadAllRecapMarkers()

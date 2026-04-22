@@ -68,6 +68,7 @@ struct MainWindowView: View {
                 .environmentObject(libraryStore)
             }
             .onChange(of: appState.serverStore.activeServerID) { _, _ in
+                appState.player.stop()
                 libraryStore.reset()
             }
             .background(Color(NSColor.windowBackgroundColor))

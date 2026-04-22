@@ -8,18 +8,34 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             ServerTab()
-                .tabItem { Label(tr("Server", "Server"), systemImage: "server.rack") }
+                .tabItem {
+                    Image(systemName: "server.rack")
+                    Text(tr("Server", "Server"))
+                }
             AppearanceTab(colorScheme: $colorScheme)
-                .tabItem { Label(tr("Appearance", "Darstellung"), systemImage: "paintpalette") }
+                .tabItem {
+                    Image(systemName: "paintpalette")
+                    Text(tr("Appearance", "Darstellung"))
+                }
             RecapTab()
-                .tabItem { Label(tr("Recap", "Recap"), systemImage: "calendar.badge.clock") }
+                .tabItem {
+                    Image(systemName: "calendar.badge.clock")
+                    Text(tr("Recap", "Recap"))
+                }
             CacheTab()
-                .tabItem { Label(tr("Cache", "Cache"), systemImage: "internaldrive") }
+                .tabItem {
+                    Image(systemName: "internaldrive")
+                    Text(tr("Cache", "Cache"))
+                }
             AboutTab()
-                .tabItem { Label(tr("Info", "Info"), systemImage: "info.circle") }
+                .tabItem {
+                    Image(systemName: "info.circle")
+                    Text(tr("Info", "Info"))
+                }
         }
         .frame(width: 820, height: 660)
         .environmentObject(appState)
+        .transaction { $0.animation = nil }
     }
 }
 
@@ -526,17 +542,15 @@ struct RecapTab: View {
                                 Text(tr("Never", "Noch nie")).font(.caption).foregroundStyle(.secondary)
                             }
                         }
-                        if ckStatus.pendingUploads > 0 {
-                            LabeledContent(tr("Pending uploads", "Ausstehende Uploads")) {
-                                Text("\(ckStatus.pendingUploads)").font(.caption)
-                                    .foregroundStyle(.secondary).monospacedDigit()
-                            }
+                        LabeledContent(tr("Pending uploads", "Ausstehende Uploads")) {
+                            Text(ckStatus.pendingUploads > 0 ? "\(ckStatus.pendingUploads)" : "—")
+                                .font(.caption)
+                                .foregroundStyle(.secondary).monospacedDigit()
                         }
-                        if ckStatus.pendingScrobbles > 0 {
-                            LabeledContent(tr("Pending scrobbles", "Ausstehende Scrobbles")) {
-                                Text("\(ckStatus.pendingScrobbles)").font(.caption)
-                                    .foregroundStyle(.secondary).monospacedDigit()
-                            }
+                        LabeledContent(tr("Pending scrobbles", "Ausstehende Scrobbles")) {
+                            Text(ckStatus.pendingScrobbles > 0 ? "\(ckStatus.pendingScrobbles)" : "—")
+                                .font(.caption)
+                                .foregroundStyle(.secondary).monospacedDigit()
                         }
                         Button {
                             guard !isSyncingManually else { return }
@@ -546,11 +560,14 @@ struct RecapTab: View {
                                 await CloudKitSyncService.shared.syncNow()
                             }
                         } label: {
-                            if isSyncingManually {
-                                ProgressView().controlSize(.small)
-                            } else {
-                                Label(tr("Sync now", "Jetzt synchronisieren"),
-                                      systemImage: "arrow.triangle.2.circlepath")
+                            Label {
+                                Text(tr("Sync now", "Jetzt synchronisieren"))
+                            } icon: {
+                                if isSyncingManually {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                }
                             }
                         }
                         .disabled(isSyncingManually)
@@ -855,6 +872,8 @@ struct AboutTab: View {
                 Link(tr("Privacy Policy", "Datenschutz"), destination: URL(string: "https://gatzenga.github.io/Shelv-Desktop/privacy.html")!)
                 Text("·").foregroundStyle(.secondary)
                 Link(tr("Contact", "Kontakt"), destination: URL(string: "mailto:kontakt@vkugler.ch")!)
+                Text("·").foregroundStyle(.secondary)
+                Link("Discord", destination: URL(string: "https://discord.gg/a8VvwDeR")!)
             }
             .font(.callout)
         }

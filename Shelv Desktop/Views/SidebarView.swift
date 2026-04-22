@@ -14,9 +14,7 @@ struct SidebarView: View {
     @State private var newPlaylistName = ""
 
     private var nonRecapPlaylists: [Playlist] {
-        libraryStore.playlists.filter {
-            !recapStore.recapPlaylistIds.contains($0.id) && $0.comment != "Shelv Recap"
-        }
+        libraryStore.playlists.filter { !recapStore.recapPlaylistIds.contains($0.id) }
     }
 
     var body: some View {
