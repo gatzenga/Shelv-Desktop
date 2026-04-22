@@ -15,7 +15,9 @@ struct Shelv_DesktopApp: App {
     @StateObject private var lyricsStore = LyricsStore()
     @StateObject private var ckStatus = CloudKitSyncService.shared.status
     @StateObject private var recapStore = RecapStore.shared
-    @StateObject private var libraryStore = LibraryViewModel()
+    @StateObject private var libraryStore = LibraryViewModel.shared
+    @StateObject private var downloadStore = DownloadStore.shared
+    @StateObject private var offlineMode = OfflineModeService.shared
     private let _playTracker = PlayTracker.shared
     @AppStorage("appColorScheme") private var storedColorScheme: AppColorScheme = .system
     @AppStorage("themeColor") private var themeColorName: String = "violet"
@@ -25,10 +27,24 @@ struct Shelv_DesktopApp: App {
 
     init() {
         NSWindow.allowsAutomaticWindowTabbing = false
+        let d = UserDefaults.standard
+        if d.string(forKey: "transcodingWifiCodec") == "aac" { d.set("raw", forKey: "transcodingWifiCodec") }
+        if d.string(forKey: "transcodingCellularCodec") == "aac" { d.set("raw", forKey: "transcodingCellularCodec") }
+        if d.string(forKey: "transcodingDownloadCodec") == "aac" { d.set("raw", forKey: "transcodingDownloadCodec") }
         UserDefaults.standard.register(defaults: [
             "recapWeeklyEnabled": true,
             "recapMonthlyEnabled": true,
             "recapYearlyEnabled": true,
+            "enableDownloads": false,
+            "offlineModeEnabled": false,
+            "maxBulkDownloadStorageGB": 10,
+            "transcodingEnabled": false,
+            "transcodingWifiCodec": "raw",
+            "transcodingWifiBitrate": 256,
+            "transcodingCellularCodec": "raw",
+            "transcodingCellularBitrate": 128,
+            "transcodingDownloadCodec": "raw",
+            "transcodingDownloadBitrate": 192,
         ])
     }
 
@@ -40,10 +56,17 @@ struct Shelv_DesktopApp: App {
                 .environmentObject(ckStatus)
                 .environmentObject(recapStore)
                 .environmentObject(libraryStore)
+                .environmentObject(downloadStore)
+                .environmentObject(offlineMode)
                 .frame(minWidth: 900, minHeight: 600)
                 .task { await lyricsStore.setup() }
                 .task {
                     await PlayLogService.shared.setup()
+                    await DownloadDatabase.shared.setup()
+                    await DownloadService.shared.setup()
+                    if let active = appState.serverStore.activeServer {
+                        await downloadStore.setActiveServer(active.stableId)
+                    }
                     let api = SubsonicAPIService.shared
                     for server in appState.serverStore.servers where server.remoteUserId == nil {
                         guard let pw = appState.serverStore.password(for: server) else { continue }
@@ -68,6 +91,7 @@ struct Shelv_DesktopApp: App {
                 .task(id: appState.serverStore.activeServerID) {
                     guard let server = appState.serverStore.activeServer else { return }
                     await recapStore.setup(serverId: server.stableId)
+                    await downloadStore.setActiveServer(server.stableId)
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
@@ -135,6 +159,7 @@ struct Shelv_DesktopApp: App {
                 Divider()
                 CrossfadeMenuItem()
                 LyricsSettingsMenuItem()
+                TranscodingMenuItem()
             }
 
             CommandGroup(after: .sidebar) {
@@ -145,6 +170,8 @@ struct Shelv_DesktopApp: App {
                 Toggle(isOn: Binding(get: { enablePlaylists }, set: { enablePlaylists = $0 })) {
                     Text(tr("Show Playlists", "Wiedergabelisten anzeigen"))
                 }
+                Divider()
+                OfflineModeMenuItem()
             }
         }
 
@@ -159,6 +186,13 @@ struct Shelv_DesktopApp: App {
 
         Window(tr("Crossfade", "Crossfade"), id: "crossfade") {
             CrossfadePanel()
+                .tint(AppTheme.color(for: themeColorName))
+                .environment(\.themeColor, AppTheme.color(for: themeColorName))
+        }
+        .windowResizability(.contentSize)
+
+        Window(tr("Transcoding", "Transcoding"), id: "transcoding") {
+            TranscodingPanel()
                 .tint(AppTheme.color(for: themeColorName))
                 .environment(\.themeColor, AppTheme.color(for: themeColorName))
         }
@@ -218,6 +252,16 @@ struct CrossfadeMenuItem: View {
     }
 }
 
+struct TranscodingMenuItem: View {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button(tr("Transcoding…", "Transcoding…")) {
+            openWindow(id: "transcoding")
+        }
+    }
+}
+
 struct ServerManagementMenuItem: View {
     @Environment(\.openWindow) private var openWindow
 
@@ -245,5 +289,21 @@ struct RecapMenuItem: View {
         Button(tr("Recap…", "Recap…")) {
             openWindow(id: "recap")
         }
+    }
+}
+
+struct OfflineModeMenuItem: View {
+    @ObservedObject private var offlineMode = OfflineModeService.shared
+    @AppStorage("enableDownloads") private var enableDownloads = false
+
+    var body: some View {
+        Toggle(
+            tr("Offline Mode", "Offline-Modus"),
+            isOn: Binding(
+                get: { offlineMode.isOffline },
+                set: { if $0 { offlineMode.enterOfflineMode() } else { offlineMode.exitOfflineMode() } }
+            )
+        )
+        .disabled(!enableDownloads)
     }
 }
