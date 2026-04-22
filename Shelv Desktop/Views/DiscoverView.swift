@@ -3,10 +3,45 @@ import SwiftUI
 struct DiscoverView: View {
     @StateObject private var vm = DiscoverViewModel()
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
+    @ObservedObject var offlineMode = OfflineModeService.shared
     @State private var mixLoading: String?
 
+    @ViewBuilder
     var body: some View {
+        if offlineMode.isOffline {
+            offlineEmptyState
+                .navigationTitle(tr("Discover", "Entdecken"))
+        } else {
+            onlineBody
+        }
+    }
+
+    private var offlineEmptyState: some View {
+        VStack(spacing: 18) {
+            Image(systemName: "wifi.slash")
+                .font(.system(size: 64))
+                .foregroundStyle(.tertiary)
+            Text(tr("You are offline", "Du bist offline"))
+                .font(.title2.bold())
+            Text(tr(
+                "Switch to your downloads in the sidebar, or use search to find downloaded tracks.",
+                "Wechsle in der Seitenleiste zu deinen Downloads, oder nutze die Suche um Titel zu finden."
+            ))
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 420)
+            Button {
+                offlineMode.exitOfflineMode()
+            } label: {
+                Label(tr("Go Online", "Online gehen"), systemImage: "wifi")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var onlineBody: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
 
@@ -252,6 +287,10 @@ struct AlbumCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             CoverArtView(url: coverURL, size: 150, cornerRadius: 8)
+                .overlay(alignment: .bottomTrailing) {
+                    AlbumDownloadBadge(albumId: album.id)
+                        .padding(4)
+                }
                 .shadow(color: .black.opacity(isHovered ? 0.25 : 0.1), radius: isHovered ? 8 : 4)
             Text(album.name)
                 .font(.caption.bold())
