@@ -144,6 +144,13 @@ actor DownloadDatabase {
                 t.add(column: "albumCoverArtId", .text)
             }
         }
+        m.registerMigration("v4_add_playlist_registry") { db in
+            try db.create(table: "downloaded_playlists", ifNotExists: true) { t in
+                t.column("playlist_id", .text).primaryKey()
+                t.column("playlist_name", .text).notNull()
+                t.column("downloaded_at", .integer).notNull()
+            }
+        }
         try m.migrate(p)
         return p
     }
@@ -344,6 +351,34 @@ actor DownloadDatabase {
                 LIMIT ?
                 """, arguments: [serverId, q, q, q, limit])
         }) ?? []
+    }
+
+    // MARK: - Playlist Registry
+
+    func markPlaylistDownloaded(id: String, name: String) {
+        safeWrite { db in
+            try db.execute(
+                sql: "INSERT OR REPLACE INTO downloaded_playlists (playlist_id, playlist_name, downloaded_at) VALUES (?, ?, ?)",
+                arguments: [id, name, Int(Date().timeIntervalSince1970)]
+            )
+        }
+    }
+
+    func unmarkPlaylistDownloaded(id: String) {
+        safeWrite { db in
+            try db.execute(
+                sql: "DELETE FROM downloaded_playlists WHERE playlist_id = ?",
+                arguments: [id]
+            )
+        }
+    }
+
+    func loadDownloadedPlaylistIds() -> Set<String> {
+        guard let pool else { return [] }
+        let ids: [String] = (try? pool.read { db in
+            try String.fetchAll(db, sql: "SELECT playlist_id FROM downloaded_playlists")
+        }) ?? []
+        return Set(ids)
     }
 
     // MARK: - Missing Song Strikes

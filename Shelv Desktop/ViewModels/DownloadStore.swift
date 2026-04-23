@@ -10,6 +10,7 @@ final class DownloadStore: ObservableObject {
     @Published private(set) var albums: [DownloadedAlbum] = []
     @Published private(set) var artists: [DownloadedArtist] = []
     @Published private(set) var favoriteSongs: [DownloadedSong] = []
+    @Published private(set) var downloadedPlaylistIds: Set<String> = []
     @Published private(set) var totalBytes: Int64 = 0
     private(set) var inFlightProgress: [String: Double] = [:]
     private(set) var inFlightStates: [String: DownloadState] = [:]
@@ -94,6 +95,7 @@ final class DownloadStore: ObservableObject {
     func reload() async {
         guard !serverId.isEmpty else {
             songs = []; albums = []; artists = []; favoriteSongs = []; totalBytes = 0
+            downloadedPlaylistIds = []
             songById = [:]; recordsByAlbumId = [:]
             DownloadStatusCache.shared.rebuild(albumIds: [])
             return
@@ -104,6 +106,7 @@ final class DownloadStore: ObservableObject {
         let sid = serverId
         let records = await DownloadDatabase.shared.allRecords(serverId: sid)
         let total = await DownloadDatabase.shared.totalBytes(serverId: sid)
+        let playlistIds = await DownloadDatabase.shared.loadDownloadedPlaylistIds()
         let mappedSongs = records.map { $0.toDownloadedSong() }
 
         var newSongById: [String: DownloadedSong] = [:]
@@ -156,6 +159,7 @@ final class DownloadStore: ObservableObject {
         albums = albumsGrouped
         artists = artistsGrouped
         favoriteSongs = mappedSongs.filter { $0.isFavorite }
+        downloadedPlaylistIds = playlistIds
         totalBytes = total
 
         var paths: [String: String] = [:]
@@ -415,6 +419,16 @@ final class DownloadStore: ObservableObject {
 
     func deleteAll() {
         Task { await DownloadService.shared.deleteAll() }
+    }
+
+    func markPlaylistDownloaded(id: String, name: String) {
+        downloadedPlaylistIds.insert(id)
+        Task { await DownloadDatabase.shared.markPlaylistDownloaded(id: id, name: name) }
+    }
+
+    func unmarkPlaylistDownloaded(id: String) {
+        downloadedPlaylistIds.remove(id)
+        Task { await DownloadDatabase.shared.unmarkPlaylistDownloaded(id: id) }
     }
 
     // MARK: - Stats

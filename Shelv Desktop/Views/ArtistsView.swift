@@ -68,8 +68,6 @@ struct ArtistsView: View {
             if vm.isLoadingArtists {
                 ProgressView(tr("Loading artists…", "Künstler laden…"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if displayArtists.isEmpty && !vm.artists.isEmpty {
-                ContentUnavailableView.search(text: searchText)
             } else if isGrid {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140, maximum: 180), spacing: 16)], spacing: 20) {
@@ -82,6 +80,11 @@ struct ArtistsView: View {
                         }
                     }
                     .padding(20)
+                }
+                .overlay {
+                    if displayArtists.isEmpty && !vm.artists.isEmpty {
+                        ContentUnavailableView.search(text: searchText)
+                    }
                 }
             } else {
                 ScrollView {
@@ -98,6 +101,11 @@ struct ArtistsView: View {
                         }
                     }
                     .padding(.vertical, 8)
+                }
+                .overlay {
+                    if displayArtists.isEmpty && !vm.artists.isEmpty {
+                        ContentUnavailableView.search(text: searchText)
+                    }
                 }
             }
 

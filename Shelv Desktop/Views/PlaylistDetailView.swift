@@ -12,24 +12,25 @@ struct PlaylistDetailView: View {
 
     @ViewBuilder
     private var playlistDownloadButtons: some View {
-        let downloadedCount = songs.filter { downloadStore.isDownloaded(songId: $0.id) }.count
-        if downloadedCount < songs.count && !offlineMode.isOffline {
+        let isMarked = downloadStore.downloadedPlaylistIds.contains(playlist.id)
+        if !isMarked && !offlineMode.isOffline {
             Button {
                 let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
-                downloadStore.enqueueSongs(missing)
+                if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
+                downloadStore.markPlaylistDownloaded(id: playlist.id, name: playlist.name)
                 NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
             } label: {
-                Label(downloadedCount == 0 ? tr("Download", "Herunterladen") : tr("Rest", "Rest"),
-                      systemImage: "arrow.down.circle")
+                Label(tr("Download", "Herunterladen"), systemImage: "arrow.down.circle")
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
         }
-        if downloadedCount > 0 {
+        if isMarked {
             Button {
                 for song in songs where downloadStore.isDownloaded(songId: song.id) {
                     downloadStore.deleteSong(song.id)
                 }
+                downloadStore.unmarkPlaylistDownloaded(id: playlist.id)
             } label: {
                 Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
                     .foregroundStyle(.red)
@@ -105,6 +106,14 @@ struct PlaylistDetailView: View {
             displayName = playlist.name
             displayComment = playlist.comment ?? ""
             await loadDetail()
+        }
+        .onChange(of: offlineMode.isOffline) { _, _ in
+            songs = []
+            Task { await loadDetail() }
+        }
+        .onChange(of: downloadStore.songs.count) { _, _ in
+            guard offlineMode.isOffline else { return }
+            Task { await loadDetail() }
         }
         .refreshable {
             async let detail: Void = loadDetail()
@@ -230,9 +239,17 @@ struct PlaylistDetailView: View {
         isLoading = true
         if let loaded = await libraryStore.loadPlaylistDetail(id: playlist.id) {
             detail = loaded
-            songs = loaded.songs ?? []
+            let allSongs = loaded.songs ?? []
+            songs = offlineMode.isOffline
+                ? allSongs.filter { downloadStore.isDownloaded(songId: $0.id) }
+                : allSongs
             displayName = loaded.name
             displayComment = loaded.comment ?? ""
+        }
+        if !offlineMode.isOffline && downloadStore.downloadedPlaylistIds.contains(playlist.id) {
+            if songs.contains(where: { !downloadStore.isDownloaded(songId: $0.id) }) {
+                downloadStore.unmarkPlaylistDownloaded(id: playlist.id)
+            }
         }
         isLoading = false
     }

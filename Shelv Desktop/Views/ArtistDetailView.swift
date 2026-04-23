@@ -14,7 +14,12 @@ struct ArtistDetailView: View {
     @AppStorage("artistDetailAlbumSort") private var sortRaw: String = LibrarySortOption.recentlyAdded.rawValue
     @AppStorage("artistDetailAlbumDirection") private var directionRaw: String = SortDirection.descending.rawValue
     @AppStorage("artistDetailAlbumIsGrid") private var isGrid: Bool = true
+    @AppStorage("downloadsOnlyFilter") private var showDownloadsOnly: Bool = false
     @Environment(\.themeColor) private var themeColor
+
+    private var effectiveShowDownloadsOnly: Bool {
+        offlineMode.isOffline || showDownloadsOnly
+    }
 
     private var sortOption: LibrarySortOption {
         LibrarySortOption(rawValue: sortRaw) ?? .recentlyAdded
@@ -24,20 +29,26 @@ struct ArtistDetailView: View {
         SortDirection(rawValue: directionRaw) ?? .descending
     }
 
-    private var sortedAlbums: [Album] {
+    private var displayAlbums: [Album] {
+        let base: [Album]
+        if effectiveShowDownloadsOnly {
+            let downloadedIds = Set(downloadStore.albums.map { $0.albumId })
+            base = vm.albums.filter { downloadedIds.contains($0.id) }
+        } else {
+            base = vm.albums
+        }
         switch sortOption {
         case .name:
-            // Name immer A-Z, unabhängig von direction
-            return vm.albums.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            return base.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         case .mostPlayed:
-            let base = vm.albums.sorted { ($0.playCount ?? 0) < ($1.playCount ?? 0) }
-            return direction == .ascending ? base : Array(base.reversed())
+            let sorted = base.sorted { ($0.playCount ?? 0) < ($1.playCount ?? 0) }
+            return direction == .ascending ? sorted : Array(sorted.reversed())
         case .recentlyAdded:
-            let base = vm.albums.sorted { ($0.created ?? "") < ($1.created ?? "") }
-            return direction == .ascending ? base : Array(base.reversed())
+            let sorted = base.sorted { ($0.created ?? "") < ($1.created ?? "") }
+            return direction == .ascending ? sorted : Array(sorted.reversed())
         case .year:
-            let base = vm.albums.sorted { ($0.year ?? 0) < ($1.year ?? 0) }
-            return direction == .ascending ? base : Array(base.reversed())
+            let sorted = base.sorted { ($0.year ?? 0) < ($1.year ?? 0) }
+            return direction == .ascending ? sorted : Array(sorted.reversed())
         }
     }
 
@@ -159,7 +170,7 @@ struct ArtistDetailView: View {
                                     columns: [GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 16)],
                                     spacing: 20
                                 ) {
-                                    ForEach(sortedAlbums) { album in
+                                    ForEach(displayAlbums) { album in
                                         NavigationLink(value: album) {
                                             AlbumGridItem(album: album)
                                         }
@@ -170,13 +181,13 @@ struct ArtistDetailView: View {
                                 .padding(20)
                             } else {
                                 LazyVStack(spacing: 0) {
-                                    ForEach(sortedAlbums) { album in
+                                    ForEach(displayAlbums) { album in
                                         NavigationLink(value: album) {
                                             AlbumListRow(album: album)
                                         }
                                         .buttonStyle(.plain)
                                         .albumContextMenu(album)
-                                        if album.id != sortedAlbums.last?.id {
+                                        if album.id != displayAlbums.last?.id {
                                             Divider().padding(.leading, 92)
                                         }
                                     }
@@ -195,6 +206,10 @@ struct ArtistDetailView: View {
             }
             Task { await vm.load(artistId: artistId, artistName: artistName) }
         }
+        .onChange(of: downloadStore.songs.count) { _, _ in
+            guard offlineMode.isOffline else { return }
+            Task { await vm.load(artistId: artistId, artistName: artistName) }
+        }
         .task(id: artistId) { await vm.load(artistId: artistId, artistName: artistName) }
     }
 
@@ -203,29 +218,70 @@ struct ArtistDetailView: View {
         return SubsonicAPIService.shared.coverArtURL(id: id, size: 240)
     }
 
+    private var totalArtistSongs: Int {
+        vm.albums.compactMap(\.songCount).reduce(0, +)
+    }
+
+    private var downloadedArtistSongs: Int {
+        downloadStore.songs.filter { $0.artistName == artistName }.count
+    }
+
+    private var artistDownloadStatus: AlbumDownloadStatus {
+        let total = totalArtistSongs
+        let done = downloadedArtistSongs
+        guard total > 0 else { return .none }
+        if done == 0 { return .none }
+        if done >= total { return .complete }
+        return .partial(downloaded: done, total: total)
+    }
+
     @ViewBuilder
     private func artistDownloadButton(for detail: ArtistDetail) -> some View {
         let artistModel = Artist(id: detail.id, name: detail.name,
                                  albumCount: detail.albumCount, coverArt: detail.coverArt,
                                  starred: nil)
-        let downloaded = downloadStore.artists.first(where: { $0.name == detail.name })
-        if let match = downloaded {
-            Button {
-                downloadStore.deleteArtist(match.artistId)
-            } label: {
-                Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
+        switch artistDownloadStatus {
+        case .none:
+            if !offlineMode.isOffline {
+                Button {
+                    downloadStore.enqueueArtist(artistModel)
+                } label: {
+                    Label(tr("Download", "Herunterladen"), systemImage: "arrow.down.circle")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .tint(.red)
-        } else if !offlineMode.isOffline {
-            Button {
-                downloadStore.enqueueArtist(artistModel)
-            } label: {
-                Label(tr("Download", "Herunterladen"), systemImage: "arrow.down.circle")
+        case .partial(let done, let tot):
+            if !offlineMode.isOffline {
+                Button {
+                    downloadStore.enqueueArtist(artistModel)
+                } label: {
+                    Label(tr("Rest (\(tot - done))", "Rest (\(tot - done))"), systemImage: "arrow.down.circle")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
+            if let match = downloadStore.artists.first(where: { $0.name == detail.name }) {
+                Button {
+                    downloadStore.deleteArtist(match.artistId)
+                } label: {
+                    Label { Text(tr("Delete", "Löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .tint(.red)
+            }
+        case .complete:
+            if let match = downloadStore.artists.first(where: { $0.name == detail.name }) {
+                Button {
+                    downloadStore.deleteArtist(match.artistId)
+                } label: {
+                    Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .tint(.red)
+            }
         }
     }
 }

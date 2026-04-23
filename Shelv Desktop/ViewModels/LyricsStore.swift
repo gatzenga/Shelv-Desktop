@@ -28,6 +28,7 @@ class LyricsStore: ObservableObject {
     // MARK: - Load lyrics for current song
 
     func loadLyrics(for song: Song, serverId: String) {
+        guard !OfflineModeService.shared.isOffline else { return }
         loadTask?.cancel()
         currentLyrics = nil
         isLoadingLyrics = true

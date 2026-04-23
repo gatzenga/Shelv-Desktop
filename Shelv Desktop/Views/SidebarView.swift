@@ -5,6 +5,7 @@ struct SidebarView: View {
     @ObservedObject var libraryStore = LibraryViewModel.shared
     @ObservedObject var offlineMode = OfflineModeService.shared
     @StateObject private var recapStore = RecapStore.shared
+    @ObservedObject private var downloadStore = DownloadStore.shared
     @Binding var selection: SidebarItem?
     @Binding var selectedPlaylist: Playlist?
     @Environment(\.themeColor) private var themeColor
@@ -18,6 +19,12 @@ struct SidebarView: View {
 
     private var nonRecapPlaylists: [Playlist] {
         libraryStore.playlists.filter { !recapStore.recapPlaylistIds.contains($0.id) }
+    }
+
+    private var visiblePlaylists: [Playlist] {
+        let base = nonRecapPlaylists
+        guard offlineMode.isOffline || showDownloadsOnly else { return base }
+        return base.filter { downloadStore.downloadedPlaylistIds.contains($0.id) }
     }
 
     var body: some View {
@@ -73,17 +80,17 @@ struct SidebarView: View {
                 .padding(.horizontal, 10)
                 .padding(.bottom, 4)
 
-                if libraryStore.isLoadingPlaylists && nonRecapPlaylists.isEmpty {
+                if libraryStore.isLoadingPlaylists && visiblePlaylists.isEmpty {
                     ProgressView()
                         .scaleEffect(0.8)
                         .padding(.horizontal, 10)
-                } else if nonRecapPlaylists.isEmpty {
+                } else if visiblePlaylists.isEmpty {
                     Text(tr("No Playlists", "Keine Wiedergabelisten"))
                         .font(.callout)
                         .foregroundStyle(.tertiary)
                         .padding(.horizontal, 10)
                 } else {
-                    ForEach(nonRecapPlaylists) { playlist in
+                    ForEach(visiblePlaylists) { playlist in
                         PlaylistSidebarRow(
                             playlist: playlist,
                             isSelected: selectedPlaylist?.id == playlist.id,

@@ -14,7 +14,17 @@ struct AlbumDetailView: View {
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
     @AppStorage("enableDownloads") private var enableDownloads = false
+    @AppStorage("downloadsOnlyFilter") private var showDownloadsOnly: Bool = false
     @Environment(\.themeColor) private var themeColor
+
+    private var effectiveShowDownloadsOnly: Bool {
+        offlineMode.isOffline || showDownloadsOnly
+    }
+
+    private var displaySongs: [Song] {
+        guard effectiveShowDownloadsOnly else { return vm.songs }
+        return vm.songs.filter { downloadStore.isDownloaded(songId: $0.id) }
+    }
 
     var body: some View {
         ScrollView {
@@ -67,7 +77,7 @@ struct AlbumDetailView: View {
 
                         HStack(spacing: 10) {
                             Button {
-                                if let songs = vm.album?.song { appState.player.play(songs: songs) }
+                                appState.player.play(songs: displaySongs)
                             } label: {
                                 Label(tr("Play", "Abspielen"), systemImage: "play.fill")
                                     .frame(minWidth: 110)
@@ -75,19 +85,17 @@ struct AlbumDetailView: View {
                             .buttonStyle(.borderedProminent)
                             .tint(themeColor)
                             .controlSize(.large)
-                            .disabled(vm.isLoading)
+                            .disabled(vm.isLoading || displaySongs.isEmpty)
 
                             Button {
-                                if let songs = vm.album?.song {
-                                    appState.player.playShuffled(songs: songs)
-                                }
+                                appState.player.playShuffled(songs: displaySongs)
                             } label: {
                                 Label(tr("Shuffle", "Zufall"), systemImage: "shuffle")
                                     .frame(minWidth: 100)
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.large)
-                            .disabled(vm.isLoading)
+                            .disabled(vm.isLoading || displaySongs.isEmpty)
 
                             if enableDownloads, let album = vm.album {
                                 downloadHeaderButton(for: album)
@@ -130,7 +138,7 @@ struct AlbumDetailView: View {
                         .padding(.vertical, 60)
                 } else {
                     VStack(spacing: 0) {
-                        ForEach(Array(vm.songs.enumerated()), id: \.element.id) { index, song in
+                        ForEach(Array(displaySongs.enumerated()), id: \.element.id) { index, song in
                             TrackRow(
                                 song: song,
                                 isPlaying: player.currentSong?.id == song.id,
@@ -138,7 +146,7 @@ struct AlbumDetailView: View {
                                 showPlaylist: enablePlaylists,
                                 isStarred: libraryStore.isSongStarred(song)
                             ) {
-                                appState.player.play(songs: vm.songs, startIndex: index)
+                                appState.player.play(songs: displaySongs, startIndex: index)
                             } onPlayNext: {
                                 appState.player.addPlayNext(song)
                                 NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
@@ -166,6 +174,11 @@ struct AlbumDetailView: View {
         .task(id: albumId) {
             let local = downloadStore.albums.first(where: { $0.albumId == albumId })
             await vm.load(albumId: albumId, fallback: local)
+        }
+        .onChange(of: downloadStore.songs.count) { _, _ in
+            guard offlineMode.isOffline else { return }
+            let local = downloadStore.albums.first(where: { $0.albumId == albumId })
+            Task { await vm.load(albumId: albumId, fallback: local) }
         }
     }
 
