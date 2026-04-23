@@ -135,7 +135,8 @@ struct AlbumDetailView: View {
                                 isPlaying: player.currentSong?.id == song.id,
                                 showFavorite: enableFavorites,
                                 showPlaylist: enablePlaylists,
-                                isStarred: libraryStore.isSongStarred(song)
+                                isStarred: libraryStore.isSongStarred(song),
+                                albumCoverArt: vm.album?.coverArt
                             ) {
                                 appState.player.play(songs: vm.songs, startIndex: index)
                             } onPlayNext: {
@@ -236,6 +237,7 @@ struct TrackRow: View {
     var showFavorite: Bool = false
     var showPlaylist: Bool = false
     var isStarred: Bool = false
+    var albumCoverArt: String? = nil
     let onPlay: () -> Void
     let onPlayNext: () -> Void
     let onAddToQueue: () -> Void
@@ -263,6 +265,15 @@ struct TrackRow: View {
             .font(.callout)
             .frame(width: 36, alignment: .trailing)
             .padding(.leading, 20)
+
+            if let songCover = song.coverArt, songCover != albumCoverArt {
+                CoverArtView(
+                    url: SubsonicAPIService.shared.coverArtURL(id: songCover, size: 80),
+                    size: 36,
+                    cornerRadius: 4
+                )
+                .padding(.leading, 10)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(song.title)
