@@ -71,7 +71,7 @@ struct CoverArtView: View {
 actor ImageCacheService {
     static let shared = ImageCacheService()
 
-    private let memory = NSCache<NSString, NSImage>()
+    nonisolated(unsafe) private let memory = NSCache<NSString, NSImage>()
     private let cacheDir: URL
     private var inflight: [String: Task<NSImage?, Never>] = [:]
     private var writesSinceTrim = 0
