@@ -63,6 +63,7 @@ struct AddToPlaylistPanel: View {
                                     }
                                     Spacer()
                                 }
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         }

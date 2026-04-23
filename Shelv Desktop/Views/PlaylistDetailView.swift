@@ -101,7 +101,7 @@ struct PlaylistDetailView: View {
         } message: {
             Text(tr("This action cannot be undone.", "Diese Aktion kann nicht rückgängig gemacht werden."))
         }
-        .task {
+        .task(id: playlist.id) {
             displayName = playlist.name
             displayComment = playlist.comment ?? ""
             await loadDetail()

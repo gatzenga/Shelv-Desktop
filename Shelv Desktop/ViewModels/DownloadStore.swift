@@ -140,8 +140,8 @@ final class DownloadStore: ObservableObject {
         let artistsGrouped = Dictionary(grouping: albumsGrouped) { $0.artistName }
             .map { (artistName: String, albumsList: [DownloadedAlbum]) -> DownloadedArtist in
                 let first = albumsList.first!
-                let cover = albumsList.flatMap { $0.songs }.compactMap { $0.artistCoverArtId }.first
-                    ?? artistCoverByName[artistName]
+                let cover = artistCoverByName[artistName]
+                    ?? albumsList.flatMap { $0.songs }.compactMap { $0.artistCoverArtId }.first
                 return DownloadedArtist(
                     artistId: first.artistId ?? "name:\(artistName)",
                     serverId: sid,
@@ -271,7 +271,7 @@ final class DownloadStore: ObservableObject {
             )
         } else if isNewAlbum {
             let artistAlbums = albums.filter { $0.artistName == albumArtist }
-            let cover = song.artistCoverArtId ?? artistCoverByName[albumArtist]
+            let cover = artistCoverByName[albumArtist] ?? song.artistCoverArtId
             let artistId = song.albumArtistName == nil ? (song.artistId ?? "name:\(albumArtist)") : "name:\(albumArtist)"
             let newArtist = DownloadedArtist(
                 artistId: artistId,

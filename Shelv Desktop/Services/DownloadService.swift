@@ -115,7 +115,7 @@ actor DownloadService {
             let cover = song.coverArt.flatMap { api.coverArtURL(forConfig: cfg, id: $0, size: 600) }
             let albumCoverArtId = albumCoverArtIdOverride
             let albumCoverURL: URL? = albumCoverArtId.flatMap { api.coverArtURL(forConfig: cfg, id: $0, size: 600) }
-            let artistCoverArtId = artistCoverById[song.artist ?? ""]
+            let artistCoverArtId = artistCoverById[albumArtistOverride ?? song.artist ?? ""]
             let artistCoverURL: URL? = artistCoverArtId.flatMap {
                 api.coverArtURL(forConfig: cfg, id: $0, size: 600)
             }
@@ -474,7 +474,7 @@ actor DownloadService {
 
         let key = Self.key(songId: job.song.id, serverId: job.serverId)
         let serverDir = Self.serverDirectory(serverId: job.serverId)
-        let actualExt = TranscodingPolicy.extensionFor(mimeType: mimeType) ?? job.fileExtension
+        let actualExt = await MainActor.run { TranscodingPolicy.extensionFor(mimeType: mimeType) } ?? job.fileExtension
         let finalURL = serverDir.appendingPathComponent("\(job.song.id).\(actualExt)")
         do {
             try FileManager.default.createDirectory(at: serverDir, withIntermediateDirectories: true)
@@ -618,7 +618,7 @@ actor DownloadService {
                 try? FileManager.default.createDirectory(at: artDir, withIntermediateDirectories: true)
                 if let (data, _) = try? await coverSession.data(from: artURL) {
                     try? data.write(to: URL(fileURLWithPath: artPath), options: .atomic)
-                    LocalArtworkIndex.shared.set(artId: artId, path: artPath)
+                    await LocalArtworkIndex.shared.set(artId: artId, path: artPath)
                 }
             }
         }
@@ -640,7 +640,9 @@ actor DownloadService {
     }
 
     private func notifyLibraryChanged() {
-        NotificationCenter.default.post(name: .downloadsLibraryChanged, object: nil)
+        Task { @MainActor in
+            NotificationCenter.default.post(name: .downloadsLibraryChanged, object: nil)
+        }
     }
 
     // MARK: - Paths

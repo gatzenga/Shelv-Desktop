@@ -391,7 +391,7 @@ class SearchViewModel: ObservableObject {
         searchTask?.cancel()
         searchTask = Task {
             isLoading = true
-            if await OfflineModeService.shared.isOffline {
+            if OfflineModeService.shared.isOffline {
                 await searchOffline()
             } else {
                 do {
@@ -411,7 +411,7 @@ class SearchViewModel: ObservableObject {
     }
 
     private func searchOffline() async {
-        let stable = await AppState.shared.serverStore.activeServer?.stableId ?? ""
+        let stable = AppState.shared.serverStore.activeServer?.stableId ?? ""
         guard !stable.isEmpty else { artists = []; albums = []; songs = []; return }
         let records = await DownloadDatabase.shared.search(serverId: stable, query: query, limit: 100)
         guard !Task.isCancelled else { return }

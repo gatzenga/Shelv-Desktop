@@ -17,8 +17,10 @@ struct ArtistsView: View {
         if offlineMode.isOffline && vm.artists.isEmpty {
             baseArtists = downloadStore.artists.map { $0.asArtist() }
         } else if effectiveShowDownloadsOnly {
-            let downloadedNames = Set(downloadStore.artists.map { $0.name })
-            baseArtists = vm.sortedArtists.filter { downloadedNames.contains($0.name) }
+            let downloadedCountByName = Dictionary(uniqueKeysWithValues: downloadStore.artists.map { ($0.name, $0.albumCount) })
+            baseArtists = vm.sortedArtists
+                .filter { downloadedCountByName[$0.name] != nil }
+                .map { Artist(id: $0.id, name: $0.name, albumCount: downloadedCountByName[$0.name], coverArt: $0.coverArt, starred: $0.starred) }
         } else {
             baseArtists = vm.sortedArtists
         }
@@ -49,13 +51,6 @@ struct ArtistsView: View {
                     }
                     .buttonStyle(.borderless)
                     .help(vm.artistSortDirection == .ascending ? tr("Ascending", "Aufsteigend") : tr("Descending", "Absteigend"))
-                }
-                if !offlineMode.isOffline {
-                    Toggle(isOn: $showDownloadsOnly) {
-                        Label(tr("Downloads only", "Nur Downloads"), systemImage: "arrow.down.circle")
-                    }
-                    .toggleStyle(.button)
-                    .controlSize(.small)
                 }
                 Button { isGrid.toggle() } label: {
                     Image(systemName: isGrid ? "list.bullet" : "square.grid.2x2")
@@ -112,7 +107,7 @@ struct ArtistsView: View {
                     .padding()
             }
         }
-        .navigationTitle(tr("Artists (\(vm.artists.count))", "Künstler (\(vm.artists.count))"))
+        .navigationTitle(tr("Artists (\(displayArtists.count))", "Künstler (\(displayArtists.count))"))
         .onChange(of: offlineMode.isOffline) { _, isOffline in
             if isOffline && vm.artistSortOption.requiresServer {
                 vm.artistSortOption = .name

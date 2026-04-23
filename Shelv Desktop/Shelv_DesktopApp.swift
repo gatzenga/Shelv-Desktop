@@ -137,6 +137,8 @@ struct Shelv_DesktopApp: App {
                 Divider()
                 Link(tr("Privacy Policy", "Datenschutz"), destination: URL(string: "https://gatzenga.github.io/Shelv-Desktop/privacy.html")!)
                 Link(tr("Contact", "Kontakt"), destination: URL(string: "mailto:kontakt@vkugler.ch")!)
+                Divider()
+                Link(tr("Support my work", "Support my work"), destination: URL(string: "https://ko-fi.com/Shelv")!)
             }
 
             CommandMenu(tr("Playback", "Wiedergabe")) {

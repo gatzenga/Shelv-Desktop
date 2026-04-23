@@ -58,14 +58,6 @@ struct AlbumsView: View {
                     .buttonStyle(.borderless)
                     .help(vm.albumSortDirection == .ascending ? tr("Ascending", "Aufsteigend") : tr("Descending", "Absteigend"))
                 }
-                if !offlineMode.isOffline {
-                    Toggle(isOn: $showDownloadsOnly) {
-                        Label(tr("Downloads only", "Nur Downloads"), systemImage: "arrow.down.circle")
-                    }
-                    .toggleStyle(.button)
-                    .controlSize(.small)
-                    .help(tr("Show only downloaded items", "Nur heruntergeladene Einträge anzeigen"))
-                }
                 Button { isGrid.toggle() } label: {
                     Image(systemName: isGrid ? "list.bullet" : "square.grid.2x2")
                         .font(.title3)
@@ -129,7 +121,7 @@ struct AlbumsView: View {
                     .padding()
             }
         }
-        .navigationTitle(tr("Albums (\(vm.albums.count))", "Alben (\(vm.albums.count))"))
+        .navigationTitle(tr("Albums (\(displayAlbums.count))", "Alben (\(displayAlbums.count))"))
         .onChange(of: offlineMode.isOffline) { _, isOffline in
             if isOffline && vm.sortOption.requiresServer {
                 vm.sortOption = .name
