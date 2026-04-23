@@ -47,15 +47,18 @@ actor PlayLogService {
 
     func shutdown() { pool = nil }
 
-    private func safeWrite(_ label: String = #function, _ block: (Database) throws -> Void) {
+    @discardableResult
+    private func safeWrite(_ label: String = #function, _ block: (Database) throws -> Void) -> Bool {
         guard let pool else {
             DBErrorLog.logPlayLog("\(label): pool not initialized")
-            return
+            return false
         }
         do {
             try pool.write(block)
+            return true
         } catch {
             DBErrorLog.logPlayLog("\(label): \(error.localizedDescription)")
+            return false
         }
     }
 
@@ -139,7 +142,8 @@ actor PlayLogService {
             playedAt: Date().timeIntervalSince1970, songDuration: songDuration,
             uuid: uuid, syncedAt: nil
         )
-        safeWrite { db in try record.insert(db) }
+        let wrote = safeWrite { db in try record.insert(db) }
+        guard wrote else { return nil }
         return uuid
     }
 

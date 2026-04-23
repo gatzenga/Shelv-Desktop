@@ -66,6 +66,7 @@ class LibraryViewModel: ObservableObject {
 
     func loadAlbums() async {
         guard !isLoadingAlbums else { return }
+        guard !OfflineModeService.shared.isOffline else { isLoadingAlbums = false; return }
         isLoadingAlbums = true
         errorMessage = nil
         do {
@@ -110,6 +111,7 @@ class LibraryViewModel: ObservableObject {
 
     func loadArtists() async {
         guard !isLoadingArtists else { return }
+        guard !OfflineModeService.shared.isOffline else { isLoadingArtists = false; return }
         isLoadingArtists = true
         errorMessage = nil
         do {
@@ -142,6 +144,7 @@ class LibraryViewModel: ObservableObject {
     // MARK: - Starred / Favorites
 
     func loadStarred() async {
+        guard !OfflineModeService.shared.isOffline else { isLoadingStarred = false; return }
         isLoadingStarred = true
         do {
             let result = try await api.getStarred()
@@ -245,6 +248,7 @@ class LibraryViewModel: ObservableObject {
     // MARK: - Playlists
 
     func loadPlaylists() async {
+        guard !OfflineModeService.shared.isOffline else { isLoadingPlaylists = false; return }
         isLoadingPlaylists = true
         do {
             playlists = try await api.getPlaylists()

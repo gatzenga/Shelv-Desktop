@@ -703,6 +703,10 @@ class RecapStore: ObservableObject {
     }
 
     private func generatePendingPeriods(serverId: String) async {
+        guard !OfflineModeService.shared.isOffline else {
+            CloudKitSyncService.recapLog("[RecapGen] Skipped — offline mode active")
+            return
+        }
         isGenerating = true
         defer { isGenerating = false }
 

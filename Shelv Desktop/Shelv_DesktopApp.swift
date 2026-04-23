@@ -61,6 +61,9 @@ struct Shelv_DesktopApp: App {
                     if let active = appState.serverStore.activeServer {
                         await DownloadStore.shared.setActiveServer(active.stableId)
                     }
+                    // DB ist jetzt bereit — sicherstellt dass Downloads geladen werden,
+                    // auch wenn setActiveServer oben durch den Guard blockiert wurde
+                    await DownloadStore.shared.reload()
                     let api = SubsonicAPIService.shared
                     for server in appState.serverStore.servers where server.remoteUserId == nil {
                         guard let pw = appState.serverStore.password(for: server) else { continue }

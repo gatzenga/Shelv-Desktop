@@ -55,10 +55,14 @@ struct CoverArtView: View {
     }
 
     private func loadImage() async {
-        guard let url else { return }
-        if let img = await ImageCacheService.shared.image(url: url) {
-            image = img
+        guard let url else { image = nil; return }
+        let img: NSImage?
+        if UserDefaults.standard.bool(forKey: "offlineModeEnabled") {
+            img = await ImageCacheService.shared.diskOnlyImage(url: url)
+        } else {
+            img = await ImageCacheService.shared.image(url: url)
         }
+        image = img
     }
 }
 
@@ -90,6 +94,38 @@ actor ImageCacheService {
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
         memory.countLimit = 400
         memory.totalCostLimit = 150 * 1024 * 1024
+    }
+
+    func diskOnlyImage(url: URL) async -> NSImage? {
+        let key = Self.stableCacheKey(for: url)
+        let nsKey = key as NSString
+        if let hit = memory.object(forKey: nsKey) { return hit }
+        let diskURL = cacheDir.appendingPathComponent(key)
+        let dir = cacheDir
+        let mem = memory
+        return await Task.detached(priority: .medium) { () -> NSImage? in
+            if let data = try? Data(contentsOf: diskURL),
+               let img = NSImage(data: data) {
+                let cost = Int(img.size.width * img.size.height * 4)
+                mem.setObject(img, forKey: nsKey, cost: cost)
+                return img
+            }
+            // Fallback: gleiche Cover-ID, andere gecachte Größe
+            guard let lastUnderscore = key.lastIndex(of: "_") else { return nil }
+            let idPrefix = String(key[key.startIndex..<lastUnderscore]) + "_"
+            let fallbackSizes = [200, 320, 160, 120, 240, 80, 100, 50]
+            for size in fallbackSizes {
+                let fallbackKey = "\(idPrefix)\(size)"
+                guard fallbackKey != key else { continue }
+                let fallbackURL = dir.appendingPathComponent(fallbackKey)
+                guard let data = try? Data(contentsOf: fallbackURL),
+                      let img = NSImage(data: data) else { continue }
+                let cost = Int(img.size.width * img.size.height * 4)
+                mem.setObject(img, forKey: nsKey, cost: cost)
+                return img
+            }
+            return nil
+        }.value
     }
 
     func image(url: URL) async -> NSImage? {
