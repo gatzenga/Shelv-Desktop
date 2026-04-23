@@ -98,6 +98,11 @@ actor DownloadService {
         let api = SubsonicAPIService.shared
         guard let cfg = api.currentConfig else { return }
         let downloadedIds = await DownloadDatabase.shared.allSongIds(serverId: serverId)
+        let artistCoverById: [String: String] = await MainActor.run {
+            Dictionary(uniqueKeysWithValues: LibraryViewModel.shared.artists.compactMap { a in
+                a.coverArt.map { (a.name, $0) }
+            })
+        }
         var added = 0
         for song in songs {
             let key = Self.key(songId: song.id, serverId: serverId)
@@ -107,10 +112,7 @@ actor DownloadService {
             let transcoding = TranscodingPolicy.currentDownloadFormat()
             guard let url = api.downloadURL(forConfig: cfg, songId: song.id, transcoding: transcoding) else { continue }
             let cover = song.coverArt.flatMap { api.coverArtURL(forConfig: cfg, id: $0, size: 600) }
-            let artistName = song.artist ?? ""
-            let artistCoverArtId: String? = await MainActor.run {
-                LibraryViewModel.shared.artists.first { $0.name == artistName }?.coverArt
-            }
+            let artistCoverArtId = artistCoverById[song.artist ?? ""]
             let artistCoverURL: URL? = artistCoverArtId.flatMap {
                 api.coverArtURL(forConfig: cfg, id: $0, size: 600)
             }
