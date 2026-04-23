@@ -38,7 +38,9 @@ struct ToastView: View {
 struct MainWindowView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var lyricsStore: LyricsStore
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
+    @ObservedObject var offlineMode = OfflineModeService.shared
+    @ObservedObject var downloadStore = DownloadStore.shared
 
     @State private var showAddToPlaylist = false
     @State private var playlistSongIds: [String] = []
@@ -78,14 +80,22 @@ struct MainWindowView: View {
                 .environmentObject(lyricsStore)
         }
         .overlay(alignment: .top) {
-            if let msg = toastMessage {
-                ToastView(message: msg)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    .padding(.top, 12)
-                    .ignoresSafeArea(edges: .top)
+            VStack(spacing: 0) {
+                ServerErrorBanner()
+                    .animation(.easeInOut, value: offlineMode.serverErrorBannerVisible)
+                if let msg = toastMessage {
+                    ToastView(message: msg)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 12)
+                }
             }
+            .ignoresSafeArea(edges: .top)
         }
         .animation(.spring(duration: 0.35), value: toastMessage)
+        .onChange(of: libraryStore.errorMessage) { _, msg in
+            guard let msg, OfflineModeService.shared.downloadsFeatureEnabled else { return }
+            offlineMode.notifyServerError(msg)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .addSongsToPlaylist)) { notification in
             if let ids = notification.object as? [String] {
                 playlistSongIds = ids

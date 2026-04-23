@@ -2,9 +2,13 @@ import SwiftUI
 
 struct ArtistContextMenuModifier: ViewModifier {
     let artist: Artist
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
+    @ObservedObject var downloadStore = DownloadStore.shared
+    @EnvironmentObject var appState: AppState
+    @ObservedObject private var offlineMode = OfflineModeService.shared
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
+    @AppStorage("enableDownloads") private var enableDownloads = false
 
     func body(content: Content) -> some View {
         content.contextMenu {
@@ -82,6 +86,25 @@ struct ArtistContextMenuModifier: ViewModifier {
                                 NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
                             }
                         }
+                    }
+                }
+            }
+            if enableDownloads {
+                Divider()
+                if !offlineMode.isOffline {
+                    Button(tr("Download Artist", "Künstler herunterladen")) {
+                        let stable = appState.serverStore.activeServer?.stableId ?? ""
+                        Task { await DownloadService.shared.enqueueArtist(artist: artist, serverId: stable) }
+                        NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+                    }
+                }
+                if downloadStore.artists.contains(where: { $0.name == artist.name }) {
+                    Button(role: .destructive) {
+                        if let match = downloadStore.artists.first(where: { $0.name == artist.name }) {
+                            downloadStore.deleteArtist(match.artistId)
+                        }
+                    } label: {
+                        Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
                     }
                 }
             }

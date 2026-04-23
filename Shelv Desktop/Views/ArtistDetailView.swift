@@ -6,8 +6,11 @@ struct ArtistDetailView: View {
     let artistName: String
     @StateObject private var vm = ArtistDetailViewModel()
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
+    @ObservedObject var downloadStore = DownloadStore.shared
+    @ObservedObject private var offlineMode = OfflineModeService.shared
     @AppStorage("enableFavorites") private var enableFavorites = true
+    @AppStorage("enableDownloads") private var enableDownloads = false
     @AppStorage("artistDetailAlbumSort") private var sortRaw: String = LibrarySortOption.recentlyAdded.rawValue
     @AppStorage("artistDetailAlbumDirection") private var directionRaw: String = SortDirection.descending.rawValue
     @AppStorage("artistDetailAlbumIsGrid") private var isGrid: Bool = true
@@ -87,6 +90,10 @@ struct ArtistDetailView: View {
                                     .buttonStyle(.bordered)
                                     .controlSize(.large)
                                     .disabled(vm.albums.isEmpty || vm.isLoadingSongs)
+
+                                    if enableDownloads, let detail = vm.artist {
+                                        artistDownloadButton(for: detail)
+                                    }
 
                                     if enableFavorites, let detail = vm.artist {
                                         let isStarred = libraryStore.starredArtists.contains { $0.id == detail.id }
@@ -188,6 +195,32 @@ struct ArtistDetailView: View {
     private var coverURL: URL? {
         guard let id = vm.artist?.coverArt else { return nil }
         return SubsonicAPIService.shared.coverArtURL(id: id, size: 240)
+    }
+
+    @ViewBuilder
+    private func artistDownloadButton(for detail: ArtistDetail) -> some View {
+        let artistModel = Artist(id: detail.id, name: detail.name,
+                                 albumCount: detail.albumCount, coverArt: detail.coverArt,
+                                 starred: nil)
+        let downloaded = downloadStore.artists.first(where: { $0.name == detail.name })
+        if let match = downloaded {
+            Button {
+                downloadStore.deleteArtist(match.artistId)
+            } label: {
+                Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .tint(.red)
+        } else if !offlineMode.isOffline {
+            Button {
+                downloadStore.enqueueArtist(artistModel)
+            } label: {
+                Label(tr("Download", "Herunterladen"), systemImage: "arrow.down.circle")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        }
     }
 }
 

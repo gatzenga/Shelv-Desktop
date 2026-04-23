@@ -2,7 +2,7 @@ import SwiftUI
 
 struct RecapView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
     @StateObject private var recapStore = RecapStore.shared
     @Environment(\.themeColor) private var themeColor
     @AppStorage("recapEnabled") private var recapEnabled = false

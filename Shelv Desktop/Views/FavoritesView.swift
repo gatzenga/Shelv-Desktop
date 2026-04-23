@@ -1,23 +1,47 @@
 import SwiftUI
 
 struct FavoritesView: View {
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
     @EnvironmentObject var appState: AppState
+    @ObservedObject var downloadStore = DownloadStore.shared
+    @ObservedObject var offlineMode = OfflineModeService.shared
     @AppStorage("enablePlaylists") private var enablePlaylists = true
+    @AppStorage("downloadsOnlyFilter") private var showDownloadsOnly: Bool = false
     @Environment(\.themeColor) private var themeColor
+
+    private var effectiveShowDownloadsOnly: Bool {
+        offlineMode.isOffline || showDownloadsOnly
+    }
+
+    private var visibleArtists: [Artist] {
+        guard effectiveShowDownloadsOnly else { return libraryStore.starredArtists }
+        let downloadedNames = Set(downloadStore.artists.map(\.name))
+        return libraryStore.starredArtists.filter { downloadedNames.contains($0.name) }
+    }
+
+    private var visibleAlbums: [Album] {
+        guard effectiveShowDownloadsOnly else { return libraryStore.starredAlbums }
+        let downloadedIds = Set(downloadStore.albums.map(\.albumId))
+        return libraryStore.starredAlbums.filter { downloadedIds.contains($0.id) }
+    }
+
+    private var visibleSongs: [Song] {
+        guard effectiveShowDownloadsOnly else { return libraryStore.starredSongs }
+        return libraryStore.starredSongs.filter { downloadStore.isDownloaded(songId: $0.id) }
+    }
 
     var body: some View {
         ScrollView {
             if libraryStore.isLoadingStarred
-                && libraryStore.starredArtists.isEmpty
-                && libraryStore.starredAlbums.isEmpty
-                && libraryStore.starredSongs.isEmpty {
+                && visibleArtists.isEmpty
+                && visibleAlbums.isEmpty
+                && visibleSongs.isEmpty {
                 ProgressView(tr("Loading favorites…", "Favoriten laden…"))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 60)
-            } else if libraryStore.starredArtists.isEmpty
-                        && libraryStore.starredAlbums.isEmpty
-                        && libraryStore.starredSongs.isEmpty {
+            } else if visibleArtists.isEmpty
+                        && visibleAlbums.isEmpty
+                        && visibleSongs.isEmpty {
                 ContentUnavailableView(
                     tr("No Favorites", "Keine Favoriten"),
                     systemImage: "heart",
@@ -27,10 +51,10 @@ struct FavoritesView: View {
                 .padding(.vertical, 60)
             } else {
                 VStack(alignment: .leading, spacing: 28) {
-                    if !libraryStore.starredArtists.isEmpty {
+                    if !visibleArtists.isEmpty {
                         FavoritesSection(title: tr("Artists", "Künstler")) {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 130, maximum: 170), spacing: 16)], spacing: 20) {
-                                ForEach(libraryStore.starredArtists) { artist in
+                                ForEach(visibleArtists) { artist in
                                     NavigationLink(value: artist) {
                                         ArtistGridItem(artist: artist)
                                     }
@@ -42,10 +66,10 @@ struct FavoritesView: View {
                         }
                     }
 
-                    if !libraryStore.starredAlbums.isEmpty {
+                    if !visibleAlbums.isEmpty {
                         FavoritesSection(title: tr("Albums", "Alben")) {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 190), spacing: 16)], spacing: 20) {
-                                ForEach(libraryStore.starredAlbums) { album in
+                                ForEach(visibleAlbums) { album in
                                     NavigationLink(value: album) {
                                         AlbumGridItem(album: album)
                                     }
@@ -57,17 +81,17 @@ struct FavoritesView: View {
                         }
                     }
 
-                    if !libraryStore.starredSongs.isEmpty {
+                    if !visibleSongs.isEmpty {
                         FavoritesSection(title: tr("Tracks", "Titel")) {
                             VStack(spacing: 0) {
-                                ForEach(Array(libraryStore.starredSongs.enumerated()), id: \.element.id) { index, song in
+                                ForEach(Array(visibleSongs.enumerated()), id: \.element.id) { index, song in
                                     FavoriteSongRow(
                                         song: song,
                                         isPlaying: appState.player.currentSong?.id == song.id,
                                         showPlaylist: enablePlaylists,
                                         themeColor: themeColor
                                     ) {
-                                        appState.player.play(songs: libraryStore.starredSongs, startIndex: index)
+                                        appState.player.play(songs: visibleSongs, startIndex: index)
                                     } onPlayNext: {
                                         appState.player.addPlayNext(song)
                                         NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))

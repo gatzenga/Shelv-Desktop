@@ -26,6 +26,86 @@ class AudioPlayerService: ObservableObject {
 
     @Published var isShuffled: Bool = false
     @Published var repeatMode: RepeatMode = .off
+    @Published var actualStreamFormat: ActualStreamFormat?
+
+    private var formatProbeTask: Task<Void, Never>?
+    private var playbackWatchdog: Task<Void, Never>?
+
+    func probeStreamFormat(songId: String, url: URL, duration: Double) {
+        formatProbeTask?.cancel()
+        if url.isFileURL {
+            let path = url.path
+            let size = (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? NSNumber)?.int64Value ?? 0
+            let bitrate: Int? = (size > 0 && duration > 1) ? Int(Double(size) * 8 / duration / 1000) : nil
+            let codec = url.pathExtension.uppercased()
+            actualStreamFormat = ActualStreamFormat(codecLabel: codec.isEmpty ? "?" : codec, bitrateKbps: bitrate)
+            return
+        }
+        actualStreamFormat = nil
+        let formatParam = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "format" })?.value
+        let isTranscoded = (formatParam != nil && formatParam != "raw")
+        formatProbeTask = Task { [weak self] in
+            var req = URLRequest(url: url)
+            req.httpMethod = "HEAD"
+            req.timeoutInterval = 8
+            do {
+                let (_, response) = try await URLSession.shared.data(for: req)
+                guard !Task.isCancelled, let http = response as? HTTPURLResponse else { return }
+                if http.statusCode != 200, isTranscoded {
+                    print("[Transcoding] HEAD status \(http.statusCode) → fallback to raw")
+                    await MainActor.run { self?.fallbackToRawStream(songId: songId, duration: duration) }
+                    return
+                }
+                let codec = ActualStreamFormat.codecLabel(forMime: http.mimeType)
+                let length = http.expectedContentLength
+                var bitrate: Int? = nil
+                if length > 0, duration > 1 {
+                    bitrate = Int(Double(length) * 8 / duration / 1000)
+                }
+                await MainActor.run {
+                    self?.actualStreamFormat = ActualStreamFormat(codecLabel: codec, bitrateKbps: bitrate)
+                }
+            } catch {
+                guard !Task.isCancelled else { return }
+                if isTranscoded {
+                    print("[Transcoding] HEAD failed (\(error.localizedDescription)) → fallback to raw")
+                    await MainActor.run { self?.fallbackToRawStream(songId: songId, duration: duration) }
+                }
+            }
+        }
+    }
+
+    private func fallbackToRawStream(songId: String, duration: Double) {
+        guard let song = currentSong, song.id == songId else { return }
+        guard let raw = SubsonicAPIService.shared.rawStreamURL(songId: songId) else { return }
+        playbackWatchdog?.cancel()
+        let resumeAt = currentTime
+        crossfadeTriggered = false
+        isBuffering = true
+        engine.play(url: raw)
+        if resumeAt > 1 { engine.seek(to: resumeAt) }
+        isEngineLoaded = true
+        probeStreamFormat(songId: songId, url: raw, duration: duration)
+    }
+
+    private func schedulePlaybackWatchdog(songId: String, url: URL, duration: Double) {
+        playbackWatchdog?.cancel()
+        let formatParam = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "format" })?.value
+        guard formatParam != nil, formatParam != "raw" else { return }
+        playbackWatchdog = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard let self, self.currentSong?.id == songId else { return }
+                let stuck = !self.isPlaying || self.currentTime < 0.1
+                guard stuck else { return }
+                print("[Transcoding] Playback watchdog timeout (isPlaying=\(self.isPlaying) currentTime=\(self.currentTime)) → fallback to raw")
+                self.fallbackToRawStream(songId: songId, duration: duration)
+            }
+        }
+    }
 
     private var truthAlbumQueue: [Song] = []
     private var truthPlayNextQueue: [Song] = []
@@ -38,6 +118,15 @@ class AudioPlayerService: ObservableObject {
     private var isEngineLoaded = false
 
     private var apiService: SubsonicAPIService { SubsonicAPIService.shared }
+
+    private func resolveURL(songId: String) -> URL? {
+        let serverId = AppState.shared.serverStore.activeServer?.stableId ?? ""
+        if !serverId.isEmpty,
+           let local = LocalDownloadIndex.shared.url(songId: songId, serverId: serverId) {
+            return local
+        }
+        return apiService.streamURL(songId: songId)
+    }
 
     private var currentArtwork: MPMediaItemArtwork?
     private var artworkLoadTask: Task<Void, Never>?
@@ -191,7 +280,7 @@ class AudioPlayerService: ObservableObject {
             currentSong = song
             hasScrobbledCurrent = false
             saveState()
-            guard let url = apiService.streamURL(songId: song.id) else { return }
+            guard let url = resolveURL(songId: song.id) else { return }
             loadURL(url, song: song)
             return
         }
@@ -273,7 +362,7 @@ class AudioPlayerService: ObservableObject {
         isPlayingFromPlayNext = true
         currentSong = item.song
         hasScrobbledCurrent = false
-        guard let url = apiService.streamURL(songId: item.song.id) else { return }
+        guard let url = resolveURL(songId: item.song.id) else { return }
         loadURL(url, song: item.song)
         saveState()
     }
@@ -284,7 +373,7 @@ class AudioPlayerService: ObservableObject {
         isPlayingFromPlayNext = true
         currentSong = song
         hasScrobbledCurrent = false
-        guard let url = apiService.streamURL(songId: song.id) else { return }
+        guard let url = resolveURL(songId: song.id) else { return }
         loadURL(url, song: song)
         saveState()
     }
@@ -341,7 +430,7 @@ class AudioPlayerService: ObservableObject {
         isPlayingFromPlayNext = true
         currentSong = song
         hasScrobbledCurrent = false
-        guard let url = apiService.streamURL(songId: song.id) else { return }
+        guard let url = resolveURL(songId: song.id) else { return }
         loadURL(url, song: song)
         saveState()
     }
@@ -471,7 +560,7 @@ class AudioPlayerService: ObservableObject {
         guard let song = currentSong else { return }
         if !isEngineLoaded {
             resumeTime = currentTime
-            guard let url = apiService.streamURL(songId: song.id) else { return }
+            guard let url = resolveURL(songId: song.id) else { return }
             loadURL(url, song: song)
         } else {
             engine.resume()
@@ -575,7 +664,7 @@ class AudioPlayerService: ObservableObject {
         let song = queueItem.song
         currentSong = song
         hasScrobbledCurrent = false
-        guard let url = apiService.streamURL(songId: song.id) else { return }
+        guard let url = resolveURL(songId: song.id) else { return }
         loadURL(url, song: song)
     }
 
@@ -600,6 +689,8 @@ class AudioPlayerService: ObservableObject {
         currentArtwork = nil
         loadArtworkAsync(for: song)
         updateNowPlayingInfo(song: song)
+        probeStreamFormat(songId: song.id, url: url, duration: Double(song.duration ?? 0))
+        schedulePlaybackWatchdog(songId: song.id, url: url, duration: Double(song.duration ?? 0))
         Task { try? await apiService.scrobble(songId: song.id, submission: false) }
     }
 
@@ -648,7 +739,10 @@ class AudioPlayerService: ObservableObject {
             .sink { [weak self] playing in
                 guard let self else { return }
                 Task { @MainActor [self] in
-                    if playing { self.isBuffering = false }
+                    if playing {
+                        self.isBuffering = false
+                        self.playbackWatchdog?.cancel()
+                    }
                     self.isPlaying = playing
                     if playing {
                         MPNowPlayingInfoCenter.default().playbackState = .playing
@@ -683,7 +777,7 @@ class AudioPlayerService: ObservableObject {
     }
 
     private func crossfadeToSong(_ song: Song) {
-        guard let url = apiService.streamURL(songId: song.id) else { return }
+        guard let url = resolveURL(songId: song.id) else { return }
         engine.crossfadeDuration = crossfadeDuration
         engine.triggerCrossfade(nextURL: url)
         crossfadeTriggered = true
@@ -695,6 +789,8 @@ class AudioPlayerService: ObservableObject {
         updateNowPlayingInfo(song: song)
         MPNowPlayingInfoCenter.default().playbackState = .playing
         loadArtworkAsync(for: song)
+        probeStreamFormat(songId: song.id, url: url, duration: Double(song.duration ?? 0))
+        schedulePlaybackWatchdog(songId: song.id, url: url, duration: Double(song.duration ?? 0))
         Task { try? await apiService.scrobble(songId: song.id, submission: false) }
     }
 

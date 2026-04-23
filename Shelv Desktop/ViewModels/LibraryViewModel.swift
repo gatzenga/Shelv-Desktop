@@ -3,6 +3,8 @@ import Combine
 
 @MainActor
 class LibraryViewModel: ObservableObject {
+    static let shared = LibraryViewModel()
+
     @Published var albums: [Album] = []
     @Published var artists: [Artist] = []
     @Published var sortOption: LibrarySortOption = .name
@@ -89,10 +91,20 @@ class LibraryViewModel: ObservableObject {
             } else if sortOption == .mostPlayed {
                 albums = albums.sorted { ($0.playCount ?? 0) > ($1.playCount ?? 0) }
             }
+            await reconcileDownloadedAlbums(serverAlbumIds: Set(all.map(\.id)))
         } catch {
             errorMessage = error.localizedDescription
         }
         isLoadingAlbums = false
+    }
+
+    private func reconcileDownloadedAlbums(serverAlbumIds: Set<String>) async {
+        guard let stableId = AppState.shared.serverStore.activeServer?.stableId, !stableId.isEmpty else { return }
+        let downloadedAlbumIds = await DownloadDatabase.shared.allAlbumIds(serverId: stableId)
+        let missing = downloadedAlbumIds.subtracting(serverAlbumIds)
+        for albumId in missing {
+            await DownloadService.shared.deleteAlbum(albumId: albumId, serverId: stableId)
+        }
     }
 
     // MARK: - Artists
@@ -104,6 +116,11 @@ class LibraryViewModel: ObservableObject {
         do {
             artists = try await api.getAllArtists()
             artists = artists.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            let map = Dictionary(uniqueKeysWithValues: artists.compactMap { artist -> (String, String)? in
+                guard let cover = artist.coverArt else { return nil }
+                return (artist.name, cover)
+            })
+            NotificationCenter.default.post(name: .libraryArtistsLoaded, object: map)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -132,6 +149,11 @@ class LibraryViewModel: ObservableObject {
             starredSongs = result.song ?? []
             starredAlbums = result.album ?? []
             starredArtists = result.artist ?? []
+            if let stable = AppState.shared.serverStore.activeServer?.stableId, !stable.isEmpty {
+                let starredIds = Set(starredSongs.map(\.id))
+                await DownloadDatabase.shared.syncFavorites(serverId: stable, starredSongIds: starredIds)
+                NotificationCenter.default.post(name: .downloadsLibraryChanged, object: nil)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

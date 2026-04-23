@@ -12,12 +12,6 @@ extension Notification.Name {
 @main
 struct Shelv_DesktopApp: App {
     @StateObject private var appState = AppState.shared
-    @StateObject private var lyricsStore = LyricsStore()
-    @StateObject private var ckStatus = CloudKitSyncService.shared.status
-    @StateObject private var recapStore = RecapStore.shared
-    @StateObject private var libraryStore = LibraryViewModel.shared
-    @StateObject private var downloadStore = DownloadStore.shared
-    @StateObject private var offlineMode = OfflineModeService.shared
     private let _playTracker = PlayTracker.shared
     @AppStorage("appColorScheme") private var storedColorScheme: AppColorScheme = .system
     @AppStorage("themeColor") private var themeColorName: String = "violet"
@@ -52,20 +46,20 @@ struct Shelv_DesktopApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
-                .environmentObject(lyricsStore)
-                .environmentObject(ckStatus)
-                .environmentObject(recapStore)
-                .environmentObject(libraryStore)
-                .environmentObject(downloadStore)
-                .environmentObject(offlineMode)
+                .environmentObject(LyricsStore.shared)
+                .environmentObject(CloudKitSyncService.shared.status)
+                .environmentObject(RecapStore.shared)
+                .environmentObject(LibraryViewModel.shared)
+                .environmentObject(DownloadStore.shared)
+                .environmentObject(OfflineModeService.shared)
                 .frame(minWidth: 900, minHeight: 600)
-                .task { await lyricsStore.setup() }
+                .task { await LyricsStore.shared.setup() }
                 .task {
                     await PlayLogService.shared.setup()
                     await DownloadDatabase.shared.setup()
                     await DownloadService.shared.setup()
                     if let active = appState.serverStore.activeServer {
-                        await downloadStore.setActiveServer(active.stableId)
+                        await DownloadStore.shared.setActiveServer(active.stableId)
                     }
                     let api = SubsonicAPIService.shared
                     for server in appState.serverStore.servers where server.remoteUserId == nil {
@@ -90,8 +84,8 @@ struct Shelv_DesktopApp: App {
                 }
                 .task(id: appState.serverStore.activeServerID) {
                     guard let server = appState.serverStore.activeServer else { return }
-                    await recapStore.setup(serverId: server.stableId)
-                    await downloadStore.setActiveServer(server.stableId)
+                    await RecapStore.shared.setup(serverId: server.stableId)
+                    await DownloadStore.shared.setActiveServer(server.stableId)
                 }
                 .onChange(of: scenePhase) { _, phase in
                     guard phase == .active else { return }
@@ -102,7 +96,7 @@ struct Shelv_DesktopApp: App {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .recapRegistryUpdated)) { _ in
                     guard let server = appState.serverStore.activeServer else { return }
-                    Task { await recapStore.loadEntries(serverId: server.stableId) }
+                    Task { await RecapStore.shared.loadEntries(serverId: server.stableId) }
                 }
         }
         .windowResizability(.contentMinSize)
@@ -178,7 +172,7 @@ struct Shelv_DesktopApp: App {
         Window(tr("Lyrics", "Lyrics"), id: "lyrics-settings") {
             LyricsSettingsPanel()
                 .environmentObject(appState)
-                .environmentObject(lyricsStore)
+                .environmentObject(LyricsStore.shared)
                 .tint(AppTheme.color(for: themeColorName))
                 .environment(\.themeColor, AppTheme.color(for: themeColorName))
         }
@@ -209,8 +203,8 @@ struct Shelv_DesktopApp: App {
         Window(tr("Recap", "Recap"), id: "recap") {
             RecapView()
                 .environmentObject(appState)
-                .environmentObject(recapStore)
-                .environmentObject(libraryStore)
+                .environmentObject(RecapStore.shared)
+                .environmentObject(LibraryViewModel.shared)
                 .tint(AppTheme.color(for: themeColorName))
                 .environment(\.themeColor, AppTheme.color(for: themeColorName))
         }

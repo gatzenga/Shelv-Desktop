@@ -34,9 +34,50 @@ private struct BatchProgressSection: View {
     }
 }
 
+private struct DownloadStatsSection: View {
+    @ObservedObject private var libraryStore = LibraryViewModel.shared
+    @State private var stats: DownloadStorageStats?
+
+    var body: some View {
+        Section(tr("Statistics", "Statistik")) {
+            if let stats {
+                LabeledContent(tr("Used", "Belegt"),
+                               value: ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file))
+                if let free = stats.freeDiskBytes {
+                    LabeledContent(tr("Free on device", "Frei auf Gerät"),
+                                   value: ByteCountFormatter.string(fromByteCount: free, countStyle: .file))
+                }
+                LabeledContent(tr("Songs", "Songs"), value: "\(stats.songCount)")
+                LabeledContent(tr("Albums", "Alben"), value: "\(stats.albumCount)")
+                LabeledContent(tr("Artists", "Künstler"), value: "\(stats.artistCount)")
+            } else {
+                ProgressView()
+            }
+        }
+        .task { await refreshStats() }
+        .onReceive(NotificationCenter.default.publisher(for: .downloadsLibraryChanged)) { _ in
+            Task { await refreshStats() }
+        }
+    }
+
+    @MainActor private func refreshStats() async {
+        let counts = Dictionary(uniqueKeysWithValues: libraryStore.albums.compactMap { album -> (String, Int)? in
+            guard let c = album.songCount else { return nil }
+            return (album.id, c)
+        })
+        let artistAlbums: [String: Set<String>] = Dictionary(
+            grouping: libraryStore.albums.compactMap { album -> (String, String)? in
+                guard let aid = album.artistId else { return nil }
+                return (aid, album.id)
+            },
+            by: { $0.0 }
+        ).mapValues { Set($0.map(\.1)) }
+        stats = await DownloadStore.shared.computeStats(albumSongCounts: counts, artistAlbumIds: artistAlbums)
+    }
+}
+
 struct DownloadsTab: View {
     @EnvironmentObject var appState: AppState
-    @ObservedObject var libraryStore = LibraryViewModel.shared
     @ObservedObject var offlineMode = OfflineModeService.shared
     @AppStorage("enableDownloads") private var enableDownloads = false
     @AppStorage("offlineModeEnabled") private var offlineModeEnabled = false
@@ -44,7 +85,6 @@ struct DownloadsTab: View {
 
     @State private var showBulkSheet = false
     @State private var showDeleteAllConfirm = false
-    @State private var stats: DownloadStorageStats?
 
     var body: some View {
         Form {
@@ -86,21 +126,7 @@ struct DownloadsTab: View {
                     }
                 }
 
-                Section(tr("Statistics", "Statistik")) {
-                    if let stats {
-                        LabeledContent(tr("Used", "Belegt"),
-                                       value: ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file))
-                        if let free = stats.freeDiskBytes {
-                            LabeledContent(tr("Free on device", "Frei auf Gerät"),
-                                           value: ByteCountFormatter.string(fromByteCount: free, countStyle: .file))
-                        }
-                        LabeledContent(tr("Songs", "Songs"), value: "\(stats.songCount)")
-                        LabeledContent(tr("Albums", "Alben"), value: "\(stats.albumCount)")
-                        LabeledContent(tr("Artists", "Künstler"), value: "\(stats.artistCount)")
-                    } else {
-                        ProgressView()
-                    }
-                }
+                DownloadStatsSection()
 
                 Section {
                     Button(role: .destructive) {
@@ -110,13 +136,8 @@ struct DownloadsTab: View {
                     }
                 }
             }
-
         }
         .formStyle(.grouped)
-        .task { await refreshStats() }
-        .onReceive(NotificationCenter.default.publisher(for: .downloadsLibraryChanged)) { _ in
-            Task { await refreshStats() }
-        }
         .confirmationDialog(
             tr("Delete all downloaded songs?", "Alle Downloads löschen?"),
             isPresented: $showDeleteAllConfirm,
@@ -132,21 +153,6 @@ struct DownloadsTab: View {
                 .environmentObject(appState)
                 .frame(width: 520, height: 540)
         }
-    }
-
-    private func refreshStats() async {
-        let counts = Dictionary(uniqueKeysWithValues: libraryStore.albums.compactMap { album -> (String, Int)? in
-            guard let c = album.songCount else { return nil }
-            return (album.id, c)
-        })
-        let artistAlbums: [String: Set<String>] = Dictionary(
-            grouping: libraryStore.albums.compactMap { album -> (String, String)? in
-                guard let aid = album.artistId else { return nil }
-                return (aid, album.id)
-            },
-            by: { $0.0 }
-        ).mapValues { Set($0.map(\.1)) }
-        stats = await DownloadStore.shared.computeStats(albumSongCounts: counts, artistAlbumIds: artistAlbums)
     }
 }
 
@@ -202,9 +208,9 @@ struct BulkDownloadSheet: View {
                         }
                     } else {
                         Section(tr("Order", "Reihenfolge")) {
-                            Label(tr("Most played first", "Meist-gespielt zuerst"),
+                            Label(tr("Frequently played first", "Häufig gespielt zuerst"),
                                   systemImage: "chart.line.uptrend.xyaxis")
-                            Label(tr("Then recently played", "Dann zuletzt gehört"),
+                            Label(tr("Then recently played", "Dann kürzlich gespielt"),
                                   systemImage: "clock.arrow.circlepath")
                             if enableFavorites {
                                 Label(tr("Then favorites", "Dann Favoriten"),

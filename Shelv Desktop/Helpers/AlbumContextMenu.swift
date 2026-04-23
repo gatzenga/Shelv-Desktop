@@ -2,9 +2,12 @@ import SwiftUI
 
 struct AlbumContextMenuModifier: ViewModifier {
     let album: Album
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
+    @ObservedObject var downloadStore = DownloadStore.shared
+    @ObservedObject private var offlineMode = OfflineModeService.shared
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
+    @AppStorage("enableDownloads") private var enableDownloads = false
 
     func body(content: Content) -> some View {
         content.contextMenu {
@@ -47,6 +50,27 @@ struct AlbumContextMenuModifier: ViewModifier {
                             NotificationCenter.default.post(name: .addSongsToPlaylist, object: songs.map(\.id))
                         }
                     }
+                }
+            }
+            if enableDownloads {
+                Divider()
+                let status = downloadStore.albumDownloadStatus(albumId: album.id, totalSongs: album.songCount ?? 0)
+                switch status {
+                case .none:
+                    if !offlineMode.isOffline {
+                        Button(tr("Download Album", "Album herunterladen")) {
+                            downloadStore.enqueueAlbum(album)
+                        }
+                    }
+                case .partial:
+                    if !offlineMode.isOffline {
+                        Button(tr("Download Remaining", "Rest herunterladen")) {
+                            downloadStore.enqueueAlbum(album)
+                        }
+                    }
+                    Button(role: .destructive) { downloadStore.deleteAlbum(album.id) } label: { Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) } }
+                case .complete:
+                    Button(role: .destructive) { downloadStore.deleteAlbum(album.id) } label: { Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) } }
                 }
             }
         }

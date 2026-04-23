@@ -200,7 +200,58 @@ class SubsonicAPIService: ObservableObject {
         guard var components = URLComponents(string: base + "/rest/stream") else { return nil }
         var items = authParams(config: cfg)
         items.append(URLQueryItem(name: "id", value: songId))
+        if let fmt = TranscodingPolicy.currentStreamFormat() {
+            items.append(URLQueryItem(name: "format", value: fmt.codec.rawValue))
+            items.append(URLQueryItem(name: "maxBitRate", value: "\(fmt.bitrate)"))
+            items.append(URLQueryItem(name: "estimateContentLength", value: "true"))
+        } else {
+            items.append(URLQueryItem(name: "format", value: "raw"))
+        }
+        components.queryItems = items
+        return components.url
+    }
+
+    func rawStreamURL(songId: String) -> URL? {
+        guard let cfg = config else { return nil }
+        var base = cfg.serverURL
+        if base.hasSuffix("/") { base = String(base.dropLast()) }
+        guard var components = URLComponents(string: base + "/rest/stream") else { return nil }
+        var items = authParams(config: cfg)
+        items.append(URLQueryItem(name: "id", value: songId))
         items.append(URLQueryItem(name: "format", value: "raw"))
+        components.queryItems = items
+        return components.url
+    }
+
+    func downloadURL(songId: String) -> URL? {
+        guard let cfg = config else { return nil }
+        return downloadURL(forConfig: cfg, songId: songId)
+    }
+
+    func downloadURL(forConfig cfg: ServerConfig, songId: String,
+                     transcoding: (codec: TranscodingCodec, bitrate: Int)? = nil) -> URL? {
+        var base = cfg.serverURL
+        if base.hasSuffix("/") { base = String(base.dropLast()) }
+        let path = transcoding != nil ? "/rest/stream" : "/rest/download"
+        guard var components = URLComponents(string: base + path) else { return nil }
+        var items = authParams(config: cfg)
+        items.append(URLQueryItem(name: "id", value: songId))
+        if let t = transcoding {
+            items.append(URLQueryItem(name: "format", value: t.codec.rawValue))
+            items.append(URLQueryItem(name: "maxBitRate", value: "\(t.bitrate)"))
+            items.append(URLQueryItem(name: "estimateContentLength", value: "true"))
+        }
+        components.queryItems = items
+        return components.url
+    }
+
+    func coverArtURL(forConfig cfg: ServerConfig, id: String, size: Int? = nil) -> URL? {
+        var base = cfg.serverURL
+        if base.hasSuffix("/") { base = String(base.dropLast()) }
+        guard var components = URLComponents(string: base + "/rest/getCoverArt") else { return nil }
+        var items = authParams(config: cfg)
+        items.append(URLQueryItem(name: "id", value: id))
+        if let s = size { items.append(URLQueryItem(name: "size", value: "\(s)")) }
         components.queryItems = items
         return components.url
     }

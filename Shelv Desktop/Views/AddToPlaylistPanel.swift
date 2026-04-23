@@ -2,7 +2,7 @@ import SwiftUI
 
 struct AddToPlaylistPanel: View {
     let songIds: [String]
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
     @StateObject private var recapStore = RecapStore.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.themeColor) private var themeColor

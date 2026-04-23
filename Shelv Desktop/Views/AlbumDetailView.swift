@@ -6,10 +6,13 @@ struct AlbumDetailView: View {
     let albumName: String
     @StateObject private var vm = AlbumDetailViewModel()
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
+    @ObservedObject var downloadStore = DownloadStore.shared
+    @ObservedObject var offlineMode = OfflineModeService.shared
     @ObservedObject private var player = AudioPlayerService.shared
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
+    @AppStorage("enableDownloads") private var enableDownloads = false
     @Environment(\.themeColor) private var themeColor
 
     var body: some View {
@@ -85,7 +88,11 @@ struct AlbumDetailView: View {
                             .controlSize(.large)
                             .disabled(vm.isLoading)
 
-                            if enableFavorites, let album = vm.album {
+                            if enableDownloads, let album = vm.album {
+                                downloadHeaderButton(for: album)
+                            }
+
+                            if enableFavorites && !offlineMode.isOffline, let album = vm.album {
                                 let albumModel = Album(id: album.id, name: album.name, artist: album.artist,
                                                        artistId: album.artistId, coverArt: album.coverArt,
                                                        songCount: album.songCount, duration: album.duration,
@@ -155,7 +162,10 @@ struct AlbumDetailView: View {
             }
         }
         .navigationTitle(vm.album?.name ?? albumName)
-        .task(id: albumId) { await vm.load(albumId: albumId) }
+        .task(id: albumId) {
+            let local = downloadStore.albums.first(where: { $0.albumId == albumId })
+            await vm.load(albumId: albumId, fallback: local)
+        }
     }
 
     private var coverURL: URL? {
@@ -167,6 +177,56 @@ struct AlbumDetailView: View {
         let m = seconds / 60
         let s = seconds % 60
         return "\(m):\(String(format: "%02d", s)) min"
+    }
+
+    @ViewBuilder
+    private func downloadHeaderButton(for album: AlbumDetail) -> some View {
+        let total = vm.songs.count
+        let albumModel = Album(id: album.id, name: album.name, artist: album.artist,
+                               artistId: album.artistId, coverArt: album.coverArt,
+                               songCount: album.songCount, duration: album.duration,
+                               year: album.year, genre: album.genre,
+                               starred: album.starred, playCount: nil, created: nil)
+        let status = downloadStore.albumDownloadStatus(albumId: album.id, totalSongs: total)
+        switch status {
+        case .none:
+            if !offlineMode.isOffline {
+                Button {
+                    downloadStore.enqueueAlbum(albumModel)
+                } label: {
+                    Label(tr("Download", "Herunterladen"), systemImage: "arrow.down.circle")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+            }
+        case .partial:
+            if !offlineMode.isOffline {
+                Button {
+                    downloadStore.enqueueAlbum(albumModel)
+                } label: {
+                    Label(tr("Rest", "Rest"), systemImage: "arrow.down.circle")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+            }
+            Button {
+                downloadStore.deleteAlbum(album.id)
+            } label: {
+                Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        case .complete:
+            Button {
+                downloadStore.deleteAlbum(album.id)
+            } label: {
+                Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        }
     }
 }
 
@@ -183,6 +243,9 @@ struct TrackRow: View {
     var onAddToPlaylist: (() -> Void)? = nil
 
     @Environment(\.themeColor) private var themeColor
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @ObservedObject private var offlineMode = OfflineModeService.shared
+    @AppStorage("enableDownloads") private var enableDownloads = false
     @State private var isHovered = false
 
     var body: some View {
@@ -218,11 +281,14 @@ struct TrackRow: View {
 
             Spacer()
 
-            Text(song.durationString)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .padding(.trailing, 24)
+            HStack(spacing: 8) {
+                DownloadStatusIcon(songId: song.id)
+                Text(song.durationString)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .padding(.trailing, 24)
         }
         .frame(height: 52)
         .background {
@@ -256,6 +322,18 @@ struct TrackRow: View {
                     }
                 }
             }
+            if enableDownloads {
+                Divider()
+                if downloadStore.isDownloaded(songId: song.id) {
+                    Button(role: .destructive) { downloadStore.deleteSong(song.id) } label: {
+                        Label { Text(tr("Delete Download", "Download löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
+                    }
+                } else if !offlineMode.isOffline {
+                    Button(tr("Download", "Herunterladen")) {
+                        downloadStore.enqueueSongs([song])
+                    }
+                }
+            }
         }
     }
 }
@@ -269,17 +347,40 @@ class AlbumDetailViewModel: ObservableObject {
 
     private let api = SubsonicAPIService.shared
 
-    func load(albumId: String) async {
+    func load(albumId: String, fallback: DownloadedAlbum? = nil) async {
         isLoading = true
         errorMessage = nil
+        if let fallback, OfflineModeService.shared.isOffline {
+            populateFromLocal(fallback)
+            isLoading = false
+            return
+        }
         do {
             let detail = try await api.getAlbum(id: albumId)
             album = detail
             songs = detail.song
         } catch {
-            errorMessage = error.localizedDescription
+            if let fallback {
+                populateFromLocal(fallback)
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
         isLoading = false
+    }
+
+    private func populateFromLocal(_ local: DownloadedAlbum) {
+        let mapped = local.songs.map { $0.asSong() }
+        songs = mapped
+        album = AlbumDetail(
+            id: local.albumId, name: local.title,
+            artist: local.artistName, artistId: local.artistId,
+            coverArt: local.coverArtId,
+            songCount: local.songs.count,
+            duration: local.songs.reduce(0) { $0 + ($1.duration ?? 0) },
+            year: nil, genre: nil, starred: nil,
+            song: mapped
+        )
     }
 }
 

@@ -3,9 +3,22 @@ import AVKit
 
 struct PlayerBarView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
     @EnvironmentObject var lyricsStore: LyricsStore
+    @ObservedObject var downloadStore = DownloadStore.shared
     @ObservedObject private var player = AudioPlayerService.shared
+
+    private var audioBadge: String? {
+        if let actual = player.actualStreamFormat {
+            return actual.displayString
+        }
+        guard let song = player.currentSong else { return nil }
+        guard let suffix = song.suffix else { return nil }
+        if let br = song.bitRate {
+            return "\(suffix.uppercased()) · \(br) kbps"
+        }
+        return suffix.uppercased()
+    }
     @Environment(\.themeColor) private var themeColor
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
@@ -235,18 +248,12 @@ struct PlayerBarView: View {
                 .frame(maxWidth: 560)
 
                 HStack(spacing: 16) {
-                    if let song = player.currentSong, let suffix = song.suffix {
-                        Group {
-                            if let bitRate = song.bitRate {
-                                Text("\(suffix.uppercased()) · \(bitRate) kbps")
-                            } else {
-                                Text(suffix.uppercased())
-                            }
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                        .padding(.trailing, 8)
+                    if let badge = audioBadge {
+                        Text(badge)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                            .padding(.trailing, 8)
                     }
 
                     Button { showLyrics.toggle() } label: {

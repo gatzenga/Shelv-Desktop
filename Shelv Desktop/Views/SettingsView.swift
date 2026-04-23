@@ -22,6 +22,11 @@ struct SettingsView: View {
                     Image(systemName: "calendar.badge.clock")
                     Text(tr("Recap", "Recap"))
                 }
+            DownloadsTab()
+                .tabItem {
+                    Image(systemName: "arrow.down.circle")
+                    Text(tr("Downloads", "Downloads"))
+                }
             CacheTab()
                 .tabItem {
                     Image(systemName: "internaldrive")

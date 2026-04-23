@@ -2,10 +2,42 @@ import SwiftUI
 
 struct PlaylistDetailView: View {
     let playlist: Playlist
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
     @EnvironmentObject var appState: AppState
+    @ObservedObject var downloadStore = DownloadStore.shared
+    @ObservedObject var offlineMode = OfflineModeService.shared
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
+    @AppStorage("enableDownloads") private var enableDownloads = false
+
+    @ViewBuilder
+    private var playlistDownloadButtons: some View {
+        let downloadedCount = songs.filter { downloadStore.isDownloaded(songId: $0.id) }.count
+        if downloadedCount < songs.count && !offlineMode.isOffline {
+            Button {
+                let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
+                downloadStore.enqueueSongs(missing)
+                NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+            } label: {
+                Label(downloadedCount == 0 ? tr("Download", "Herunterladen") : tr("Rest", "Rest"),
+                      systemImage: "arrow.down.circle")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        }
+        if downloadedCount > 0 {
+            Button {
+                for song in songs where downloadStore.isDownloaded(songId: song.id) {
+                    downloadStore.deleteSong(song.id)
+                }
+            } label: {
+                Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        }
+    }
     @Environment(\.themeColor) private var themeColor
 
     @State private var detail: PlaylistDetail?
@@ -177,6 +209,10 @@ struct PlaylistDetailView: View {
                         .buttonStyle(.bordered)
                         .controlSize(.large)
                         .disabled(isLoading || songs.isEmpty)
+
+                        if enableDownloads && !songs.isEmpty {
+                            playlistDownloadButtons
+                        }
                     }
                 }
 
@@ -375,11 +411,14 @@ struct PlaylistTrackRow: View {
                 .padding(.trailing, 12)
             }
 
-            Text(song.durationString)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-                .padding(.trailing, 24)
+            HStack(spacing: 8) {
+                DownloadStatusIcon(songId: song.id)
+                Text(song.durationString)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            .padding(.trailing, 24)
         }
         .frame(height: 52)
         .background {

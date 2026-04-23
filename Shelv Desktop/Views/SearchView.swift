@@ -3,7 +3,7 @@ import Combine
 
 struct SearchView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var libraryStore: LibraryViewModel
+    @ObservedObject var libraryStore = LibraryViewModel.shared
     @StateObject private var vm = SearchViewModel()
     @FocusState private var isSearchFocused: Bool
     @AppStorage("enableFavorites") private var enableFavorites = true
@@ -103,7 +103,32 @@ struct SearchView: View {
                         if !lyricsResults.isEmpty {
                             SearchSection(title: tr("Lyrics", "Lyrics")) {
                                 ForEach(lyricsResults) { item in
-                                    LyricsSearchRow(item: item, onPlay: { playLyricsResult(item) })
+                                    LyricsSearchRow(
+                                        item: item,
+                                        showFavorite: enableFavorites,
+                                        showPlaylist: enablePlaylists,
+                                        onPlay: { playLyricsResult(item) },
+                                        onPlayNext: {
+                                            withLyricsSong(item) { song in
+                                                appState.player.addPlayNext(song)
+                                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                            }
+                                        },
+                                        onAddToQueue: {
+                                            withLyricsSong(item) { song in
+                                                appState.player.addToUserQueue(song)
+                                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                            }
+                                        },
+                                        onFavorite: {
+                                            withLyricsSong(item) { song in
+                                                Task { await libraryStore.toggleStarSong(song) }
+                                            }
+                                        },
+                                        onAddToPlaylist: {
+                                            NotificationCenter.default.post(name: .addSongsToPlaylist, object: [item.songId])
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -147,6 +172,23 @@ struct SearchView: View {
                     snippet: item.snippet
                 )
                 lyricsResults = results
+            }
+        }
+    }
+
+    private func withLyricsSong(_ item: LyricsSearchResult, _ action: @escaping (Song) -> Void) {
+        Task {
+            if let song = try? await SubsonicAPIService.shared.getSong(id: item.songId) {
+                await MainActor.run { action(song) }
+            } else {
+                let fallback = Song(
+                    id: item.songId, title: item.songTitle ?? item.songId,
+                    artist: item.artistName, artistId: nil, album: nil, albumId: nil,
+                    coverArt: item.coverArt, duration: nil, track: nil, discNumber: nil,
+                    year: nil, genre: nil, starred: nil, playCount: nil,
+                    bitRate: nil, contentType: nil, suffix: nil
+                )
+                await MainActor.run { action(fallback) }
             }
         }
     }
@@ -254,6 +296,9 @@ struct SearchSongRow: View {
     var onAddToPlaylist: (() -> Void)? = nil
 
     @Environment(\.themeColor) private var themeColor
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @ObservedObject private var offlineMode = OfflineModeService.shared
+    @AppStorage("enableDownloads") private var enableDownloads = false
     @State private var isHovered = false
 
     var body: some View {
@@ -265,6 +310,7 @@ struct SearchSongRow: View {
                 if let artist = song.artist { Text(artist).font(.caption).foregroundStyle(.secondary) }
             }
             Spacer()
+            DownloadStatusIcon(songId: song.id)
             Text(song.durationString).font(.caption).foregroundStyle(.tertiary).monospacedDigit()
             Button { onPlay() } label: {
                 Image(systemName: "play.circle")
@@ -303,6 +349,18 @@ struct SearchSongRow: View {
                     }
                 }
             }
+            if enableDownloads && !offlineMode.isOffline {
+                Divider()
+                if downloadStore.isDownloaded(songId: song.id) {
+                    Button(tr("Delete Download", "Download löschen"), role: .destructive) {
+                        downloadStore.deleteSong(song.id)
+                    }
+                } else {
+                    Button(tr("Download", "Herunterladen")) {
+                        downloadStore.enqueueSongs([song])
+                    }
+                }
+            }
         }
     }
 }
@@ -325,19 +383,47 @@ class SearchViewModel: ObservableObject {
         searchTask?.cancel()
         searchTask = Task {
             isLoading = true
-            do {
-                let result = try await api.search(query: query)
-                guard !Task.isCancelled else { return }
-                artists = (result.artist ?? []).filter { ($0.albumCount ?? 0) > 0 }
-                albums = result.album ?? []
-                songs = result.song ?? []
-            } catch {
-                guard !Task.isCancelled else { return }
-                NotificationCenter.default.post(name: .showToast, object: tr("Search failed", "Suche fehlgeschlagen"))
+            if await OfflineModeService.shared.isOffline {
+                await searchOffline()
+            } else {
+                do {
+                    let result = try await api.search(query: query)
+                    guard !Task.isCancelled else { return }
+                    artists = (result.artist ?? []).filter { ($0.albumCount ?? 0) > 0 }
+                    albums = result.album ?? []
+                    songs = result.song ?? []
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    NotificationCenter.default.post(name: .showToast, object: tr("Search failed", "Suche fehlgeschlagen"))
+                }
             }
             isLoading = false
         }
         await searchTask?.value
+    }
+
+    private func searchOffline() async {
+        let stable = await AppState.shared.serverStore.activeServer?.stableId ?? ""
+        guard !stable.isEmpty else { artists = []; albums = []; songs = []; return }
+        let records = await DownloadDatabase.shared.search(serverId: stable, query: query, limit: 100)
+        guard !Task.isCancelled else { return }
+        let downloaded = records.map { $0.toDownloadedSong() }
+        songs = downloaded.map { $0.asSong() }
+        let albumGroups = Dictionary(grouping: records) { $0.albumId }
+        albums = albumGroups.map { key, group -> Album in
+            let f = group.first!
+            return Album(id: key, name: f.albumTitle, artist: f.artistName,
+                         artistId: f.artistId, coverArt: f.coverArtId,
+                         songCount: group.count, duration: nil, year: nil, genre: nil,
+                         starred: nil, playCount: nil, created: nil)
+        }
+        let artistGroups = Dictionary(grouping: records) { $0.artistName }
+        artists = artistGroups.compactMap { name, group -> Artist? in
+            let f = group.first!
+            return Artist(id: f.artistId ?? "name:\(name)", name: name,
+                          albumCount: Set(group.map(\.albumId)).count,
+                          coverArt: f.coverArtId, starred: nil)
+        }
     }
 
     func clearResults() {
@@ -349,8 +435,17 @@ class SearchViewModel: ObservableObject {
 
 struct LyricsSearchRow: View {
     let item: LyricsSearchResult
+    var showFavorite: Bool = false
+    var showPlaylist: Bool = false
     let onPlay: () -> Void
+    var onPlayNext: (() -> Void)? = nil
+    var onAddToQueue: (() -> Void)? = nil
+    var onFavorite: (() -> Void)? = nil
+    var onAddToPlaylist: (() -> Void)? = nil
     @Environment(\.themeColor) private var themeColor
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @ObservedObject private var offlineMode = OfflineModeService.shared
+    @AppStorage("enableDownloads") private var enableDownloads = false
     @State private var isHovered = false
 
     var body: some View {
@@ -378,6 +473,7 @@ struct LyricsSearchRow: View {
                     .italic()
             }
             Spacer()
+            DownloadStatusIcon(songId: item.songId)
             Button { onPlay() } label: {
                 Image(systemName: "play.circle")
                     .font(.title2)
@@ -391,6 +487,41 @@ struct LyricsSearchRow: View {
         .contentShape(Rectangle())
         .onHover { isHovered = $0 }
         .onTapGesture(count: 2) { onPlay() }
+        .contextMenu {
+            Button(tr("Play", "Abspielen")) { onPlay() }
+            Divider()
+            if let onPlayNext {
+                Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
+            }
+            if let onAddToQueue {
+                Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) { onAddToQueue() }
+            }
+            if showFavorite || showPlaylist {
+                Divider()
+                if showFavorite, let onFavorite {
+                    Button(tr("Add to Favorites", "Zu Favoriten hinzufügen")) { onFavorite() }
+                }
+                if showPlaylist, let onAddToPlaylist {
+                    Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) { onAddToPlaylist() }
+                }
+            }
+            if enableDownloads && !offlineMode.isOffline {
+                Divider()
+                if downloadStore.isDownloaded(songId: item.songId) {
+                    Button(tr("Delete Download", "Download löschen"), role: .destructive) {
+                        downloadStore.deleteSong(item.songId)
+                    }
+                } else {
+                    Button(tr("Download", "Herunterladen")) {
+                        Task {
+                            if let song = try? await SubsonicAPIService.shared.getSong(id: item.songId) {
+                                await MainActor.run { downloadStore.enqueueSongs([song]) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

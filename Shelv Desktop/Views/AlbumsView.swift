@@ -2,14 +2,30 @@ import SwiftUI
 
 struct AlbumsView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject private var vm: LibraryViewModel
+    @ObservedObject private var vm = LibraryViewModel.shared
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @ObservedObject private var offlineMode = OfflineModeService.shared
     @AppStorage("albumViewIsGrid") private var isGrid: Bool = true
+    @AppStorage("downloadsOnlyFilter") private var showDownloadsOnly: Bool = false
     @State private var searchText: String = ""
 
-    private var filteredAlbums: [Album] {
-        let source = vm.sortedAlbums
-        if searchText.isEmpty { return source }
-        return source.filter {
+    private var effectiveShowDownloadsOnly: Bool {
+        offlineMode.isOffline || showDownloadsOnly
+    }
+
+    private var displayAlbums: [Album] {
+        // Im Offline-Modus + leerem Server-Cache: aus Downloads bauen
+        let baseAlbums: [Album]
+        if offlineMode.isOffline && vm.albums.isEmpty {
+            baseAlbums = downloadStore.albums.map { $0.asAlbum() }
+        } else if effectiveShowDownloadsOnly {
+            let downloadedIds = Set(downloadStore.albums.map { $0.albumId })
+            baseAlbums = vm.sortedAlbums.filter { downloadedIds.contains($0.id) }
+        } else {
+            baseAlbums = vm.sortedAlbums
+        }
+        if searchText.isEmpty { return baseAlbums }
+        return baseAlbums.filter {
             $0.name.localizedCaseInsensitiveContains(searchText) ||
             ($0.artist?.localizedCaseInsensitiveContains(searchText) ?? false)
         }
@@ -42,6 +58,14 @@ struct AlbumsView: View {
                     .buttonStyle(.borderless)
                     .help(vm.albumSortDirection == .ascending ? tr("Ascending", "Aufsteigend") : tr("Descending", "Absteigend"))
                 }
+                if !offlineMode.isOffline {
+                    Toggle(isOn: $showDownloadsOnly) {
+                        Label(tr("Downloads only", "Nur Downloads"), systemImage: "arrow.down.circle")
+                    }
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                    .help(tr("Show only downloaded items", "Nur heruntergeladene Einträge anzeigen"))
+                }
                 Button { isGrid.toggle() } label: {
                     Image(systemName: isGrid ? "list.bullet" : "square.grid.2x2")
                         .font(.title3)
@@ -61,7 +85,7 @@ struct AlbumsView: View {
             } else if isGrid {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 160, maximum: 200), spacing: 16)], spacing: 20) {
-                        ForEach(filteredAlbums) { album in
+                        ForEach(displayAlbums) { album in
                             NavigationLink(value: album) {
                                 AlbumGridItem(album: album)
                             }
@@ -72,20 +96,20 @@ struct AlbumsView: View {
                     .padding(20)
                 }
                 .overlay {
-                    if filteredAlbums.isEmpty && !vm.albums.isEmpty {
+                    if displayAlbums.isEmpty && !vm.albums.isEmpty {
                         ContentUnavailableView.search(text: searchText)
                     }
                 }
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(filteredAlbums) { album in
+                        ForEach(displayAlbums) { album in
                             NavigationLink(value: album) {
                                 AlbumListRow(album: album)
                             }
                             .buttonStyle(.plain)
                             .albumContextMenu(album)
-                            if album.id != filteredAlbums.last?.id {
+                            if album.id != displayAlbums.last?.id {
                                 Divider().padding(.leading, 76)
                             }
                         }
@@ -93,7 +117,7 @@ struct AlbumsView: View {
                     .padding(.vertical, 8)
                 }
                 .overlay {
-                    if filteredAlbums.isEmpty && !vm.albums.isEmpty {
+                    if displayAlbums.isEmpty && !vm.albums.isEmpty {
                         ContentUnavailableView.search(text: searchText)
                     }
                 }
@@ -121,10 +145,14 @@ struct AlbumGridItem: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            CoverArtView(url: coverURL, size: 160, cornerRadius: 8)
-                .shadow(color: .black.opacity(isHovered ? 0.3 : 0.12), radius: isHovered ? 10 : 4)
-                .scaleEffect(isHovered ? 1.03 : 1.0)
-                .animation(.easeInOut(duration: 0.15), value: isHovered)
+            ZStack(alignment: .bottomTrailing) {
+                CoverArtView(url: coverURL, size: 160, cornerRadius: 8)
+                    .shadow(color: .black.opacity(isHovered ? 0.3 : 0.12), radius: isHovered ? 10 : 4)
+                    .scaleEffect(isHovered ? 1.03 : 1.0)
+                    .animation(.easeInOut(duration: 0.15), value: isHovered)
+                AlbumDownloadBadge(albumId: album.id)
+                    .padding(6)
+            }
             Text(album.name)
                 .font(.caption.bold())
                 .lineLimit(1)
@@ -175,6 +203,7 @@ struct AlbumListRow: View {
                 .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
+            AlbumDownloadBadge(albumId: album.id)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 6)

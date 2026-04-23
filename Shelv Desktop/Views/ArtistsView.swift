@@ -1,14 +1,29 @@
 import SwiftUI
 
 struct ArtistsView: View {
-    @EnvironmentObject private var vm: LibraryViewModel
+    @ObservedObject private var vm = LibraryViewModel.shared
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @ObservedObject private var offlineMode = OfflineModeService.shared
     @AppStorage("artistViewIsGrid") private var isGrid: Bool = true
+    @AppStorage("downloadsOnlyFilter") private var showDownloadsOnly: Bool = false
     @State private var searchText: String = ""
 
-    private var filteredArtists: [Artist] {
-        let source = vm.sortedArtists
-        if searchText.isEmpty { return source }
-        return source.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+    private var effectiveShowDownloadsOnly: Bool {
+        offlineMode.isOffline || showDownloadsOnly
+    }
+
+    private var displayArtists: [Artist] {
+        let baseArtists: [Artist]
+        if offlineMode.isOffline && vm.artists.isEmpty {
+            baseArtists = downloadStore.artists.map { $0.asArtist() }
+        } else if effectiveShowDownloadsOnly {
+            let downloadedNames = Set(downloadStore.artists.map { $0.name })
+            baseArtists = vm.sortedArtists.filter { downloadedNames.contains($0.name) }
+        } else {
+            baseArtists = vm.sortedArtists
+        }
+        if searchText.isEmpty { return baseArtists }
+        return baseArtists.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
     var body: some View {
@@ -35,6 +50,13 @@ struct ArtistsView: View {
                     .buttonStyle(.borderless)
                     .help(vm.artistSortDirection == .ascending ? tr("Ascending", "Aufsteigend") : tr("Descending", "Absteigend"))
                 }
+                if !offlineMode.isOffline {
+                    Toggle(isOn: $showDownloadsOnly) {
+                        Label(tr("Downloads only", "Nur Downloads"), systemImage: "arrow.down.circle")
+                    }
+                    .toggleStyle(.button)
+                    .controlSize(.small)
+                }
                 Button { isGrid.toggle() } label: {
                     Image(systemName: isGrid ? "list.bullet" : "square.grid.2x2")
                         .font(.title3)
@@ -51,12 +73,12 @@ struct ArtistsView: View {
             if vm.isLoadingArtists {
                 ProgressView(tr("Loading artists…", "Künstler laden…"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if filteredArtists.isEmpty && !vm.artists.isEmpty {
+            } else if displayArtists.isEmpty && !vm.artists.isEmpty {
                 ContentUnavailableView.search(text: searchText)
             } else if isGrid {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140, maximum: 180), spacing: 16)], spacing: 20) {
-                        ForEach(filteredArtists) { artist in
+                        ForEach(displayArtists) { artist in
                             NavigationLink(value: artist) {
                                 ArtistGridItem(artist: artist)
                             }
@@ -69,13 +91,13 @@ struct ArtistsView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(filteredArtists) { artist in
+                        ForEach(displayArtists) { artist in
                             NavigationLink(value: artist) {
                                 ArtistListRow(artist: artist)
                             }
                             .buttonStyle(.plain)
                             .artistContextMenu(artist)
-                            if artist.id != filteredArtists.last?.id {
+                            if artist.id != displayArtists.last?.id {
                                 Divider().padding(.leading, 76)
                             }
                         }
@@ -97,6 +119,8 @@ struct ArtistsView: View {
 
 struct ArtistGridItem: View {
     let artist: Artist
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @Environment(\.themeColor) private var themeColor
     @State private var isHovered = false
 
     private var coverURL: URL? {
@@ -106,10 +130,20 @@ struct ArtistGridItem: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            CoverArtView(url: coverURL, size: 140, isCircle: true)
-                .shadow(color: .black.opacity(isHovered ? 0.3 : 0.12), radius: isHovered ? 10 : 4)
-                .scaleEffect(isHovered ? 1.03 : 1.0)
-                .animation(.easeInOut(duration: 0.15), value: isHovered)
+            ZStack(alignment: .bottomTrailing) {
+                CoverArtView(url: coverURL, size: 140, isCircle: true)
+                    .shadow(color: .black.opacity(isHovered ? 0.3 : 0.12), radius: isHovered ? 10 : 4)
+                    .scaleEffect(isHovered ? 1.03 : 1.0)
+                    .animation(.easeInOut(duration: 0.15), value: isHovered)
+                if downloadStore.artists.contains(where: { $0.name == artist.name }) {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.white)
+                        .padding(4)
+                        .background(themeColor, in: Circle())
+                        .padding(6)
+                }
+            }
             Text(artist.name)
                 .font(.caption.bold())
                 .lineLimit(2)
@@ -127,6 +161,8 @@ struct ArtistGridItem: View {
 
 struct ArtistListRow: View {
     let artist: Artist
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @Environment(\.themeColor) private var themeColor
     @State private var isHovered = false
 
     private var coverURL: URL? {
@@ -148,6 +184,13 @@ struct ArtistListRow: View {
                 }
             }
             Spacer(minLength: 0)
+            if downloadStore.artists.contains(where: { $0.name == artist.name }) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.white)
+                    .padding(4)
+                    .background(themeColor, in: Circle())
+            }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 6)

@@ -72,6 +72,14 @@ actor CloudKitSyncService {
         if UserDefaults.standard.object(forKey: syncEnabledKey) == nil { return true }
         return UserDefaults.standard.bool(forKey: syncEnabledKey)
     }
+
+    /// iCloud-Sync läuft nur wenn iCloud an + Recap an + nicht offline.
+    private var canSync: Bool {
+        guard syncEnabled else { return false }
+        guard UserDefaults.standard.bool(forKey: "recapEnabled") else { return false }
+        if UserDefaults.standard.bool(forKey: "offlineModeEnabled") { return false }
+        return true
+    }
     nonisolated(unsafe) private var pathMonitor: NWPathMonitor?
     private init() {}
 
@@ -99,9 +107,8 @@ actor CloudKitSyncService {
 
     func setup() async {
         debug("[CloudKitSync] setup() starting")
-        guard syncEnabled else {
-            debug("[CloudKitSync] setup() skipped — iCloud Sync disabled")
-            log("iCloud sync disabled")
+        guard canSync else {
+            debug("[CloudKitSync] setup() skipped — sync conditions not met (icloud/recap/offline)")
             return
         }
         let accountStatus = await updateAccountStatus()
@@ -187,7 +194,7 @@ actor CloudKitSyncService {
     }
 
     func uploadPendingEvents() async {
-        guard syncEnabled else { return }
+        guard canSync else { return }
         guard await status.accountAvailable else {
             debug("[CloudKitSync] uploadPendingEvents skipped – account not available")
             return
@@ -255,7 +262,7 @@ actor CloudKitSyncService {
     }
 
     func downloadChanges() async {
-        guard syncEnabled else { return }
+        guard canSync else { return }
         guard await status.accountAvailable else {
             debug("[CloudKitSync] downloadChanges skipped – account not available")
             return
@@ -438,7 +445,7 @@ actor CloudKitSyncService {
     }
 
     func saveRecapMarker(_ entry: RecapRegistryRecord, periodKey: String) async throws -> RecapMarkerSaveResult {
-        guard syncEnabled else { return .created }
+        guard canSync else { return .created }
         try await ensureZoneExists()
         let recordName = makeRecapMarkerRecordName(serverId: entry.serverId, periodKey: periodKey, isTest: entry.isTest)
         let rid = CKRecord.ID(recordName: recordName, zoneID: zoneID)
@@ -478,7 +485,7 @@ actor CloudKitSyncService {
     }
 
     func fetchRecapMarker(serverId: String, periodKey: String, isTest: Bool = false) async -> RecapRegistryRecord? {
-        guard syncEnabled else { return nil }
+        guard canSync else { return nil }
         let recordName = makeRecapMarkerRecordName(serverId: serverId, periodKey: periodKey, isTest: isTest)
         let rid = CKRecord.ID(recordName: recordName, zoneID: zoneID)
         guard let record = try? await db.record(for: rid) else { return nil }
@@ -642,10 +649,7 @@ actor CloudKitSyncService {
     }
 
     func syncNow() async {
-        guard syncEnabled else {
-            await flushScrobbleQueue()
-            return
-        }
+        guard canSync else { return }
         log("Syncing…")
         await uploadPendingEvents()
         await downloadChanges()
@@ -757,20 +761,45 @@ actor CloudKitSyncService {
         }
 
         for conflict in conflicts {
-            CloudKitSyncService.debugLog("[Reupload] conflict: iCloud has playlistId=\(conflict.existingPlaylistId), local had \(conflict.entry.playlistId) — adopting iCloud")
-            try? await SubsonicAPIService.shared.deletePlaylist(id: conflict.entry.playlistId)
             let recordName = makeRecapMarkerRecordName(serverId: stableId, periodKey: conflict.periodKey, isTest: conflict.entry.isTest)
-            let updated = RecapRegistryRecord(
-                playlistId: conflict.existingPlaylistId,
-                serverId: conflict.entry.serverId,
-                periodType: conflict.entry.periodType,
-                periodStart: conflict.entry.periodStart,
-                periodEnd: conflict.entry.periodEnd,
-                ckRecordName: recordName,
-                isTest: conflict.entry.isTest
-            )
-            await PlayLogService.shared.deleteRegistryEntry(playlistId: conflict.entry.playlistId)
-            await PlayLogService.shared.registerPlaylist(updated)
+
+            if onlyLocalOnly {
+                let remoteExists = (try? await SubsonicAPIService.shared.getPlaylist(id: conflict.existingPlaylistId)) != nil
+                if remoteExists {
+                    CloudKitSyncService.debugLog("[Reupload] conflict: iCloud playlistId=\(conflict.existingPlaylistId) exists on Navidrome — adopting, keeping local \(conflict.entry.playlistId) as orphan")
+                    let updated = RecapRegistryRecord(
+                        playlistId: conflict.existingPlaylistId,
+                        serverId: conflict.entry.serverId,
+                        periodType: conflict.entry.periodType,
+                        periodStart: conflict.entry.periodStart,
+                        periodEnd: conflict.entry.periodEnd,
+                        ckRecordName: recordName,
+                        isTest: conflict.entry.isTest
+                    )
+                    await PlayLogService.shared.deleteRegistryEntry(playlistId: conflict.entry.playlistId)
+                    await PlayLogService.shared.registerPlaylist(updated)
+                } else {
+                    CloudKitSyncService.debugLog("[Reupload] conflict: iCloud playlistId=\(conflict.existingPlaylistId) MISSING on Navidrome — keeping local \(conflict.entry.playlistId), clearing stale iCloud marker")
+                    await deleteRecapMarker(ckRecordName: recordName)
+                    var entry = conflict.entry
+                    entry.ckRecordName = nil
+                    _ = try? await saveRecapMarker(entry, periodKey: conflict.periodKey)
+                }
+            } else {
+                CloudKitSyncService.debugLog("[Reupload] conflict (full): iCloud has playlistId=\(conflict.existingPlaylistId), local had \(conflict.entry.playlistId) — adopting iCloud")
+                try? await SubsonicAPIService.shared.deletePlaylist(id: conflict.entry.playlistId)
+                let updated = RecapRegistryRecord(
+                    playlistId: conflict.existingPlaylistId,
+                    serverId: conflict.entry.serverId,
+                    periodType: conflict.entry.periodType,
+                    periodStart: conflict.entry.periodStart,
+                    periodEnd: conflict.entry.periodEnd,
+                    ckRecordName: recordName,
+                    isTest: conflict.entry.isTest
+                )
+                await PlayLogService.shared.deleteRegistryEntry(playlistId: conflict.entry.playlistId)
+                await PlayLogService.shared.registerPlaylist(updated)
+            }
         }
     }
 

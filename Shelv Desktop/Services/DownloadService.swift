@@ -46,6 +46,7 @@ actor DownloadService {
     private let maxAttempts = 3
 
     private var pendingJobs: [DownloadJob] = []
+    private var pendingJobKeys = Set<String>()
     private var inflightJobs: [Int: DownloadJob] = [:]
     private var jobKeyByTask: [Int: String] = [:]
 
@@ -100,7 +101,7 @@ actor DownloadService {
             let key = Self.key(songId: song.id, serverId: serverId)
             if downloadedIds.contains(song.id) { continue }
             if inflightJobs.values.contains(where: { Self.key(songId: $0.song.id, serverId: $0.serverId) == key }) { continue }
-            if pendingJobs.contains(where: { Self.key(songId: $0.song.id, serverId: $0.serverId) == key }) { continue }
+            if pendingJobKeys.contains(key) { continue }
             let transcoding = TranscodingPolicy.currentDownloadFormat()
             guard let url = api.downloadURL(forConfig: cfg, songId: song.id, transcoding: transcoding) else { continue }
             let cover = song.coverArt.flatMap { api.coverArtURL(forConfig: cfg, id: $0, size: 600) }
@@ -127,6 +128,7 @@ actor DownloadService {
                 requestedFormat: transcoding?.codec
             )
             pendingJobs.append(job)
+            pendingJobKeys.insert(key)
             stateSubject.send((key, .queued))
             added += 1
         }
@@ -182,16 +184,26 @@ actor DownloadService {
 
     func cancel(songId: String, serverId: String) {
         let key = Self.key(songId: songId, serverId: serverId)
+        let removedPending = pendingJobs.filter { Self.key(songId: $0.song.id, serverId: $0.serverId) == key }.count
         pendingJobs.removeAll { Self.key(songId: $0.song.id, serverId: $0.serverId) == key }
+        if removedPending > 0 { pendingJobKeys.remove(key) }
+        var removedInflight = 0
         for (taskId, job) in inflightJobs where Self.key(songId: job.song.id, serverId: job.serverId) == key {
             session?.getAllTasks { tasks in
                 tasks.first(where: { $0.taskIdentifier == taskId })?.cancel()
             }
             inflightJobs.removeValue(forKey: taskId)
             jobKeyByTask.removeValue(forKey: taskId)
+            removedInflight += 1
         }
         publishProgress(key: key, value: nil)
         stateSubject.send((key, .none))
+        let removed = removedPending + removedInflight
+        if removed > 0 {
+            batchTotal = max(0, batchTotal - removed)
+            publishBatch()
+            resetBatchIfDone()
+        }
     }
 
     func delete(songId: String, serverId: String) async {
@@ -229,14 +241,16 @@ actor DownloadService {
     }
 
     func cancelBatch() {
+        let pendingKeys = pendingJobs.map { Self.key(songId: $0.song.id, serverId: $0.serverId) }
         pendingJobs.removeAll()
+        pendingJobKeys.removeAll()
         let inflightKeys = inflightJobs.values.map { Self.key(songId: $0.song.id, serverId: $0.serverId) }
         for taskId in Array(inflightJobs.keys) {
             inflightJobs.removeValue(forKey: taskId)
             jobKeyByTask.removeValue(forKey: taskId)
         }
         session?.getAllTasks { tasks in tasks.forEach { $0.cancel() } }
-        for key in inflightKeys {
+        for key in pendingKeys + inflightKeys {
             publishProgress(key: key, value: nil)
             stateSubject.send((key, .none))
         }
@@ -259,6 +273,7 @@ actor DownloadService {
 
     func deleteAll() async {
         pendingJobs.removeAll()
+        pendingJobKeys.removeAll()
         for taskId in Array(inflightJobs.keys) {
             inflightJobs.removeValue(forKey: taskId)
             jobKeyByTask.removeValue(forKey: taskId)
@@ -291,6 +306,10 @@ actor DownloadService {
         let api = SubsonicAPIService.shared
         let alreadyDownloaded = await DownloadDatabase.shared.allSongIds(serverId: serverId)
 
+        // Discover-Listen und alle Album-Songs parallel laden
+        async let discoverFreqTask = (try? await api.getAlbumList(type: .frequent, size: 50)) ?? []
+        async let discoverRecentTask = (try? await api.getAlbumList(type: .recentlyPlayed, size: 50)) ?? []
+
         let allSongs: [Song] = await withTaskGroup(of: [Song].self) { group in
             let limit = 10
             var index = 0
@@ -310,13 +329,30 @@ actor DownloadService {
             return result
         }
 
-        let mostPlayed = allSongs
-            .filter { ($0.playCount ?? 0) > 0 }
-            .sorted { ($0.playCount ?? 0) > ($1.playCount ?? 0) }
+        let discoverFreq = await discoverFreqTask
+        let discoverRecent = await discoverRecentTask
+
+        // Reihenfolge: Discover (häufig→kürzlich) → Favoriten → Rest A-Z
+        var discoverPriority: [String: Int] = [:]
+        for (i, album) in discoverFreq.enumerated() {
+            discoverPriority[album.id] = i
+        }
+        for (i, album) in discoverRecent.enumerated() where discoverPriority[album.id] == nil {
+            discoverPriority[album.id] = 100 + i
+        }
+
+        let discoverSongs = allSongs
+            .compactMap { song -> (id: String, key: Int)? in
+                guard let albumId = song.albumId, let pri = discoverPriority[albumId] else { return nil }
+                return (song.id, pri * 100 + (song.track ?? 0))
+            }
+            .sorted { $0.key < $1.key }
             .map(\.id)
+
         let starred = enabled
             ? allSongs.filter { $0.isStarred }.map(\.id)
             : []
+
         let alphabetical = allSongs.sorted {
             let a = ($0.artist ?? "").lowercased()
             let b = ($1.artist ?? "").lowercased()
@@ -334,7 +370,7 @@ actor DownloadService {
                 ordered.append(id); seen.insert(id)
             }
         }
-        appendUnique(mostPlayed)
+        appendUnique(discoverSongs)
         appendUnique(starred)
         appendUnique(alphabetical)
 
@@ -379,11 +415,13 @@ actor DownloadService {
         guard let session else { return }
         while inflightJobs.count < maxConcurrent, !pendingJobs.isEmpty {
             let job = pendingJobs.removeFirst()
+            let jobKey = Self.key(songId: job.song.id, serverId: job.serverId)
+            pendingJobKeys.remove(jobKey)
             let task = session.downloadTask(with: job.downloadURL)
             inflightJobs[task.taskIdentifier] = job
-            jobKeyByTask[task.taskIdentifier] = Self.key(songId: job.song.id, serverId: job.serverId)
-            publishProgress(key: Self.key(songId: job.song.id, serverId: job.serverId), value: 0)
-            stateSubject.send((Self.key(songId: job.song.id, serverId: job.serverId), .downloading(progress: 0)))
+            jobKeyByTask[task.taskIdentifier] = jobKey
+            publishProgress(key: jobKey, value: 0)
+            stateSubject.send((jobKey, .downloading(progress: 0)))
             task.resume()
         }
     }
@@ -468,6 +506,7 @@ actor DownloadService {
             let backoff = pow(2.0, Double(next.attempt))
             try? await Task.sleep(nanoseconds: UInt64(backoff * 1_000_000_000))
             pendingJobs.append(next)
+            pendingJobKeys.insert(key)
             stateSubject.send((key, .queued))
             startNextJobs()
             return
@@ -482,6 +521,7 @@ actor DownloadService {
             raw.downloadURL = rawURL
             raw.fileExtension = (job.song.suffix?.isEmpty == false) ? job.song.suffix! : "mp3"
             pendingJobs.append(raw)
+            pendingJobKeys.insert(key)
             stateSubject.send((key, .queued))
             startNextJobs()
             return
