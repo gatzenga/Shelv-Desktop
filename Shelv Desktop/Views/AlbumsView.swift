@@ -39,7 +39,7 @@ struct AlbumsView: View {
                     .frame(maxWidth: 220)
                 Spacer()
                 Picker(tr("Sort", "Sortieren"), selection: $vm.sortOption) {
-                    ForEach(LibrarySortOption.allCases, id: \.self) { opt in
+                    ForEach(LibrarySortOption.allCases.filter { !offlineMode.isOffline || !$0.requiresServer }, id: \.self) { opt in
                         Text(opt.label).tag(opt)
                     }
                 }
@@ -130,6 +130,11 @@ struct AlbumsView: View {
             }
         }
         .navigationTitle(tr("Albums (\(vm.albums.count))", "Alben (\(vm.albums.count))"))
+        .onChange(of: offlineMode.isOffline) { _, isOffline in
+            if isOffline && vm.sortOption.requiresServer {
+                vm.sortOption = .name
+            }
+        }
         .task { await vm.loadAlbums() }
     }
 }

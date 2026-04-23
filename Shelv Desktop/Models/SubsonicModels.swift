@@ -283,10 +283,11 @@ enum LibrarySortOption: String, CaseIterable {
         }
     }
 
-    /// Natürliche Richtung laut Serverantwort (alphabetisch aufsteigend, alle anderen absteigend)
     var naturalDirection: SortDirection {
         self == .name ? .ascending : .descending
     }
+
+    var requiresServer: Bool { self == .mostPlayed || self == .recentlyAdded }
 }
 
 enum ArtistSortOption: String, CaseIterable {
@@ -299,6 +300,8 @@ enum ArtistSortOption: String, CaseIterable {
         case .mostPlayed: return tr("Most Played", "Meist gespielt")
         }
     }
+
+    var requiresServer: Bool { self == .mostPlayed }
 
     var naturalDirection: SortDirection {
         self == .name ? .ascending : .descending

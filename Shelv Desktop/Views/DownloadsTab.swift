@@ -35,6 +35,7 @@ private struct BatchProgressSection: View {
 }
 
 private struct DownloadStatsSection: View {
+    @ObservedObject private var downloadStore = DownloadStore.shared
     @ObservedObject private var libraryStore = LibraryViewModel.shared
     @State private var stats: DownloadStorageStats?
 
@@ -55,9 +56,8 @@ private struct DownloadStatsSection: View {
             }
         }
         .task { await refreshStats() }
-        .onReceive(NotificationCenter.default.publisher(for: .downloadsLibraryChanged)) { _ in
-            Task { await refreshStats() }
-        }
+        .onChange(of: downloadStore.totalBytes) { _, _ in Task { await refreshStats() } }
+        .onChange(of: downloadStore.songs.count) { _, _ in Task { await refreshStats() } }
     }
 
     @MainActor private func refreshStats() async {

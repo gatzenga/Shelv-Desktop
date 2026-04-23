@@ -126,7 +126,7 @@ struct ArtistDetailView: View {
                         if !vm.albums.isEmpty {
                             HStack(spacing: 8) {
                                 Picker(tr("Sort", "Sortieren"), selection: $sortRaw) {
-                                    ForEach(LibrarySortOption.allCases, id: \.self) { opt in
+                                    ForEach(LibrarySortOption.allCases.filter { !offlineMode.isOffline || !$0.requiresServer }, id: \.self) { opt in
                                         Text(opt.label).tag(opt.rawValue)
                                     }
                                 }
@@ -189,6 +189,11 @@ struct ArtistDetailView: View {
             }
         }
         .navigationTitle(vm.artist?.name ?? artistName)
+        .onChange(of: offlineMode.isOffline) { _, isOffline in
+            if isOffline && sortOption.requiresServer {
+                sortRaw = LibrarySortOption.name.rawValue
+            }
+        }
         .task(id: artistId) { await vm.load(artistId: artistId) }
     }
 

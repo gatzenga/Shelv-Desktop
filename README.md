@@ -58,6 +58,20 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 - **Auto-load** — when enabled in Settings, lyrics are fetched in the background as soon as a song starts playing
 - **Bulk download** — a one-click option in Settings pre-fetches lyrics for your entire library in the background, with a live progress counter
 
+### Downloads & Offline Mode *(optional)*
+- Download albums and artists to your Mac for playback without a network connection
+- **Bulk download** — queue your entire library in one click; Shelv prioritises frequently played, recently played, and starred content first
+- Configurable storage limit; download badges on album covers show full or partial download status; progress bar in the sidebar while a batch is active
+- **Offline Mode** — accessible via View → Offline Mode; when active, the app plays exclusively from local downloads; library views show only downloaded content
+- Can be enabled or disabled in Settings; when disabled, all download UI is hidden
+
+### Transcoding *(optional)*
+- Set separate audio format and bitrate policies for Wi-Fi streaming, other network types, and downloads
+- Supported formats: `raw` (original file), `mp3`, `opus`
+- Useful for saving storage on downloaded files or reducing bandwidth usage
+- Falls back to `raw` automatically if the server doesn't support the chosen format
+- Accessible via Playback → Transcoding Settings; can be enabled or disabled independently of Downloads
+
 ### Recap
 - Automatic weekly, monthly, and yearly playlists of your most-played songs, created directly on your Navidrome server
 - Configurable play threshold (10–50%): a track only counts once you've heard enough of it
@@ -75,6 +89,7 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 - **Cache** — See the current cover art cache size and clear it with a single tap
 - **Crossfade** — Enable crossfade and set the fade duration
 - **Lyrics** — Toggle auto-load and run a bulk download for your entire library
+- **Downloads** — Enable downloads, set storage limit, run a bulk download, manage downloaded content
 - **Favorites & Playlists** — Toggle each feature on or off independently
 
 ### Cover Art

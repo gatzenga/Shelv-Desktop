@@ -34,7 +34,7 @@ struct ArtistsView: View {
                     .frame(maxWidth: 220)
                 Spacer()
                 Picker(tr("Sort", "Sortieren"), selection: $vm.artistSortOption) {
-                    ForEach(ArtistSortOption.allCases, id: \.self) { opt in
+                    ForEach(ArtistSortOption.allCases.filter { !offlineMode.isOffline || !$0.requiresServer }, id: \.self) { opt in
                         Text(opt.label).tag(opt)
                     }
                 }
@@ -113,6 +113,11 @@ struct ArtistsView: View {
             }
         }
         .navigationTitle(tr("Artists (\(vm.artists.count))", "Künstler (\(vm.artists.count))"))
+        .onChange(of: offlineMode.isOffline) { _, isOffline in
+            if isOffline && vm.artistSortOption.requiresServer {
+                vm.artistSortOption = .name
+            }
+        }
         .task { await vm.loadArtists() }
     }
 }
