@@ -13,6 +13,8 @@ private struct DownloadJob {
     var downloadURL: URL
     let coverURL: URL?
     let coverArtId: String?
+    let artistCoverArtId: String?
+    let artistCoverURL: URL?
     let albumId: String
     let albumTitle: String
     let artistName: String
@@ -105,6 +107,13 @@ actor DownloadService {
             let transcoding = TranscodingPolicy.currentDownloadFormat()
             guard let url = api.downloadURL(forConfig: cfg, songId: song.id, transcoding: transcoding) else { continue }
             let cover = song.coverArt.flatMap { api.coverArtURL(forConfig: cfg, id: $0, size: 600) }
+            let artistName = song.artist ?? ""
+            let artistCoverArtId: String? = await MainActor.run {
+                LibraryViewModel.shared.artists.first { $0.name == artistName }?.coverArt
+            }
+            let artistCoverURL: URL? = artistCoverArtId.flatMap {
+                api.coverArtURL(forConfig: cfg, id: $0, size: 600)
+            }
             let initialExt: String = {
                 if let t = transcoding { return t.codec.fileExtension }
                 return (song.suffix?.isEmpty == false) ? song.suffix! : "mp3"
@@ -115,6 +124,8 @@ actor DownloadService {
                 downloadURL: url,
                 coverURL: cover,
                 coverArtId: song.coverArt,
+                artistCoverArtId: artistCoverArtId,
+                artistCoverURL: artistCoverURL,
                 albumId: song.albumId ?? "",
                 albumTitle: song.album ?? "",
                 artistName: song.artist ?? "",
@@ -468,7 +479,7 @@ actor DownloadService {
             return
         }
 
-        await downloadCoverIfNeeded(for: job, audioPath: finalURL.path)
+        await downloadAssetsIfNeeded(for: job, audioPath: finalURL.path)
 
         let bytes = byteSize > 0 ? byteSize :
             (Int64((try? FileManager.default.attributesOfItem(atPath: finalURL.path)[.size] as? NSNumber)?.int64Value ?? 0))
@@ -486,6 +497,7 @@ actor DownloadService {
             duration: job.duration,
             bytes: bytes,
             coverArtId: job.coverArtId,
+            artistCoverArtId: job.artistCoverArtId,
             isFavorite: job.isFavorite,
             filePath: finalURL.path,
             fileExtension: actualExt,
@@ -580,15 +592,22 @@ actor DownloadService {
         }
     }
 
-    private func downloadCoverIfNeeded(for job: DownloadJob, audioPath: String) async {
+    private func downloadAssetsIfNeeded(for job: DownloadJob, audioPath: String) async {
         let coverPath = Self.coverPath(forFilePath: audioPath)
-        if FileManager.default.fileExists(atPath: coverPath) { return }
-        guard let coverURL = job.coverURL else { return }
-        do {
-            let (data, _) = try await coverSession.data(from: coverURL)
-            try data.write(to: URL(fileURLWithPath: coverPath), options: .atomic)
-        } catch {
-            // best effort
+        if !FileManager.default.fileExists(atPath: coverPath), let coverURL = job.coverURL {
+            if let (data, _) = try? await coverSession.data(from: coverURL) {
+                try? data.write(to: URL(fileURLWithPath: coverPath), options: .atomic)
+            }
+        }
+        if let artId = job.artistCoverArtId, let artURL = job.artistCoverURL {
+            let artPath = Self.artistCoverPath(serverId: job.serverId, artId: artId)
+            if !FileManager.default.fileExists(atPath: artPath) {
+                let artDir = Self.artworkDirectory(serverId: job.serverId)
+                try? FileManager.default.createDirectory(at: artDir, withIntermediateDirectories: true)
+                if let (data, _) = try? await coverSession.data(from: artURL) {
+                    try? data.write(to: URL(fileURLWithPath: artPath), options: .atomic)
+                }
+            }
         }
     }
 
@@ -619,6 +638,14 @@ actor DownloadService {
         let url = URL(fileURLWithPath: audioPath)
         let stem = url.deletingPathExtension().lastPathComponent
         return url.deletingLastPathComponent().appendingPathComponent("\(stem)_cover.jpg").path
+    }
+
+    static func artworkDirectory(serverId: String) -> URL {
+        serverDirectory(serverId: serverId).appendingPathComponent("artwork", isDirectory: true)
+    }
+
+    static func artistCoverPath(serverId: String, artId: String) -> String {
+        artworkDirectory(serverId: serverId).appendingPathComponent("\(artId).jpg").path
     }
 }
 
