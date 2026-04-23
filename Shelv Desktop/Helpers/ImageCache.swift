@@ -96,6 +96,16 @@ actor ImageCacheService {
         memory.totalCostLimit = 150 * 1024 * 1024
     }
 
+    nonisolated func cachedImage(url: URL) -> NSImage? {
+        memory.object(forKey: Self.stableCacheKey(for: url) as NSString)
+    }
+
+    nonisolated func cache(_ img: NSImage, url: URL) {
+        let key = Self.stableCacheKey(for: url) as NSString
+        let cost = Int(img.size.width * img.size.height * 4)
+        memory.setObject(img, forKey: key, cost: cost)
+    }
+
     func diskOnlyImage(url: URL) async -> NSImage? {
         let key = Self.stableCacheKey(for: url)
         let nsKey = key as NSString
