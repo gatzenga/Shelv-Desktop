@@ -222,8 +222,13 @@ actor DownloadService {
         let records = await DownloadDatabase.shared.allRecords(serverId: serverId)
             .filter { $0.albumId == albumId }
         for r in records {
-            await delete(songId: r.songId, serverId: serverId)
+            cancel(songId: r.songId, serverId: serverId)
+            try? FileManager.default.removeItem(atPath: r.filePath)
+            try? FileManager.default.removeItem(atPath: Self.coverPath(forFilePath: r.filePath))
+            await DownloadDatabase.shared.delete(songId: r.songId, serverId: serverId)
+            stateSubject.send((Self.key(songId: r.songId, serverId: serverId), .none))
         }
+        notifyLibraryChanged()
     }
 
     func deleteArtist(artistId: String, serverId: String) async {
@@ -236,8 +241,13 @@ actor DownloadService {
             records = all.filter { $0.artistId == artistId || $0.artistName == artistId }
         }
         for r in records {
-            await delete(songId: r.songId, serverId: serverId)
+            cancel(songId: r.songId, serverId: serverId)
+            try? FileManager.default.removeItem(atPath: r.filePath)
+            try? FileManager.default.removeItem(atPath: Self.coverPath(forFilePath: r.filePath))
+            await DownloadDatabase.shared.delete(songId: r.songId, serverId: serverId)
+            stateSubject.send((Self.key(songId: r.songId, serverId: serverId), .none))
         }
+        notifyLibraryChanged()
     }
 
     func cancelBatch() {
