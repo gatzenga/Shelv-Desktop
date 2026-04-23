@@ -84,15 +84,11 @@ struct DeleteDownloadIcon: View {
 
 struct AlbumDownloadBadge: View {
     let albumId: String
-    @ObservedObject private var downloadStore = DownloadStore.shared
+    @ObservedObject private var statusCache = DownloadStatusCache.shared
     @Environment(\.themeColor) private var themeColor
 
-    private var hasDownloads: Bool {
-        downloadStore.songs.contains { $0.albumId == albumId }
-    }
-
     var body: some View {
-        if hasDownloads {
+        if statusCache.albumIds.contains(albumId) {
             Image(systemName: "arrow.down.circle.fill")
                 .font(.caption)
                 .foregroundStyle(.white)

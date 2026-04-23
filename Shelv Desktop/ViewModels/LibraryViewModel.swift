@@ -91,7 +91,6 @@ class LibraryViewModel: ObservableObject {
             } else if sortOption == .mostPlayed {
                 albums = albums.sorted { ($0.playCount ?? 0) > ($1.playCount ?? 0) }
             }
-            await reconcileDownloadedAlbums(serverAlbumIds: Set(all.map(\.id)))
         } catch {
             errorMessage = error.localizedDescription
         }

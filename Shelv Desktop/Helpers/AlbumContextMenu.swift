@@ -3,7 +3,6 @@ import SwiftUI
 struct AlbumContextMenuModifier: ViewModifier {
     let album: Album
     @ObservedObject var libraryStore = LibraryViewModel.shared
-    @ObservedObject var downloadStore = DownloadStore.shared
     @ObservedObject private var offlineMode = OfflineModeService.shared
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
@@ -54,23 +53,23 @@ struct AlbumContextMenuModifier: ViewModifier {
             }
             if enableDownloads {
                 Divider()
-                let status = downloadStore.albumDownloadStatus(albumId: album.id, totalSongs: album.songCount ?? 0)
+                let status = DownloadStore.shared.albumDownloadStatus(albumId: album.id, totalSongs: album.songCount ?? 0)
                 switch status {
                 case .none:
                     if !offlineMode.isOffline {
                         Button(tr("Download Album", "Album herunterladen")) {
-                            downloadStore.enqueueAlbum(album)
+                            DownloadStore.shared.enqueueAlbum(album)
                         }
                     }
                 case .partial:
                     if !offlineMode.isOffline {
                         Button(tr("Download Remaining", "Rest herunterladen")) {
-                            downloadStore.enqueueAlbum(album)
+                            DownloadStore.shared.enqueueAlbum(album)
                         }
                     }
-                    Button(role: .destructive) { downloadStore.deleteAlbum(album.id) } label: { Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) } }
+                    Button(role: .destructive) { DownloadStore.shared.deleteAlbum(album.id) } label: { Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) } }
                 case .complete:
-                    Button(role: .destructive) { downloadStore.deleteAlbum(album.id) } label: { Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) } }
+                    Button(role: .destructive) { DownloadStore.shared.deleteAlbum(album.id) } label: { Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) } }
                 }
             }
         }
