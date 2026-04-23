@@ -111,7 +111,17 @@ class LibraryViewModel: ObservableObject {
 
     func loadArtists() async {
         guard !isLoadingArtists else { return }
-        guard !OfflineModeService.shared.isOffline else { isLoadingArtists = false; return }
+        guard !OfflineModeService.shared.isOffline else {
+            let map = Dictionary(uniqueKeysWithValues: DownloadStore.shared.artists.compactMap { a -> (String, String)? in
+                guard let cover = a.coverArtId else { return nil }
+                return (a.name, cover)
+            })
+            if !map.isEmpty {
+                NotificationCenter.default.post(name: .libraryArtistsLoaded, object: map)
+            }
+            isLoadingArtists = false
+            return
+        }
         isLoadingArtists = true
         errorMessage = nil
         do {

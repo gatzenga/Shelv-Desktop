@@ -56,13 +56,29 @@ struct CoverArtView: View {
 
     private func loadImage() async {
         guard let url else { image = nil; return }
-        let img: NSImage?
-        if UserDefaults.standard.bool(forKey: "offlineModeEnabled") {
-            img = await ImageCacheService.shared.diskOnlyImage(url: url)
-        } else {
-            img = await ImageCacheService.shared.image(url: url)
+
+        if let hit = ImageCacheService.shared.cachedImage(url: url) {
+            image = hit; return
         }
-        image = img
+
+        let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        if let artId = comps?.queryItems?.first(where: { $0.name == "id" })?.value,
+           let localPath = LocalArtworkIndex.shared.localPath(for: artId) {
+            let loaded: NSImage? = await Task.detached(priority: .medium) {
+                NSImage(contentsOfFile: localPath)
+            }.value
+            if let img = loaded {
+                ImageCacheService.shared.cache(img, url: url)
+                image = img
+                return
+            }
+        }
+
+        if UserDefaults.standard.bool(forKey: "offlineModeEnabled") {
+            image = await ImageCacheService.shared.diskOnlyImage(url: url)
+        } else {
+            image = await ImageCacheService.shared.image(url: url)
+        }
     }
 }
 
