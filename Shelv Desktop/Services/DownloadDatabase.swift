@@ -11,6 +11,8 @@ struct DownloadRecord: Codable, FetchableRecord, PersistableRecord {
     var title: String
     var albumTitle: String
     var artistName: String
+    var albumArtistName: String?
+    var albumCoverArtId: String?
     var track: Int?
     var disc: Int?
     var duration: Int?
@@ -33,6 +35,8 @@ struct DownloadRecord: Codable, FetchableRecord, PersistableRecord {
             title: title,
             albumTitle: albumTitle,
             artistName: artistName,
+            albumArtistName: albumArtistName,
+            albumCoverArtId: albumCoverArtId,
             track: track,
             disc: disc,
             duration: duration,
@@ -132,6 +136,12 @@ actor DownloadDatabase {
         m.registerMigration("v2_add_artist_cover") { db in
             try db.alter(table: "downloads") { t in
                 t.add(column: "artistCoverArtId", .text)
+            }
+        }
+        m.registerMigration("v3_add_album_artist") { db in
+            try db.alter(table: "downloads") { t in
+                t.add(column: "albumArtistName", .text)
+                t.add(column: "albumCoverArtId", .text)
             }
         }
         try m.migrate(p)

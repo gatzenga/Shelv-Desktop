@@ -59,7 +59,7 @@ struct MainWindowView: View {
                 NavigationStack(path: $appState.navigationPath) {
                     sectionRoot
                         .navigationDestination(for: Album.self) { album in
-                            AlbumDetailView(albumId: album.id, albumName: album.name)
+                            AlbumDetailView(albumId: album.id, albumName: album.name, initialCoverArtId: album.coverArt)
                                 .environmentObject(libraryStore)
                         }
                         .navigationDestination(for: Artist.self) { artist in
@@ -89,7 +89,6 @@ struct MainWindowView: View {
                         .padding(.top, 12)
                 }
             }
-            .ignoresSafeArea(edges: .top)
         }
         .animation(.spring(duration: 0.35), value: toastMessage)
         .onChange(of: libraryStore.errorMessage) { _, msg in

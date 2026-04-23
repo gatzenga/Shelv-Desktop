@@ -13,11 +13,14 @@ private struct DownloadJob {
     var downloadURL: URL
     let coverURL: URL?
     let coverArtId: String?
+    let albumCoverArtId: String?
+    let albumCoverURL: URL?
     let artistCoverArtId: String?
     let artistCoverURL: URL?
     let albumId: String
     let albumTitle: String
     let artistName: String
+    let albumArtistName: String?
     let artistId: String?
     let title: String
     let track: Int?
@@ -43,7 +46,6 @@ actor DownloadService {
         return URLSession(configuration: cfg)
     }()
 
-    private let backgroundIdentifier = "ch.vkugler.ShelvDesktop.downloads"
     private let maxConcurrent = 3
     private let maxAttempts = 3
 
@@ -82,9 +84,7 @@ actor DownloadService {
 
     func setup() {
         if session == nil {
-            let cfg = URLSessionConfiguration.background(withIdentifier: backgroundIdentifier)
-            cfg.isDiscretionary = false
-            cfg.sessionSendsLaunchEvents = true
+            let cfg = URLSessionConfiguration.default
             cfg.allowsCellularAccess = true
             cfg.httpMaximumConnectionsPerHost = maxConcurrent
             session = URLSession(configuration: cfg, delegate: coordinator, delegateQueue: nil)
@@ -93,7 +93,8 @@ actor DownloadService {
 
     // MARK: - Enqueueing
 
-    func enqueue(songs: [Song], serverId: String) async {
+    func enqueue(songs: [Song], serverId: String, albumArtistOverride: String? = nil,
+                 albumCoverArtIdOverride: String? = nil) async {
         guard !songs.isEmpty else { return }
         let api = SubsonicAPIService.shared
         guard let cfg = api.currentConfig else { return }
@@ -112,6 +113,8 @@ actor DownloadService {
             let transcoding = TranscodingPolicy.currentDownloadFormat()
             guard let url = api.downloadURL(forConfig: cfg, songId: song.id, transcoding: transcoding) else { continue }
             let cover = song.coverArt.flatMap { api.coverArtURL(forConfig: cfg, id: $0, size: 600) }
+            let albumCoverArtId = albumCoverArtIdOverride
+            let albumCoverURL: URL? = albumCoverArtId.flatMap { api.coverArtURL(forConfig: cfg, id: $0, size: 600) }
             let artistCoverArtId = artistCoverById[song.artist ?? ""]
             let artistCoverURL: URL? = artistCoverArtId.flatMap {
                 api.coverArtURL(forConfig: cfg, id: $0, size: 600)
@@ -126,11 +129,14 @@ actor DownloadService {
                 downloadURL: url,
                 coverURL: cover,
                 coverArtId: song.coverArt,
+                albumCoverArtId: albumCoverArtId,
+                albumCoverURL: albumCoverURL,
                 artistCoverArtId: artistCoverArtId,
                 artistCoverURL: artistCoverURL,
                 albumId: song.albumId ?? "",
                 albumTitle: song.album ?? "",
                 artistName: song.artist ?? "",
+                albumArtistName: albumArtistOverride,
                 artistId: song.artistId,
                 title: song.title,
                 track: song.track,
@@ -153,6 +159,7 @@ actor DownloadService {
         let api = SubsonicAPIService.shared
         do {
             let detail = try await api.getAlbum(id: album.id)
+            let albumArtist = detail.artist ?? album.artist
             let songs = detail.song.map { song -> Song in
                 if song.artist != nil && song.albumId != nil { return song }
                 return Song(
@@ -175,7 +182,8 @@ actor DownloadService {
                     suffix: song.suffix
                 )
             }
-            await enqueue(songs: songs, serverId: serverId)
+            await enqueue(songs: songs, serverId: serverId, albumArtistOverride: albumArtist,
+                         albumCoverArtIdOverride: detail.coverArt)
         } catch {
             DBErrorLog.logPlayLog("DownloadService.enqueueAlbum: \(error.localizedDescription)")
         }
@@ -494,6 +502,8 @@ actor DownloadService {
             title: job.title,
             albumTitle: job.albumTitle,
             artistName: job.artistName,
+            albumArtistName: job.albumArtistName,
+            albumCoverArtId: job.albumCoverArtId,
             track: job.track,
             disc: job.disc,
             duration: job.duration,
@@ -601,10 +611,20 @@ actor DownloadService {
                 try? data.write(to: URL(fileURLWithPath: coverPath), options: .atomic)
             }
         }
+        let artDir = Self.artworkDirectory(serverId: job.serverId)
+        if let artId = job.albumCoverArtId, let artURL = job.albumCoverURL {
+            let artPath = Self.artistCoverPath(serverId: job.serverId, artId: artId)
+            if !FileManager.default.fileExists(atPath: artPath) {
+                try? FileManager.default.createDirectory(at: artDir, withIntermediateDirectories: true)
+                if let (data, _) = try? await coverSession.data(from: artURL) {
+                    try? data.write(to: URL(fileURLWithPath: artPath), options: .atomic)
+                    LocalArtworkIndex.shared.set(artId: artId, path: artPath)
+                }
+            }
+        }
         if let artId = job.artistCoverArtId, let artURL = job.artistCoverURL {
             let artPath = Self.artistCoverPath(serverId: job.serverId, artId: artId)
             if !FileManager.default.fileExists(atPath: artPath) {
-                let artDir = Self.artworkDirectory(serverId: job.serverId)
                 try? FileManager.default.createDirectory(at: artDir, withIntermediateDirectories: true)
                 if let (data, _) = try? await coverSession.data(from: artURL) {
                     try? data.write(to: URL(fileURLWithPath: artPath), options: .atomic)

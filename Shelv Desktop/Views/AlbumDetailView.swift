@@ -4,6 +4,7 @@ import Combine
 struct AlbumDetailView: View {
     let albumId: String
     let albumName: String
+    var initialCoverArtId: String? = nil
     @StateObject private var vm = AlbumDetailViewModel()
     @EnvironmentObject var appState: AppState
     @ObservedObject var libraryStore = LibraryViewModel.shared
@@ -135,8 +136,7 @@ struct AlbumDetailView: View {
                                 isPlaying: player.currentSong?.id == song.id,
                                 showFavorite: enableFavorites,
                                 showPlaylist: enablePlaylists,
-                                isStarred: libraryStore.isSongStarred(song),
-                                albumCoverArt: vm.album?.coverArt
+                                isStarred: libraryStore.isSongStarred(song)
                             ) {
                                 appState.player.play(songs: vm.songs, startIndex: index)
                             } onPlayNext: {
@@ -170,7 +170,7 @@ struct AlbumDetailView: View {
     }
 
     private var coverURL: URL? {
-        let id = vm.album?.coverArt ?? albumId
+        let id = vm.album?.coverArt ?? initialCoverArtId ?? albumId
         return SubsonicAPIService.shared.coverArtURL(id: id, size: 320)
     }
 
@@ -237,7 +237,6 @@ struct TrackRow: View {
     var showFavorite: Bool = false
     var showPlaylist: Bool = false
     var isStarred: Bool = false
-    var albumCoverArt: String? = nil
     let onPlay: () -> Void
     let onPlayNext: () -> Void
     let onAddToQueue: () -> Void
@@ -265,15 +264,6 @@ struct TrackRow: View {
             .font(.callout)
             .frame(width: 36, alignment: .trailing)
             .padding(.leading, 20)
-
-            if let songCover = song.coverArt, songCover != albumCoverArt {
-                CoverArtView(
-                    url: SubsonicAPIService.shared.coverArtURL(id: songCover, size: 80),
-                    size: 36,
-                    cornerRadius: 4
-                )
-                .padding(.leading, 10)
-            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(song.title)

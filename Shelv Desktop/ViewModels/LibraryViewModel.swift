@@ -113,7 +113,9 @@ class LibraryViewModel: ObservableObject {
         guard !isLoadingArtists else { return }
         guard !OfflineModeService.shared.isOffline else {
             let map = Dictionary(uniqueKeysWithValues: DownloadStore.shared.artists.compactMap { a -> (String, String)? in
-                guard let cover = a.coverArtId else { return nil }
+                let cover = a.coverArtId
+                    ?? a.albums.flatMap { $0.songs }.compactMap { $0.artistCoverArtId }.first
+                guard let cover else { return nil }
                 return (a.name, cover)
             })
             if !map.isEmpty {

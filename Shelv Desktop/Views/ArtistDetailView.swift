@@ -193,8 +193,9 @@ struct ArtistDetailView: View {
             if isOffline && sortOption.requiresServer {
                 sortRaw = LibrarySortOption.name.rawValue
             }
+            Task { await vm.load(artistId: artistId, artistName: artistName) }
         }
-        .task(id: artistId) { await vm.load(artistId: artistId) }
+        .task(id: artistId) { await vm.load(artistId: artistId, artistName: artistName) }
     }
 
     private var coverURL: URL? {
@@ -240,22 +241,50 @@ class ArtistDetailViewModel: ObservableObject {
     private let api = SubsonicAPIService.shared
     private let maxSongs = 200
 
-    func load(artistId: String) async {
+    func load(artistId: String, artistName: String) async {
         isLoading = true
         errorMessage = nil
+        if OfflineModeService.shared.isOffline {
+            populateFromLocal(artistId: artistId, artistName: artistName)
+            isLoading = false
+            return
+        }
         do {
             let detail = try await api.getArtist(id: artistId)
             artist = detail
             albums = detail.album.sorted { ($0.year ?? 0) > ($1.year ?? 0) }
         } catch {
-            errorMessage = error.localizedDescription
+            populateFromLocal(artistId: artistId, artistName: artistName)
+            if artist == nil { errorMessage = error.localizedDescription }
         }
         isLoading = false
+    }
+
+    private func populateFromLocal(artistId: String, artistName: String) {
+        let local = DownloadStore.shared.artists.first(where: { $0.artistId == artistId })
+            ?? DownloadStore.shared.artists.first(where: { $0.name == artistName })
+        guard let local else { return }
+        let albumsAsModel = local.albums.map { $0.asAlbum() }
+        artist = ArtistDetail(id: local.artistId, name: local.name,
+                              albumCount: albumsAsModel.count,
+                              coverArt: local.coverArtId,
+                              album: albumsAsModel)
+        albums = albumsAsModel
     }
 
     func playAll(player: AudioPlayerService, shuffle: Bool) async {
         guard !albums.isEmpty else { return }
         isLoadingSongs = true
+        if OfflineModeService.shared.isOffline {
+            let albumIds = Set(albums.map { $0.id })
+            var songs = DownloadStore.shared.songs
+                .filter { albumIds.contains($0.albumId) }
+                .map { $0.asSong() }
+            if songs.count > maxSongs { songs = Array(songs.shuffled().prefix(maxSongs)) }
+            if shuffle { player.playShuffled(songs: songs) } else { player.play(songs: songs) }
+            isLoadingSongs = false
+            return
+        }
         do {
             var songs = try await withThrowingTaskGroup(of: [Song].self) { group in
                 for album in albums {

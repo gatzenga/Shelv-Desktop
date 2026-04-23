@@ -125,6 +125,7 @@ class AudioPlayerService: ObservableObject {
            let local = LocalDownloadIndex.shared.url(songId: songId, serverId: serverId) {
             return local
         }
+        guard !OfflineModeService.shared.isOffline else { return nil }
         return apiService.streamURL(songId: songId)
     }
 
@@ -664,7 +665,12 @@ class AudioPlayerService: ObservableObject {
         let song = queueItem.song
         currentSong = song
         hasScrobbledCurrent = false
-        guard let url = resolveURL(songId: song.id) else { return }
+        guard let url = resolveURL(songId: song.id) else {
+            if OfflineModeService.shared.isOffline {
+                NotificationCenter.default.post(name: .showToast, object: tr("Not available offline", "Offline nicht verfügbar"))
+            }
+            return
+        }
         loadURL(url, song: song)
     }
 

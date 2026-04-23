@@ -40,7 +40,7 @@ struct SearchView: View {
             } else if vm.isEmpty && lyricsResults.isEmpty && !vm.query.isEmpty {
                 ContentUnavailableView.search(text: vm.query)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if vm.isEmpty {
+            } else if vm.isEmpty && lyricsResults.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 48))
@@ -156,20 +156,27 @@ struct SearchView: View {
         guard !serverId.isEmpty else { return }
         var results = await LyricsService.shared.searchLyrics(text: query, serverId: serverId)
         guard !Task.isCancelled else { return }
+        if OfflineModeService.shared.isOffline {
+            let downloadedIds = Set(DownloadStore.shared.songs.map { $0.songId })
+            results = results.filter { downloadedIds.contains($0.songId) }
+            lyricsResults = results
+            return
+        }
         lyricsResults = results
-        let missing = results.filter { $0.songTitle == nil }
+        let missing = results.filter { $0.songTitle == nil || $0.duration == nil }
         for item in missing {
             guard !Task.isCancelled else { return }
             guard let song = try? await SubsonicAPIService.shared.getSong(id: item.songId) else { continue }
             await LyricsService.shared.updateMetadata(
                 songId: item.songId, serverId: serverId,
-                title: song.title, artist: song.artist, coverArt: song.coverArt
+                title: song.title, artist: song.artist, coverArt: song.coverArt,
+                duration: song.duration
             )
             if let idx = results.firstIndex(where: { $0.songId == item.songId }) {
                 results[idx] = LyricsSearchResult(
                     songId: item.songId, songTitle: song.title,
                     artistName: song.artist, coverArt: song.coverArt,
-                    snippet: item.snippet
+                    snippet: item.snippet, duration: song.duration
                 )
                 lyricsResults = results
             }
@@ -198,11 +205,12 @@ struct SearchView: View {
             let serverId = appState.serverStore.activeServerID?.uuidString ?? ""
             if let song = try? await SubsonicAPIService.shared.getSong(id: item.songId) {
                 appState.player.play(songs: [song], startIndex: 0)
-                if (item.songTitle == nil || item.artistName == nil || item.coverArt == nil) && !serverId.isEmpty {
+                if (item.songTitle == nil || item.artistName == nil || item.coverArt == nil || item.duration == nil) && !serverId.isEmpty {
                     Task.detached(priority: .utility) {
                         await LyricsService.shared.updateMetadata(
                             songId: item.songId, serverId: serverId,
-                            title: song.title, artist: song.artist, coverArt: song.coverArt
+                            title: song.title, artist: song.artist, coverArt: song.coverArt,
+                            duration: song.duration
                         )
                     }
                 }
@@ -407,23 +415,17 @@ class SearchViewModel: ObservableObject {
         guard !stable.isEmpty else { artists = []; albums = []; songs = []; return }
         let records = await DownloadDatabase.shared.search(serverId: stable, query: query, limit: 100)
         guard !Task.isCancelled else { return }
-        let downloaded = records.map { $0.toDownloadedSong() }
-        songs = downloaded.map { $0.asSong() }
-        let albumGroups = Dictionary(grouping: records) { $0.albumId }
-        albums = albumGroups.map { key, group -> Album in
-            let f = group.first!
-            return Album(id: key, name: f.albumTitle, artist: f.artistName,
-                         artistId: f.artistId, coverArt: f.coverArtId,
-                         songCount: group.count, duration: nil, year: nil, genre: nil,
-                         starred: nil, playCount: nil, created: nil)
-        }
-        let artistGroups = Dictionary(grouping: records) { $0.artistName }
-        artists = artistGroups.compactMap { name, group -> Artist? in
-            let f = group.first!
-            return Artist(id: f.artistId ?? "name:\(name)", name: name,
-                          albumCount: Set(group.map(\.albumId)).count,
-                          coverArt: f.coverArtId, starred: nil)
-        }
+        songs = records.map { $0.toDownloadedSong().asSong() }
+
+        let q = query.lowercased()
+
+        albums = DownloadStore.shared.albums
+            .filter { $0.title.lowercased().contains(q) || $0.artistName.lowercased().contains(q) }
+            .map { $0.asAlbum() }
+
+        artists = DownloadStore.shared.artists
+            .filter { $0.name.lowercased().contains(q) }
+            .map { $0.asArtist() }
     }
 
     func clearResults() {
@@ -473,6 +475,12 @@ struct LyricsSearchRow: View {
                     .italic()
             }
             Spacer()
+            if let dur = item.duration {
+                Text(String(format: "%d:%02d", dur / 60, dur % 60))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
             DownloadStatusIcon(songId: item.songId)
             Button { onPlay() } label: {
                 Image(systemName: "play.circle")

@@ -37,7 +37,7 @@ struct ServerErrorBanner: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(Color.orange.gradient, in: RoundedRectangle(cornerRadius: 12))
-            .padding(.horizontal, 12)
+            .frame(maxWidth: 480)
             .padding(.top, 12)
             .transition(.move(edge: .top).combined(with: .opacity))
         }
