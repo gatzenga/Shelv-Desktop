@@ -5,6 +5,7 @@ struct DiscoverView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var libraryStore = LibraryViewModel.shared
     @ObservedObject var offlineMode = OfflineModeService.shared
+    @AppStorage("recapEnabled") private var recapEnabled = false
     @State private var mixLoading: String?
 
     @ViewBuilder
@@ -12,6 +13,14 @@ struct DiscoverView: View {
         if offlineMode.isOffline {
             offlineEmptyState
                 .navigationTitle(tr("Discover", "Entdecken"))
+                .toolbar {
+                    ToolbarItem(placement: .automatic) {
+                        ThemePickerButton()
+                    }
+                    ToolbarItem(placement: .automatic) {
+                        OfflineRecapToolbarItem()
+                    }
+                }
         } else {
             onlineBody
         }
@@ -135,8 +144,10 @@ struct DiscoverView: View {
             ToolbarItem(placement: .automatic) {
                 Divider()
             }
-            ToolbarItem(placement: .automatic) {
-                RecapToolbarButton()
+            if recapEnabled {
+                ToolbarItem(placement: .automatic) {
+                    RecapToolbarButton()
+                }
             }
             ToolbarItem(placement: .automatic) {
                 InsightsToolbarButton()
@@ -392,6 +403,18 @@ struct ThemePickerPopover: View {
         }
         .padding(16)
         .frame(width: 240)
+    }
+}
+
+private struct OfflineRecapToolbarItem: View {
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @ObservedObject private var recapStore = RecapStore.shared
+    @AppStorage("recapEnabled") private var recapEnabled = false
+
+    var body: some View {
+        if recapEnabled && !downloadStore.downloadedPlaylistIds.isDisjoint(with: recapStore.recapPlaylistIds) {
+            RecapToolbarButton()
+        }
     }
 }
 

@@ -63,7 +63,7 @@ Shelv applies separate policies for three situations:
 | Situation | What it controls |
 |-----------|-----------------|
 | **Wi-Fi streaming** | Format and bitrate when streaming over Wi-Fi |
-| **Ethernet / other streaming** | Format and bitrate when streaming over a wired or unrecognised connection |
+| **Cellular streaming** | Format and bitrate when streaming over a cellular or unrecognised connection |
 | **Downloads** | Format and bitrate when saving songs to your Mac |
 
 For each situation you can choose:
@@ -96,5 +96,5 @@ Individual albums and artists can be deleted from the Downloads tab or from thei
 | Storage limit | Maximum storage Shelv will use for the bulk download queue. Songs already queued finish even if the limit is reached mid-batch. |
 | Enable Transcoding | When off, all streams and downloads use the original file format from the server. Accessible via Playback → Transcoding Settings. |
 | Wi-Fi format / bitrate | Codec and bitrate used when streaming over Wi-Fi (if transcoding is on). |
-| Cellular / other format / bitrate | Codec and bitrate used for other network types (if transcoding is on). |
+| Cellular format / bitrate | Codec and bitrate used for cellular or unrecognised network types (if transcoding is on). |
 | Download format / bitrate | Codec and bitrate used when saving songs to the device (if transcoding is on). |

@@ -5,10 +5,13 @@ struct RecapView: View {
     @ObservedObject var libraryStore = LibraryViewModel.shared
     @StateObject private var recapStore = RecapStore.shared
     @Environment(\.themeColor) private var themeColor
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @ObservedObject private var offlineMode = OfflineModeService.shared
     @AppStorage("recapEnabled") private var recapEnabled = false
     @AppStorage("recapWeeklyEnabled") private var weeklyEnabled = true
     @AppStorage("recapMonthlyEnabled") private var monthlyEnabled = true
     @AppStorage("recapYearlyEnabled") private var yearlyEnabled = true
+    @AppStorage("enableDownloads") private var enableDownloads = false
 
     @State private var segment: RecapPeriod.PeriodType = .week
     @State private var entryToDelete: RecapRegistryRecord?
@@ -67,6 +70,62 @@ struct RecapView: View {
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                                 .contextMenu {
+                                    Button(tr("Play Next", "Als nächstes abspielen")) {
+                                        Task {
+                                            if let detail = try? await SubsonicAPIService.shared.getPlaylist(id: entry.playlistId),
+                                               let songs = detail.songs, !songs.isEmpty {
+                                                AudioPlayerService.shared.addPlayNext(songs)
+                                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                            } else {
+                                                NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
+                                            }
+                                        }
+                                    }
+                                    Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) {
+                                        Task {
+                                            if let detail = try? await SubsonicAPIService.shared.getPlaylist(id: entry.playlistId),
+                                               let songs = detail.songs, !songs.isEmpty {
+                                                AudioPlayerService.shared.addToUserQueue(songs)
+                                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                            } else {
+                                                NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
+                                            }
+                                        }
+                                    }
+                                    if enableDownloads {
+                                        Divider()
+                                        let recapType = RecapPeriod.PeriodType(rawValue: entry.periodType) ?? .week
+                                        let recapPeriod = RecapPeriod(type: recapType, start: Date(timeIntervalSince1970: entry.periodStart), end: Date(timeIntervalSince1970: entry.periodEnd))
+                                        let isMarked = downloadStore.downloadedPlaylistIds.contains(entry.playlistId)
+                                        if isMarked {
+                                            Button(role: .destructive) {
+                                                Task {
+                                                    if let detail = try? await SubsonicAPIService.shared.getPlaylist(id: entry.playlistId),
+                                                       let songs = detail.songs {
+                                                        for song in songs where downloadStore.isDownloaded(songId: song.id) {
+                                                            downloadStore.deleteSong(song.id)
+                                                        }
+                                                    }
+                                                    downloadStore.unmarkPlaylistDownloaded(id: entry.playlistId)
+                                                }
+                                            } label: {
+                                                Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                                            }
+                                        } else if !offlineMode.isOffline {
+                                            Button(tr("Download", "Herunterladen")) {
+                                                Task {
+                                                    if let detail = try? await SubsonicAPIService.shared.getPlaylist(id: entry.playlistId),
+                                                       let songs = detail.songs {
+                                                        let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
+                                                        if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
+                                                        downloadStore.markPlaylistDownloaded(id: entry.playlistId, name: recapPeriod.playlistName)
+                                                        NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Divider()
                                     Button(role: .destructive) {
                                         entryToDelete = entry
                                     } label: {

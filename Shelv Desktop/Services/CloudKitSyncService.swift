@@ -654,7 +654,7 @@ actor CloudKitSyncService {
         await uploadPendingEvents()
         await downloadChanges()
         await uploadPendingEvents()
-        await reuploadRecapMarkers(onlyLocalOnly: true)
+        await reuploadAllRecapMarkers()
         await flushScrobbleQueue()
         log("Sync done")
     }

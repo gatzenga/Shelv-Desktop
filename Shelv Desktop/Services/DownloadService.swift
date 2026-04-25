@@ -104,6 +104,26 @@ actor DownloadService {
                 a.coverArt.map { (a.name, $0) }
             })
         }
+
+        // Album-Metadaten vorab fetchen wenn keine Overrides vorliegen, damit
+        // Kompilationsalben (z.B. "Various Artists") korrekte albumArtistName und
+        // albumCoverArtId erhalten statt dem ersten Track-Künstler/-Cover.
+        var albumDetails: [String: (artist: String?, coverArt: String?)] = [:]
+        if albumArtistOverride == nil || albumCoverArtIdOverride == nil {
+            let neededIds = Set(songs.compactMap { $0.albumId }).filter { !$0.isEmpty }
+            await withTaskGroup(of: (String, String?, String?)?.self) { group in
+                for albumId in neededIds {
+                    group.addTask {
+                        guard let detail = try? await api.getAlbum(id: albumId) else { return nil }
+                        return (albumId, detail.artist, detail.coverArt)
+                    }
+                }
+                for await result in group {
+                    if let (id, artist, cover) = result { albumDetails[id] = (artist, cover) }
+                }
+            }
+        }
+
         var added = 0
         for song in songs {
             let key = Self.key(songId: song.id, serverId: serverId)
@@ -113,9 +133,11 @@ actor DownloadService {
             let transcoding = TranscodingPolicy.currentDownloadFormat()
             guard let url = api.downloadURL(forConfig: cfg, songId: song.id, transcoding: transcoding) else { continue }
             let cover = song.coverArt.flatMap { api.coverArtURL(forConfig: cfg, id: $0, size: 600) }
-            let albumCoverArtId = albumCoverArtIdOverride
-            let albumCoverURL: URL? = albumCoverArtId.flatMap { api.coverArtURL(forConfig: cfg, id: $0, size: 600) }
-            let artistCoverArtId = artistCoverById[albumArtistOverride ?? song.artist ?? ""]
+            let lookedUp = song.albumId.flatMap { albumDetails[$0] }
+            let resolvedAlbumArtist = albumArtistOverride ?? lookedUp?.artist
+            let resolvedAlbumCover = albumCoverArtIdOverride ?? lookedUp?.coverArt
+            let albumCoverURL: URL? = resolvedAlbumCover.flatMap { api.coverArtURL(forConfig: cfg, id: $0, size: 600) }
+            let artistCoverArtId = artistCoverById[resolvedAlbumArtist ?? song.artist ?? ""]
             let artistCoverURL: URL? = artistCoverArtId.flatMap {
                 api.coverArtURL(forConfig: cfg, id: $0, size: 600)
             }
@@ -129,14 +151,14 @@ actor DownloadService {
                 downloadURL: url,
                 coverURL: cover,
                 coverArtId: song.coverArt,
-                albumCoverArtId: albumCoverArtId,
+                albumCoverArtId: resolvedAlbumCover,
                 albumCoverURL: albumCoverURL,
                 artistCoverArtId: artistCoverArtId,
                 artistCoverURL: artistCoverURL,
                 albumId: song.albumId ?? "",
                 albumTitle: song.album ?? "",
                 artistName: song.artist ?? "",
-                albumArtistName: albumArtistOverride,
+                albumArtistName: resolvedAlbumArtist,
                 artistId: song.artistId,
                 title: song.title,
                 track: song.track,

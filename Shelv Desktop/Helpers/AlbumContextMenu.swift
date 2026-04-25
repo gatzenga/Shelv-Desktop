@@ -3,6 +3,7 @@ import SwiftUI
 struct AlbumContextMenuModifier: ViewModifier {
     let album: Album
     @ObservedObject var libraryStore = LibraryViewModel.shared
+    @ObservedObject private var downloadStore = DownloadStore.shared
     @ObservedObject private var offlineMode = OfflineModeService.shared
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
@@ -53,7 +54,7 @@ struct AlbumContextMenuModifier: ViewModifier {
             }
             if enableDownloads {
                 Divider()
-                let status = DownloadStore.shared.albumDownloadStatus(albumId: album.id, totalSongs: album.songCount ?? 0)
+                let status = downloadStore.albumDownloadStatus(albumId: album.id, totalSongs: album.songCount ?? 0)
                 switch status {
                 case .none:
                     if !offlineMode.isOffline {

@@ -776,10 +776,15 @@ class AudioPlayerService: ObservableObject {
         guard currentTime >= triggerAt else { return }
         guard !(repeatMode == .one && playNextQueue.isEmpty) else { return }
         guard let nextSong = peekNextSong() else { return }
+        guard !isCrossfadeIncompatibleRoute else { return }
         crossfadeTriggered = true
         advanceQueueState()
         crossfadeToSong(nextSong)
         saveState()
+    }
+
+    private var isCrossfadeIncompatibleRoute: Bool {
+        engine.isExternalPlaybackActive
     }
 
     private func crossfadeToSong(_ song: Song) {

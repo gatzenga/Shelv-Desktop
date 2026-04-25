@@ -17,6 +17,7 @@ final class CrossfadeEngine: ObservableObject {
         }
     }
     var onTrackFinished: (() -> Void)?
+    var isExternalPlaybackActive: Bool { activePlayer.isExternalPlaybackActive }
 
     private let playerA: AVPlayer
     private let playerB: AVPlayer
@@ -39,8 +40,8 @@ final class CrossfadeEngine: ObservableObject {
     init() {
         let a = AVPlayer()
         let b = AVPlayer()
-        a.allowsExternalPlayback = false
-        b.allowsExternalPlayback = false
+        a.allowsExternalPlayback = true
+        b.allowsExternalPlayback = true
         a.automaticallyWaitsToMinimizeStalling = false
         b.automaticallyWaitsToMinimizeStalling = false
         playerA = a
