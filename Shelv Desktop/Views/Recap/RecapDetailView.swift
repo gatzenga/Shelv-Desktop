@@ -6,6 +6,8 @@ struct RecapDetailView: View {
 
     @ObservedObject private var libraryStore = LibraryViewModel.shared
     @Environment(\.themeColor) private var themeColor
+    @AppStorage("enableFavorites") private var enableFavorites = true
+    @AppStorage("enablePlaylists") private var enablePlaylists = true
     @State private var songs: [SongWithCount] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -62,6 +64,33 @@ struct RecapDetailView: View {
                         .buttonStyle(.plain)
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                        .contextMenu {
+                            Button(tr("Play", "Abspielen")) {
+                                AudioPlayerService.shared.play(songs: songs.map { $0.song }, startIndex: idx)
+                            }
+                            Divider()
+                            Button(tr("Play Next", "Als nächstes abspielen")) {
+                                AudioPlayerService.shared.addPlayNext(entry.song)
+                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                            }
+                            Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) {
+                                AudioPlayerService.shared.addToUserQueue(entry.song)
+                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                            }
+                            if enableFavorites || enablePlaylists {
+                                Divider()
+                                if enableFavorites {
+                                    Button(tr("Add to Favorites", "Zu Favoriten hinzufügen")) {
+                                        Task { await libraryStore.toggleStarSong(entry.song) }
+                                    }
+                                }
+                                if enablePlaylists {
+                                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) {
+                                        NotificationCenter.default.post(name: .addSongsToPlaylist, object: [entry.song.id])
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 .listStyle(.plain)

@@ -70,6 +70,27 @@ struct RecapView: View {
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                                 .contextMenu {
+                                    Button(tr("Play", "Abspielen")) {
+                                        Task {
+                                            if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
+                                               let songs = detail.songs, !songs.isEmpty {
+                                                AudioPlayerService.shared.play(songs: songs)
+                                            } else {
+                                                NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
+                                            }
+                                        }
+                                    }
+                                    Button(tr("Shuffle", "Zufällig abspielen")) {
+                                        Task {
+                                            if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
+                                               let songs = detail.songs, !songs.isEmpty {
+                                                AudioPlayerService.shared.playShuffled(songs: songs)
+                                            } else {
+                                                NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
+                                            }
+                                        }
+                                    }
+                                    Divider()
                                     Button(tr("Play Next", "Als nächstes abspielen")) {
                                         Task {
                                             if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
