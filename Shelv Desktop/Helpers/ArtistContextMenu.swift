@@ -112,6 +112,11 @@ struct ArtistContextMenuModifier: ViewModifier {
     }
 
     private func fetchSongs() async throws -> [Song] {
+        if offlineMode.isOffline {
+            return DownloadStore.shared.artists
+                .first { $0.name == artist.name }?
+                .albums.flatMap { $0.songs.map { $0.asSong() } } ?? []
+        }
         let detail = try await SubsonicAPIService.shared.getArtist(id: artist.id)
         return try await withThrowingTaskGroup(of: [Song].self) { group -> [Song] in
             for album in detail.album {

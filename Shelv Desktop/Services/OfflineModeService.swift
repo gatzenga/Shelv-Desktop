@@ -39,7 +39,6 @@ final class OfflineModeService: ObservableObject {
 
     func notifyServerError(_ message: String? = nil) {
         guard !isOffline else { return }
-        guard downloadsFeatureEnabled else { return }
         if let until = bannerCooldownUntil, Date() < until { return }
         bannerCooldownUntil = Date().addingTimeInterval(60)
         lastServerErrorMessage = message
@@ -48,11 +47,13 @@ final class OfflineModeService: ObservableObject {
 
     func dismissBanner() {
         serverErrorBannerVisible = false
+        bannerCooldownUntil = nil
     }
 
     func enterOfflineMode() {
         isOffline = true
         serverErrorBannerVisible = false
+        bannerCooldownUntil = nil
     }
 
     func exitOfflineMode() {

@@ -21,6 +21,9 @@ struct DiscoverView: View {
                         OfflineRecapToolbarItem()
                     }
                 }
+                .onChange(of: offlineMode.isOffline) { _, isOffline in
+                    if !isOffline { Task { await vm.load() } }
+                }
         } else {
             onlineBody
         }
@@ -130,10 +133,15 @@ struct DiscoverView: View {
             ToolbarItem(placement: .automatic) {
                 Button {
                     Task {
+                        let bannerTask = Task {
+                            try? await Task.sleep(for: .seconds(3))
+                            if !Task.isCancelled { offlineMode.notifyServerError() }
+                        }
                         async let discover:  Void = vm.load()
                         async let playlists: Void = libraryStore.loadPlaylists()
                         async let sync:      Void = CloudKitSyncService.shared.syncNow()
                         _ = await (discover, playlists, sync)
+                        bannerTask.cancel()
                     }
                 } label: {
                     Image(systemName: "arrow.clockwise")
@@ -154,6 +162,12 @@ struct DiscoverView: View {
             }
         }
         .task { await vm.load() }
+        .task(id: vm.isLoading) {
+            guard vm.isLoading else { return }
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled, vm.isLoading else { return }
+            offlineMode.notifyServerError()
+        }
         .onChange(of: appState.serverStore.activeServerID) { _, _ in
             vm.reset()
             Task { await vm.load() }

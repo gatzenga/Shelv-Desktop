@@ -249,6 +249,7 @@ actor DownloadDatabase {
         safeWrite { db in
             try db.execute(sql: "DELETE FROM downloads")
             try db.execute(sql: "DELETE FROM missing_song_strikes")
+            try db.execute(sql: "DELETE FROM downloaded_playlists")
         }
     }
 

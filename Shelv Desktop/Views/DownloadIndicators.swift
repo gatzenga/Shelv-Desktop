@@ -98,3 +98,21 @@ struct AlbumDownloadBadge: View {
         }
     }
 }
+
+struct PlaylistDownloadBadge: View {
+    let playlistId: String
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @Environment(\.themeColor) private var themeColor
+    @AppStorage("enableDownloads") private var enableDownloads = false
+
+    var body: some View {
+        if enableDownloads && downloadStore.downloadedPlaylistIds.contains(playlistId) {
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.caption)
+                .foregroundStyle(.white)
+                .padding(4)
+                .background(themeColor, in: Circle())
+                .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+        }
+    }
+}

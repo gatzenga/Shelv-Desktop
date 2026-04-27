@@ -92,7 +92,7 @@ struct MainWindowView: View {
         }
         .animation(.spring(duration: 0.35), value: toastMessage)
         .onChange(of: libraryStore.errorMessage) { _, msg in
-            guard let msg, OfflineModeService.shared.downloadsFeatureEnabled else { return }
+            guard let msg else { return }
             offlineMode.notifyServerError(msg)
         }
         .onReceive(NotificationCenter.default.publisher(for: .addSongsToPlaylist)) { notification in

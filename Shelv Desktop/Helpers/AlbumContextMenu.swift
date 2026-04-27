@@ -78,6 +78,13 @@ struct AlbumContextMenuModifier: ViewModifier {
 
     private func withAlbumSongs(errorMsg: String, _ action: @MainActor @escaping ([Song]) -> Void) {
         Task {
+            if offlineMode.isOffline {
+                let songs = DownloadStore.shared.albums
+                    .first { $0.albumId == album.id }?
+                    .songs.map { $0.asSong() } ?? []
+                await MainActor.run { action(songs) }
+                return
+            }
             do {
                 let detail = try await SubsonicAPIService.shared.getAlbum(id: album.id)
                 await MainActor.run { action(detail.song) }

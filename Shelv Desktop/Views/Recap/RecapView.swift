@@ -72,7 +72,7 @@ struct RecapView: View {
                                 .contextMenu {
                                     Button(tr("Play Next", "Als nächstes abspielen")) {
                                         Task {
-                                            if let detail = try? await SubsonicAPIService.shared.getPlaylist(id: entry.playlistId),
+                                            if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
                                                let songs = detail.songs, !songs.isEmpty {
                                                 AudioPlayerService.shared.addPlayNext(songs)
                                                 NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
@@ -83,7 +83,7 @@ struct RecapView: View {
                                     }
                                     Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) {
                                         Task {
-                                            if let detail = try? await SubsonicAPIService.shared.getPlaylist(id: entry.playlistId),
+                                            if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
                                                let songs = detail.songs, !songs.isEmpty {
                                                 AudioPlayerService.shared.addToUserQueue(songs)
                                                 NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
@@ -100,7 +100,7 @@ struct RecapView: View {
                                         if isMarked {
                                             Button(role: .destructive) {
                                                 Task {
-                                                    if let detail = try? await SubsonicAPIService.shared.getPlaylist(id: entry.playlistId),
+                                                    if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
                                                        let songs = detail.songs {
                                                         for song in songs where downloadStore.isDownloaded(songId: song.id) {
                                                             downloadStore.deleteSong(song.id)
@@ -114,7 +114,7 @@ struct RecapView: View {
                                         } else if !offlineMode.isOffline {
                                             Button(tr("Download", "Herunterladen")) {
                                                 Task {
-                                                    if let detail = try? await SubsonicAPIService.shared.getPlaylist(id: entry.playlistId),
+                                                    if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
                                                        let songs = detail.songs {
                                                         let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
                                                         if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
@@ -241,6 +241,7 @@ struct RecapView: View {
             }
 
             Spacer(minLength: 0)
+            PlaylistDownloadBadge(playlistId: entry.playlistId)
             Image(systemName: "chevron.right")
                 .font(.caption.bold())
                 .foregroundStyle(.tertiary)

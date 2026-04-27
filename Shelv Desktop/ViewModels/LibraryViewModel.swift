@@ -251,10 +251,19 @@ class LibraryViewModel: ObservableObject {
     // MARK: - Playlists
 
     func loadPlaylists() async {
-        guard !OfflineModeService.shared.isOffline else { isLoadingPlaylists = false; return }
+        if OfflineModeService.shared.isOffline {
+            if playlists.isEmpty, let serverId = AppState.shared.serverStore.activeServer?.stableId {
+                playlists = loadPlaylistsCache(serverId: serverId)
+            }
+            isLoadingPlaylists = false
+            return
+        }
         isLoadingPlaylists = true
         do {
             playlists = try await api.getPlaylists()
+            if let serverId = AppState.shared.serverStore.activeServer?.stableId {
+                savePlaylistsCache(playlists, serverId: serverId)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -263,11 +272,48 @@ class LibraryViewModel: ObservableObject {
 
     func loadPlaylistDetail(id: String) async -> PlaylistDetail? {
         do {
-            return try await api.getPlaylist(id: id)
+            let detail = try await api.getPlaylist(id: id)
+            savePlaylistDetailCache(detail)
+            return detail
         } catch {
+            if let cached = loadPlaylistDetailCache(id: id) {
+                return cached
+            }
             errorMessage = error.localizedDescription
             return nil
         }
+    }
+
+    private static var playlistCacheDir: URL {
+        FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("shelv_playlist_cache")
+    }
+
+    private func savePlaylistsCache(_ playlists: [Playlist], serverId: String) {
+        guard let data = try? JSONEncoder().encode(playlists) else { return }
+        let url = Self.playlistCacheDir.appendingPathComponent("playlist_list_\(serverId).json")
+        try? FileManager.default.createDirectory(at: Self.playlistCacheDir, withIntermediateDirectories: true)
+        try? data.write(to: url)
+    }
+
+    private func loadPlaylistsCache(serverId: String) -> [Playlist] {
+        let url = Self.playlistCacheDir.appendingPathComponent("playlist_list_\(serverId).json")
+        guard let data = try? Data(contentsOf: url) else { return [] }
+        return (try? JSONDecoder().decode([Playlist].self, from: data)) ?? []
+    }
+
+    private func savePlaylistDetailCache(_ detail: PlaylistDetail) {
+        let dir = Self.playlistCacheDir
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent("playlist_\(detail.id).json")
+        try? JSONEncoder().encode(detail).write(to: url)
+    }
+
+    private func loadPlaylistDetailCache(id: String) -> PlaylistDetail? {
+        let url = Self.playlistCacheDir.appendingPathComponent("playlist_\(id).json")
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(PlaylistDetail.self, from: data)
     }
 
     func createPlaylist(name: String) async {

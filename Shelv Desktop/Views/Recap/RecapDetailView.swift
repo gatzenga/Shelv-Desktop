@@ -4,6 +4,7 @@ struct RecapDetailView: View {
     let entry: RecapRegistryRecord
     let serverId: String
 
+    @ObservedObject private var libraryStore = LibraryViewModel.shared
     @Environment(\.themeColor) private var themeColor
     @State private var songs: [SongWithCount] = []
     @State private var isLoading = true
@@ -127,23 +128,22 @@ struct RecapDetailView: View {
         isLoading = true
         defer { isLoading = false }
 
-        do {
-            let playlist = try await SubsonicAPIService.shared.getPlaylist(id: entry.playlistId)
-            let playlistSongs = playlist.songs ?? []
+        guard let playlist = await libraryStore.loadPlaylistDetail(id: entry.playlistId) else {
+            errorMessage = tr("Playlist could not be loaded.", "Playlist konnte nicht geladen werden.")
+            return
+        }
+        let playlistSongs = playlist.songs ?? []
 
-            let counts = await PlayLogService.shared.topSongs(
-                serverId: serverId,
-                from: Date(timeIntervalSince1970: entry.periodStart),
-                to: Date(timeIntervalSince1970: entry.periodEnd),
-                limit: period.type.songLimit
-            )
-            let countMap = Dictionary(uniqueKeysWithValues: counts.map { ($0.songId, $0.count) })
+        let counts = await PlayLogService.shared.topSongs(
+            serverId: serverId,
+            from: Date(timeIntervalSince1970: entry.periodStart),
+            to: Date(timeIntervalSince1970: entry.periodEnd),
+            limit: period.type.songLimit
+        )
+        let countMap = Dictionary(uniqueKeysWithValues: counts.map { ($0.songId, $0.count) })
 
-            songs = playlistSongs.map { song in
-                SongWithCount(id: song.id, song: song, playCount: countMap[song.id] ?? 0)
-            }
-        } catch {
-            errorMessage = error.localizedDescription
+        songs = playlistSongs.map { song in
+            SongWithCount(id: song.id, song: song, playCount: countMap[song.id] ?? 0)
         }
     }
 }
