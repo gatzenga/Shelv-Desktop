@@ -872,11 +872,13 @@ struct AboutTab: View {
                 .foregroundStyle(.secondary)
             Divider()
             HStack(spacing: 16) {
+                Link(tr("Developer Website", "Developer-Website"), destination: URL(string: "https://vkugler.app")!)
+                Text("·").foregroundStyle(.secondary)
                 Link("GitHub", destination: URL(string: "https://github.com/gatzenga/Shelv-Desktop")!)
                 Text("·").foregroundStyle(.secondary)
-                Link(tr("Privacy Policy", "Datenschutz"), destination: URL(string: "https://gatzenga.github.io/Shelv-Desktop/privacy.html")!)
+                Link(tr("Privacy Policy", "Datenschutz"), destination: URL(string: "https://vkugler.app/shelv_privacy.html")!)
                 Text("·").foregroundStyle(.secondary)
-                Link(tr("Contact", "Kontakt"), destination: URL(string: "mailto:kontakt@vkugler.ch")!)
+                Link(tr("Contact", "Kontakt"), destination: URL(string: "mailto:contact@vkugler.app")!)
                 Text("·").foregroundStyle(.secondary)
                 Link("Discord", destination: URL(string: "https://discord.gg/UdJK5mpmZu")!)
             }
