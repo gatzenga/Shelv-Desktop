@@ -156,9 +156,7 @@ struct Shelv_DesktopApp: App {
                 }
                 .keyboardShortcut(.leftArrow, modifiers: .command)
                 Divider()
-                CrossfadeMenuItem()
-                LyricsSettingsMenuItem()
-                TranscodingMenuItem()
+                PlaybackSettingsMenuItem()
             }
 
             CommandGroup(after: .sidebar) {
@@ -174,28 +172,14 @@ struct Shelv_DesktopApp: App {
             }
         }
 
-        Window(tr("Lyrics", "Lyrics"), id: "lyrics-settings") {
-            LyricsSettingsPanel()
+        Window(tr("Playback Settings", "Wiedergabe-Einstellungen"), id: "playback-settings") {
+            PlaybackSettingsWindow()
                 .environmentObject(appState)
                 .environmentObject(LyricsStore.shared)
                 .tint(AppTheme.color(for: themeColorName))
                 .environment(\.themeColor, AppTheme.color(for: themeColorName))
         }
-        .windowResizability(.contentSize)
-
-        Window(tr("Crossfade", "Crossfade"), id: "crossfade") {
-            CrossfadePanel()
-                .tint(AppTheme.color(for: themeColorName))
-                .environment(\.themeColor, AppTheme.color(for: themeColorName))
-        }
-        .windowResizability(.contentSize)
-
-        Window(tr("Transcoding", "Transcoding"), id: "transcoding") {
-            TranscodingPanel()
-                .tint(AppTheme.color(for: themeColorName))
-                .environment(\.themeColor, AppTheme.color(for: themeColorName))
-        }
-        .windowResizability(.contentSize)
+        .defaultSize(width: 820, height: 660)
 
         Window(tr("Insights", "Insights"), id: "insights") {
             InsightsView()
@@ -231,32 +215,12 @@ struct Shelv_DesktopApp: App {
     }
 }
 
-struct LyricsSettingsMenuItem: View {
+struct PlaybackSettingsMenuItem: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button(tr("Lyrics…", "Lyrics…")) {
-            openWindow(id: "lyrics-settings")
-        }
-    }
-}
-
-struct CrossfadeMenuItem: View {
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Button(tr("Crossfade…", "Crossfade…")) {
-            openWindow(id: "crossfade")
-        }
-    }
-}
-
-struct TranscodingMenuItem: View {
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Button(tr("Transcoding…", "Transcoding…")) {
-            openWindow(id: "transcoding")
+        Button(tr("Playback Settings", "Wiedergabe-Einstellungen")) {
+            openWindow(id: "playback-settings")
         }
     }
 }

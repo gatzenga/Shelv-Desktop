@@ -82,8 +82,6 @@ struct LyricsSettingsPanel: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 340)
-        .fixedSize()
         .task {
             await lyricsStore.refreshFetchedCount(serverId: serverId)
             lyricsStore.refreshDbSize()

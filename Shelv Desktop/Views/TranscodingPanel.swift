@@ -43,8 +43,6 @@ struct TranscodingPanel: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 360)
-        .fixedSize(horizontal: true, vertical: false)
     }
 
     @ViewBuilder

@@ -50,7 +50,5 @@ struct CrossfadePanel: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 300)
-        .fixedSize()
     }
 }
