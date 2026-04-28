@@ -5,16 +5,21 @@ struct PlaybackSettingsWindow: View {
         TabView {
             CrossfadePanel()
                 .tabItem {
-                    Label(tr("Crossfade & Gapless", "Crossfade & Gapless"), systemImage: "waveform")
+                    Image(systemName: "waveform")
+                    Text(tr("Crossfade & Gapless", "Crossfade & Gapless"))
                 }
             LyricsSettingsPanel()
                 .tabItem {
-                    Label(tr("Lyrics", "Lyrics"), systemImage: "music.note.list")
+                    Image(systemName: "music.note.list")
+                    Text(tr("Lyrics", "Lyrics"))
                 }
             TranscodingPanel()
                 .tabItem {
-                    Label(tr("Transcoding", "Transcoding"), systemImage: "waveform.badge.magnifyingglass")
+                    Image(systemName: "waveform.badge.magnifyingglass")
+                    Text(tr("Transcoding", "Transcoding"))
                 }
         }
+        .frame(width: 820, height: 660)
+        .transaction { $0.animation = nil }
     }
 }
