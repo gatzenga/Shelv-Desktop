@@ -203,7 +203,6 @@ class SubsonicAPIService: ObservableObject {
         if let fmt = TranscodingPolicy.currentStreamFormat() {
             items.append(URLQueryItem(name: "format", value: fmt.codec.rawValue))
             items.append(URLQueryItem(name: "maxBitRate", value: "\(fmt.bitrate)"))
-            items.append(URLQueryItem(name: "estimateContentLength", value: "true"))
         } else {
             items.append(URLQueryItem(name: "format", value: "raw"))
         }

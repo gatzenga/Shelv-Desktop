@@ -46,7 +46,15 @@ class AudioPlayerService: ObservableObject {
             .queryItems?.first(where: { $0.name == "format" })?.value
         let isTranscoded = (formatParam != nil && formatParam != "raw")
         formatProbeTask = Task { [weak self] in
-            var req = URLRequest(url: url)
+            var probeURL = url
+            if isTranscoded,
+               var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+                var items = components.queryItems ?? []
+                items.append(URLQueryItem(name: "estimateContentLength", value: "true"))
+                components.queryItems = items
+                probeURL = components.url ?? url
+            }
+            var req = URLRequest(url: probeURL)
             req.httpMethod = "HEAD"
             req.timeoutInterval = 8
             do {
@@ -83,7 +91,7 @@ class AudioPlayerService: ObservableObject {
         let resumeAt = currentTime
         crossfadeTriggered = false
         isBuffering = true
-        engine.play(url: raw)
+        engine.play(url: raw, isTranscoded: false)
         if resumeAt > 1 { engine.seek(to: resumeAt) }
         isEngineLoaded = true
         probeStreamFormat(songId: songId, url: raw, duration: duration)
@@ -685,7 +693,9 @@ class AudioPlayerService: ObservableObject {
         let seekTo = resumeTime
         resumeTime = 0
 
-        engine.play(url: url)
+        let isTranscoded = TranscodingPolicy.currentStreamFormat() != nil
+        engine.play(url: url, isTranscoded: isTranscoded)
+        engine.trustedDuration = Double(song.duration ?? 0)
         isEngineLoaded = true
 
         if seekTo > 1 {
@@ -789,8 +799,10 @@ class AudioPlayerService: ObservableObject {
 
     private func crossfadeToSong(_ song: Song) {
         guard let url = resolveURL(songId: song.id) else { return }
+        let isTranscoded = TranscodingPolicy.currentStreamFormat() != nil
         engine.crossfadeDuration = crossfadeDuration
-        engine.triggerCrossfade(nextURL: url)
+        engine.triggerCrossfade(nextURL: url, isTranscoded: isTranscoded)
+        engine.trustedDuration = Double(song.duration ?? 0)
         crossfadeTriggered = true
         currentSong = song
         currentTime = 0
