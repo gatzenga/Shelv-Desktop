@@ -33,6 +33,7 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 - **Persistent footer player** — Always-visible player bar at the bottom of the window with cover art, track info, seekbar with elapsed/remaining time, volume slider, and all transport controls (shuffle, previous, play/pause, next, repeat)
 - **Full controls** — Shuffle, three repeat modes (Off / All / One), and direct navigation to the artist or album of the current track
 - **Crossfade** — Smooth crossfade between tracks with a configurable duration (1–12 s); enable and adjust it in Settings
+- **Gapless playback** — Lossless back-to-back playback with no silence between tracks; mutually exclusive with crossfade; enable in Settings
 - **Media key support** — Full integration with macOS media keys and the Now Playing widget via MPRemoteCommandCenter
 
 ### Queue
@@ -72,7 +73,7 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 - Supported formats: `raw` (original file), `mp3`, `opus`
 - Useful for saving storage on downloaded files or reducing bandwidth usage
 - Falls back to `raw` automatically if the server doesn't support the chosen format
-- Accessible via Playback → Transcoding Settings; can be enabled or disabled independently of Downloads
+- Accessible via Playback Settings; can be enabled or disabled independently of Downloads
 
 ### Recap
 - Automatic weekly, monthly, and yearly playlists of your most-played songs, created directly on your Navidrome server
@@ -89,9 +90,10 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 - **Server** — View connection details and log out; run a full library scan with progress indicator and last-sync timestamp
 - **Appearance** — Choose between Light, Dark, and System mode; pick one of ten accent colors
 - **Cache** — See the current cover art cache size and clear it with a single tap
-- **Crossfade** — Enable crossfade and set the fade duration
+- **Crossfade & Gapless** — Enable crossfade and set the fade duration, or switch to gapless playback for seamless transitions without fading
 - **Lyrics** — Toggle auto-load and run a bulk download for your entire library
 - **Downloads** — Enable downloads, set storage limit, run a bulk download, manage downloaded content
+- **Recap** — Configure periods (weekly, monthly, yearly), retention, play threshold, iCloud sync, and database export/import
 - **Favorites & Playlists** — Toggle each feature on or off independently
 
 ### Cover Art
@@ -100,7 +102,7 @@ A native, album and artist focused macOS client for [Navidrome](https://www.navi
 ## Requirements
 
 - macOS 14 (Sonoma) or later
-- Xcode 16 or later
+- Xcode 26 or later
 - A running [Navidrome](https://www.navidrome.org/) or Subsonic-compatible server
 
 ## Getting Started
@@ -147,7 +149,7 @@ Playback order: `playNextQueue` → `queue[currentIndex+1...]` → `userQueue` (
 
 ## Supported Audio Formats
 
-Shelv Desktop streams audio using `format=raw` (no server-side transcoding) and relies on AVFoundation for decoding: MP3, AAC, M4A, ALAC, WAV, AIFF, FLAC, Opus.
+By default Shelv Desktop streams in `format=raw` and relies on AVFoundation for decoding: MP3, AAC, M4A, ALAC, WAV, AIFF, FLAC, Opus. When transcoding is enabled, the server re-encodes to MP3 or Opus at a configurable bitrate before streaming.
 
 ## Authentication
 

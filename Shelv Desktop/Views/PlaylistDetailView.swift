@@ -17,7 +17,7 @@ struct PlaylistDetailView: View {
             Button {
                 let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
                 if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
-                downloadStore.markPlaylistDownloaded(id: playlist.id, name: playlist.name)
+                downloadStore.markPlaylistDownloaded(id: playlist.id, name: playlist.name, songIds: songs.map { $0.id })
                 NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
             } label: {
                 Label(tr("Download", "Herunterladen"), systemImage: "arrow.down.circle")
@@ -245,6 +245,10 @@ struct PlaylistDetailView: View {
                 : allSongs
             displayName = loaded.name
             displayComment = loaded.comment ?? ""
+        }
+        if songs.isEmpty && !offlineMode.isOffline && downloadStore.downloadedPlaylistIds.contains(playlist.id) {
+            let ids = downloadStore.playlistSongIds[playlist.id] ?? []
+            songs = ids.compactMap { id in downloadStore.songs.first { $0.songId == id }?.asSong() }
         }
         if !offlineMode.isOffline && downloadStore.downloadedPlaylistIds.contains(playlist.id) {
             if songs.contains(where: { !downloadStore.isDownloaded(songId: $0.id) }) {

@@ -67,7 +67,15 @@ class LibraryViewModel: ObservableObject {
     func loadAlbums() async {
         guard !isLoadingAlbums else { return }
         guard !OfflineModeService.shared.isOffline else { isLoadingAlbums = false; return }
-        isLoadingAlbums = true
+
+        if albums.isEmpty, let sid = AppState.shared.serverStore.activeServer?.stableId, !sid.isEmpty {
+            let cached: [Album]? = await Task.detached(priority: .utility) {
+                LibraryViewModel.loadLibraryCache([Album].self, name: "albums", serverId: sid)
+            }.value
+            if let cached, !cached.isEmpty { albums = cached }
+        }
+
+        isLoadingAlbums = albums.isEmpty
         errorMessage = nil
         do {
             // "year" und "mostPlayed" client-seitig sortieren, damit auch Alben ohne
@@ -92,6 +100,12 @@ class LibraryViewModel: ObservableObject {
             } else if sortOption == .mostPlayed {
                 albums = albums.sorted { ($0.playCount ?? 0) > ($1.playCount ?? 0) }
             }
+            if let sid = AppState.shared.serverStore.activeServer?.stableId, !sid.isEmpty {
+                let toSave = all
+                Task.detached(priority: .utility) {
+                    LibraryViewModel.saveLibraryCache(toSave, name: "albums", serverId: sid)
+                }
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -111,15 +125,26 @@ class LibraryViewModel: ObservableObject {
 
     func loadArtists() async {
         guard !isLoadingArtists else { return }
-        guard !OfflineModeService.shared.isOffline else {
-            isLoadingArtists = false
-            return
+        guard !OfflineModeService.shared.isOffline else { isLoadingArtists = false; return }
+
+        if artists.isEmpty, let sid = AppState.shared.serverStore.activeServer?.stableId, !sid.isEmpty {
+            let cached: [Artist]? = await Task.detached(priority: .utility) {
+                LibraryViewModel.loadLibraryCache([Artist].self, name: "artists", serverId: sid)
+            }.value
+            if let cached, !cached.isEmpty { artists = cached }
         }
-        isLoadingArtists = true
+
+        isLoadingArtists = artists.isEmpty
         errorMessage = nil
         do {
             artists = try await api.getAllArtists()
             artists = artists.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            if let sid = AppState.shared.serverStore.activeServer?.stableId, !sid.isEmpty {
+                let toSave = artists
+                Task.detached(priority: .utility) {
+                    LibraryViewModel.saveLibraryCache(toSave, name: "artists", serverId: sid)
+                }
+            }
             let map = Dictionary(uniqueKeysWithValues: artists.compactMap { artist -> (String, String)? in
                 guard let cover = artist.coverArt else { return nil }
                 return (artist.name, cover)
@@ -147,16 +172,34 @@ class LibraryViewModel: ObservableObject {
     // MARK: - Starred / Favorites
 
     func loadStarred() async {
+        if let serverId = AppState.shared.serverStore.activeServer?.stableId, !serverId.isEmpty {
+            let sid = serverId
+            let cached: Starred2Result? = await Task.detached(priority: .utility) {
+                LibraryViewModel.loadStarredCache(serverId: sid)
+            }.value
+            if let cached {
+                starredSongs = cached.song ?? []
+                starredAlbums = cached.album ?? []
+                starredArtists = cached.artist ?? []
+            }
+        }
+
         guard !OfflineModeService.shared.isOffline else { isLoadingStarred = false; return }
-        isLoadingStarred = true
+        isLoadingStarred = starredSongs.isEmpty && starredAlbums.isEmpty && starredArtists.isEmpty
+
         do {
             let result = try await api.getStarred()
             starredSongs = result.song ?? []
             starredAlbums = result.album ?? []
             starredArtists = result.artist ?? []
-            if let stable = AppState.shared.serverStore.activeServer?.stableId, !stable.isEmpty {
+            if let serverId = AppState.shared.serverStore.activeServer?.stableId, !serverId.isEmpty {
+                let sid = serverId
+                let songs = starredSongs; let albums = starredAlbums; let artists = starredArtists
+                Task.detached(priority: .utility) {
+                    LibraryViewModel.saveStarredCache(songs: songs, albums: albums, artists: artists, serverId: sid)
+                }
                 let starredIds = Set(starredSongs.map(\.id))
-                await DownloadDatabase.shared.syncFavorites(serverId: stable, starredSongIds: starredIds)
+                await DownloadDatabase.shared.syncFavorites(serverId: sid, starredSongIds: starredIds)
                 NotificationCenter.default.post(name: .downloadsLibraryChanged, object: nil)
             }
         } catch {
@@ -251,14 +294,11 @@ class LibraryViewModel: ObservableObject {
     // MARK: - Playlists
 
     func loadPlaylists() async {
-        if OfflineModeService.shared.isOffline {
-            if playlists.isEmpty, let serverId = AppState.shared.serverStore.activeServer?.stableId {
-                playlists = loadPlaylistsCache(serverId: serverId)
-            }
-            isLoadingPlaylists = false
-            return
+        if playlists.isEmpty, let serverId = AppState.shared.serverStore.activeServer?.stableId {
+            playlists = loadPlaylistsCache(serverId: serverId)
         }
-        isLoadingPlaylists = true
+        guard !OfflineModeService.shared.isOffline else { isLoadingPlaylists = false; return }
+        isLoadingPlaylists = playlists.isEmpty
         do {
             playlists = try await api.getPlaylists()
             if let serverId = AppState.shared.serverStore.activeServer?.stableId {
@@ -271,23 +311,68 @@ class LibraryViewModel: ObservableObject {
     }
 
     func loadPlaylistDetail(id: String) async -> PlaylistDetail? {
+        if OfflineModeService.shared.isOffline {
+            return loadPlaylistDetailCache(id: id)
+        }
         do {
             let detail = try await api.getPlaylist(id: id)
             savePlaylistDetailCache(detail)
             return detail
         } catch {
-            if let cached = loadPlaylistDetailCache(id: id) {
-                return cached
-            }
             errorMessage = error.localizedDescription
             return nil
         }
+    }
+
+    nonisolated private static var libraryCacheDir: URL {
+        FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("shelv_library_cache")
+    }
+
+    nonisolated private static func saveLibraryCache<T: Encodable>(_ value: T, name: String, serverId: String) {
+        let dir = libraryCacheDir
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? JSONEncoder().encode(value).write(to: dir.appendingPathComponent("\(name)_\(serverId).json"))
+    }
+
+    nonisolated private static func loadLibraryCache<T: Decodable>(_ type: T.Type, name: String, serverId: String) -> T? {
+        let url = libraryCacheDir.appendingPathComponent("\(name)_\(serverId).json")
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
     }
 
     private static var playlistCacheDir: URL {
         FileManager.default
             .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("shelv_playlist_cache")
+    }
+
+    nonisolated private static var starredCacheDir: URL {
+        FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("shelv_starred_cache")
+    }
+
+    nonisolated private static func saveStarredCache(songs: [Song], albums: [Album], artists: [Artist], serverId: String) {
+        let dir = starredCacheDir
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? JSONEncoder().encode(songs).write(to: dir.appendingPathComponent("starred_songs_\(serverId).json"))
+        try? JSONEncoder().encode(albums).write(to: dir.appendingPathComponent("starred_albums_\(serverId).json"))
+        try? JSONEncoder().encode(artists).write(to: dir.appendingPathComponent("starred_artists_\(serverId).json"))
+    }
+
+    nonisolated private static func loadStarredCache(serverId: String) -> Starred2Result? {
+        let dir = starredCacheDir
+        let dec = JSONDecoder()
+        let songs   = (try? Data(contentsOf: dir.appendingPathComponent("starred_songs_\(serverId).json")))
+            .flatMap { try? dec.decode([Song].self, from: $0) }
+        let albums  = (try? Data(contentsOf: dir.appendingPathComponent("starred_albums_\(serverId).json")))
+            .flatMap { try? dec.decode([Album].self, from: $0) }
+        let artists = (try? Data(contentsOf: dir.appendingPathComponent("starred_artists_\(serverId).json")))
+            .flatMap { try? dec.decode([Artist].self, from: $0) }
+        guard songs != nil || albums != nil || artists != nil else { return nil }
+        return Starred2Result(artist: artists, album: albums, song: songs)
     }
 
     private func savePlaylistsCache(_ playlists: [Playlist], serverId: String) {

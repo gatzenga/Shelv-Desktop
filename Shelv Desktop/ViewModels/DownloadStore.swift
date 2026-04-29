@@ -11,6 +11,7 @@ final class DownloadStore: ObservableObject {
     @Published private(set) var artists: [DownloadedArtist] = []
     @Published private(set) var favoriteSongs: [DownloadedSong] = []
     @Published private(set) var downloadedPlaylistIds: Set<String> = []
+    private(set) var playlistSongIds: [String: [String]] = [:]
     @Published private(set) var totalBytes: Int64 = 0
     private(set) var inFlightProgress: [String: Double] = [:]
     private(set) var inFlightStates: [String: DownloadState] = [:]
@@ -95,7 +96,7 @@ final class DownloadStore: ObservableObject {
     func reload() async {
         guard !serverId.isEmpty else {
             songs = []; albums = []; artists = []; favoriteSongs = []; totalBytes = 0
-            downloadedPlaylistIds = []
+            downloadedPlaylistIds = []; playlistSongIds = [:]
             songById = [:]; recordsByAlbumId = [:]
             DownloadStatusCache.shared.rebuild(albumIds: [])
             return
@@ -107,6 +108,7 @@ final class DownloadStore: ObservableObject {
         let records = await DownloadDatabase.shared.allRecords(serverId: sid)
         let total = await DownloadDatabase.shared.totalBytes(serverId: sid)
         let playlistIds = await DownloadDatabase.shared.loadDownloadedPlaylistIds()
+        let savedSongIds = UserDefaults.standard.dictionary(forKey: "shelv_mac_playlist_song_ids_\(sid)") as? [String: [String]] ?? [:]
         let mappedSongs = records.map { $0.toDownloadedSong() }
 
         var newSongById: [String: DownloadedSong] = [:]
@@ -159,6 +161,7 @@ final class DownloadStore: ObservableObject {
         artists = artistsGrouped
         favoriteSongs = mappedSongs.filter { $0.isFavorite }
         downloadedPlaylistIds = playlistIds
+        playlistSongIds = savedSongIds
         totalBytes = total
 
         var paths: [String: String] = [:]
@@ -420,13 +423,25 @@ final class DownloadStore: ObservableObject {
         Task { await DownloadService.shared.deleteAll() }
     }
 
-    func markPlaylistDownloaded(id: String, name: String) {
+    func markPlaylistDownloaded(id: String, name: String, songIds: [String] = []) {
         downloadedPlaylistIds.insert(id)
+        if !songIds.isEmpty {
+            playlistSongIds[id] = songIds
+            let key = "shelv_mac_playlist_song_ids_\(serverId)"
+            var current = UserDefaults.standard.dictionary(forKey: key) as? [String: [String]] ?? [:]
+            current[id] = songIds
+            UserDefaults.standard.set(current, forKey: key)
+        }
         Task { await DownloadDatabase.shared.markPlaylistDownloaded(id: id, name: name) }
     }
 
     func unmarkPlaylistDownloaded(id: String) {
         downloadedPlaylistIds.remove(id)
+        playlistSongIds.removeValue(forKey: id)
+        let key = "shelv_mac_playlist_song_ids_\(serverId)"
+        var current = UserDefaults.standard.dictionary(forKey: key) as? [String: [String]] ?? [:]
+        current.removeValue(forKey: id)
+        UserDefaults.standard.set(current, forKey: key)
         Task { await DownloadDatabase.shared.unmarkPlaylistDownloaded(id: id) }
     }
 
