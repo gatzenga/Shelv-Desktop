@@ -86,6 +86,14 @@ struct DownloadsTab: View {
     @State private var showBulkSheet = false
     @State private var showDeleteAllConfirm = false
 
+    private var maxAllowedStorageGB: Int {
+        guard let values = try? URL(fileURLWithPath: NSHomeDirectory())
+            .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]),
+              let bytes = values.volumeAvailableCapacityForImportantUsage else { return 500 }
+        let gb = Int(bytes / 1_000_000_000)
+        return max(10, (gb / 10) * 10)
+    }
+
     var body: some View {
         Form {
             Section {
@@ -117,12 +125,15 @@ struct DownloadsTab: View {
                         Spacer()
                         Stepper("\(maxBulkStorageGB) GB",
                                 value: $maxBulkStorageGB,
-                                in: 10...500,
+                                in: 10...maxAllowedStorageGB,
                                 step: 10)
                             .labelsHidden()
                         Text("\(maxBulkStorageGB) GB")
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
+                    }
+                    .onAppear {
+                        maxBulkStorageGB = min(maxBulkStorageGB, maxAllowedStorageGB)
                     }
                 }
 
