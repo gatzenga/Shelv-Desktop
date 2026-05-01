@@ -3,10 +3,10 @@ import SwiftUI
 struct PlaybackSettingsWindow: View {
     var body: some View {
         TabView {
-            CrossfadePanel()
+            GaplessPanel()
                 .tabItem {
-                    Image(systemName: "waveform")
-                    Text(tr("Crossfade & Gapless", "Crossfade & Gapless"))
+                    Image(systemName: "music.note.list")
+                    Text(tr("Gapless", "Gapless"))
                 }
             LyricsSettingsPanel()
                 .tabItem {

@@ -97,6 +97,26 @@ struct AlbumDetailView: View {
                             .controlSize(.large)
                             .disabled(vm.isLoading || displaySongs.isEmpty)
 
+                            Button {
+                                appState.player.addPlayNext(displaySongs)
+                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                            } label: {
+                                Label(tr("Play Next", "Als nächstes"), systemImage: "text.insert")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.large)
+                            .disabled(vm.isLoading || displaySongs.isEmpty)
+
+                            Button {
+                                appState.player.addToUserQueue(displaySongs)
+                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                            } label: {
+                                Label(tr("Add to Queue", "Zur Warteschlange"), systemImage: "text.badge.plus")
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.large)
+                            .disabled(vm.isLoading || displaySongs.isEmpty)
+
                             if enableDownloads, let album = vm.album {
                                 downloadHeaderButton(for: album)
                             }

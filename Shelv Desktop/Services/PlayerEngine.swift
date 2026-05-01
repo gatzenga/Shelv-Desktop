@@ -2,33 +2,20 @@ import AVFoundation
 import Combine
 import Foundation
 
-final class CrossfadeEngine: ObservableObject {
+final class PlayerEngine: ObservableObject {
 
     @Published private(set) var currentTime: TimeInterval = 0
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var isPlaying: Bool = false
-    private(set) var isCrossfading: Bool = false
 
-    var crossfadeDuration: TimeInterval = 5
     var trustedDuration: TimeInterval = 0
     var volume: Float = 1.0 {
-        didSet {
-            guard !isCrossfading else { return }
-            activePlayer.volume = volume
-        }
+        didSet { player.volume = volume }
     }
-    var onTrackFinished: ((Bool) -> Void)?
-    var isExternalPlaybackActive: Bool { activePlayer.isExternalPlaybackActive }
+    var onTrackFinished: (() -> Void)?
 
-    private let playerA: AVQueuePlayer
-    private let playerB: AVQueuePlayer
-    private var activePlayer: AVQueuePlayer
-    private var inactivePlayer: AVQueuePlayer
-
+    private let player: AVQueuePlayer
     private var timeObserverToken: Any?
-    private var timeObserverPlayer: AVPlayer?
-    private var fadeCancellable: AnyCancellable?
-    private var fadeStartDate: Date?
     private var itemFinishedObserver: NSObjectProtocol?
     private var itemFailureObserver: NSObjectProtocol?
     private var itemStallObserver: NSObjectProtocol?
@@ -37,26 +24,18 @@ final class CrossfadeEngine: ObservableObject {
     private var retryCount: Int = 0
     private let maxRetries: Int = 3
     private var isSeeking = false
-    private var isTranscoded: Bool = false
-    private var gaplessPreloaded = false
-    private var gaplessPreloadIsTranscoded: Bool = false
     private var gaplessNextItem: AVPlayerItem?
+    private var gaplessNextURL: URL?
+    private var gaplessPreloaded = false
 
     init() {
-        let a = AVQueuePlayer()
-        let b = AVQueuePlayer()
-        a.allowsExternalPlayback = true
-        b.allowsExternalPlayback = true
-        a.automaticallyWaitsToMinimizeStalling = false
-        b.automaticallyWaitsToMinimizeStalling = false
-        playerA = a
-        playerB = b
-        activePlayer = a
-        inactivePlayer = b
+        let p = AVQueuePlayer()
+        p.allowsExternalPlayback = false
+        p.automaticallyWaitsToMinimizeStalling = false
+        player = p
     }
 
     deinit {
-        cancelFade()
         removeTimeObserver()
         removeItemFinishedObserver()
         itemStatusObservation?.invalidate()
@@ -64,36 +43,29 @@ final class CrossfadeEngine: ObservableObject {
         if let obs = itemStallObserver { NotificationCenter.default.removeObserver(obs) }
     }
 
-    // MARK: - Public API
-
-    func play(url: URL, isTranscoded: Bool = false) {
+    func play(url: URL) {
         currentURL = url
         retryCount = 0
         trustedDuration = 0
         gaplessPreloaded = false
-        gaplessPreloadIsTranscoded = false
         gaplessNextItem = nil
-        self.isTranscoded = isTranscoded
+        gaplessNextURL = nil
         loadAndPlay(url: url)
     }
 
     private func loadAndPlay(url: URL) {
-        cancelFade()
-        isCrossfading = false
         gaplessPreloaded = false
         gaplessNextItem = nil
-
-        inactivePlayer.pause()
-        inactivePlayer.removeAllItems()
-        inactivePlayer.volume = volume
+        gaplessNextURL = nil
+        isSeeking = false
 
         let item = makePlayerItem(url: url)
-        activePlayer.pause()
-        activePlayer.removeAllItems()
-        activePlayer.automaticallyWaitsToMinimizeStalling = isTranscoded
-        activePlayer.insert(item, after: nil)
-        activePlayer.volume = volume
-        activePlayer.play()
+        player.pause()
+        player.removeAllItems()
+        player.automaticallyWaitsToMinimizeStalling = !url.isFileURL
+        player.insert(item, after: nil)
+        player.volume = volume
+        player.play()
 
         isPlaying = true
         setupTimeObserver()
@@ -110,9 +82,7 @@ final class CrossfadeEngine: ObservableObject {
             }
         }
 
-        if let obs = itemFailureObserver {
-            NotificationCenter.default.removeObserver(obs)
-        }
+        if let obs = itemFailureObserver { NotificationCenter.default.removeObserver(obs) }
         itemFailureObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemFailedToPlayToEndTime,
             object: item,
@@ -122,15 +92,13 @@ final class CrossfadeEngine: ObservableObject {
             Task { @MainActor in self.scheduleRetry(for: url) }
         }
 
-        if let obs = itemStallObserver {
-            NotificationCenter.default.removeObserver(obs)
-        }
+        if let obs = itemStallObserver { NotificationCenter.default.removeObserver(obs) }
         itemStallObserver = NotificationCenter.default.addObserver(
             forName: AVPlayerItem.playbackStalledNotification,
             object: item,
             queue: .main
         ) { [weak self] _ in
-            guard let self, let currentItem = self.activePlayer.currentItem else { return }
+            guard let self, let currentItem = self.player.currentItem else { return }
             if currentItem.status == .failed {
                 Task { @MainActor in self.scheduleRetry(for: url) }
             }
@@ -149,53 +117,54 @@ final class CrossfadeEngine: ObservableObject {
         }
     }
 
-    func triggerCrossfade(nextURL: URL, isTranscoded: Bool = false) {
-        inactivePlayer.pause()
-        inactivePlayer.removeAllItems()
-        inactivePlayer.automaticallyWaitsToMinimizeStalling = isTranscoded
-        let item = makePlayerItem(url: nextURL)
-        inactivePlayer.insert(item, after: nil)
-        inactivePlayer.volume = 0
-        beginFade()
-    }
-
-    // Gapless: inserts next item directly into the active player's queue.
-    // AVQueuePlayer transitions between items with no audio pipeline interruption.
-    func preloadForGapless(url: URL, isTranscoded: Bool = false) {
-        gaplessPreloadIsTranscoded = isTranscoded
-        guard let currentItem = activePlayer.currentItem else { return }
+    func preloadForGapless(url: URL) {
+        guard let currentItem = player.currentItem else { return }
         let nextItem = makePlayerItem(url: url)
         gaplessNextItem = nextItem
-        activePlayer.insert(nextItem, after: currentItem)
+        gaplessNextURL = url
+        player.insert(nextItem, after: currentItem)
         gaplessPreloaded = true
     }
 
     private func performGaplessSwap() {
-        // AVQueuePlayer already advanced to the next item seamlessly — no swap, no seek needed.
         removeItemFinishedObserver()
         trustedDuration = 0
         gaplessPreloaded = false
-        gaplessPreloadIsTranscoded = false
         currentTime = 0
         isPlaying = true
+        isSeeking = false
 
-        if let nextItem = gaplessNextItem {
-            gaplessNextItem = nil
-            setupItemFinishedObserverForItem(nextItem)
+        let swappedURL = gaplessNextURL
+        let swappedItem = gaplessNextItem
+        gaplessNextURL = nil
+        gaplessNextItem = nil
+
+        if let url = swappedURL {
+            currentURL = url
+            retryCount = 0
+            player.automaticallyWaitsToMinimizeStalling = !url.isFileURL
+        }
+
+        if let item = swappedItem {
+            setupItemFinishedObserverForItem(item)
+            if let url = swappedURL {
+                setupFailureObservation(item: item, url: url)
+                if item.status == .failed {
+                    Task { @MainActor [weak self] in self?.scheduleRetry(for: url) }
+                }
+            }
         } else {
             setupItemFinishedObserver()
         }
     }
 
     func pause() {
-        activePlayer.pause()
-        if isCrossfading { inactivePlayer.pause() }
+        player.pause()
         isPlaying = false
     }
 
     func resume() {
-        activePlayer.play()
-        if isCrossfading { inactivePlayer.play() }
+        player.play()
         isPlaying = true
     }
 
@@ -203,36 +172,36 @@ final class CrossfadeEngine: ObservableObject {
         let time = CMTime(seconds: seconds, preferredTimescale: 1000)
         isSeeking = true
         currentTime = seconds
-        let targetPlayer = isCrossfading ? inactivePlayer : activePlayer
-        targetPlayer.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
+        player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
             self?.isSeeking = false
             completion?(finished)
         }
     }
 
     func stop() {
-        cancelFade()
         removeTimeObserver()
         removeItemFinishedObserver()
         removeFailureObservation()
         currentURL = nil
         retryCount = 0
         gaplessNextItem = nil
-        activePlayer.pause()
-        activePlayer.removeAllItems()
-        inactivePlayer.pause()
-        inactivePlayer.removeAllItems()
-        inactivePlayer.volume = volume
+        gaplessNextURL = nil
+        player.pause()
+        player.removeAllItems()
         isPlaying = false
-        isCrossfading = false
         gaplessPreloaded = false
         currentTime = 0
         duration = 0
     }
 
     private func makePlayerItem(url: URL) -> AVPlayerItem {
-        let headers: [String: String] = ["Range": "bytes=0-"]
-        let asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+        let asset: AVURLAsset
+        if url.isFileURL {
+            asset = AVURLAsset(url: url)
+        } else {
+            let headers: [String: String] = ["Range": "bytes=0-"]
+            asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+        }
         let item = AVPlayerItem(asset: asset)
         item.preferredForwardBufferDuration = 30
         return item
@@ -251,59 +220,8 @@ final class CrossfadeEngine: ObservableObject {
         }
     }
 
-    // MARK: - Crossfade
-
-    private func beginFade() {
-        isCrossfading = true
-        fadeStartDate = Date()
-        inactivePlayer.seek(to: .zero)
-        inactivePlayer.play()
-
-        fadeCancellable = Timer.publish(every: 0.05, on: .main, in: .common)
-            .autoconnect()
-            .sink { [weak self] _ in self?.fadeStep() }
-    }
-
-    private func fadeStep() {
-        guard let start = fadeStartDate else { return }
-        let progress = min(Date().timeIntervalSince(start) / crossfadeDuration, 1.0)
-        activePlayer.volume = volume * Float(1.0 - progress)
-        inactivePlayer.volume = volume * Float(progress)
-        if !isSeeking { currentTime = inactivePlayer.currentTime().seconds }
-        if progress >= 1.0 { completeFade() }
-    }
-
-    private func completeFade() {
-        cancelFade()
-        removeTimeObserver()
-        removeItemFinishedObserver()
-
-        let outgoing = activePlayer
-        outgoing.pause()
-        outgoing.removeAllItems()
-        outgoing.volume = volume
-
-        swap(&activePlayer, &inactivePlayer)
-        activePlayer.volume = volume
-        isCrossfading = false
-        isPlaying = true
-
-        setupTimeObserver()
-        setupItemFinishedObserver()
-        onTrackFinished?(false)
-    }
-
-    private func cancelFade() {
-        fadeCancellable?.cancel()
-        fadeCancellable = nil
-        fadeStartDate = nil
-    }
-
-    // MARK: - Observers
-
     private func setupTimeObserver() {
         removeTimeObserver()
-        let player = activePlayer
         let interval = CMTime(seconds: 0.5, preferredTimescale: 1000)
         timeObserverToken = player.addPeriodicTimeObserver(
             forInterval: interval,
@@ -311,21 +229,19 @@ final class CrossfadeEngine: ObservableObject {
         ) { [weak self] time in
             guard let self else { return }
             self.refreshDuration()
-            guard !self.isCrossfading, !self.isSeeking else { return }
+            guard !self.isSeeking else { return }
             self.currentTime = time.seconds
         }
-        timeObserverPlayer = player
     }
 
     private func removeTimeObserver() {
-        guard let token = timeObserverToken, let player = timeObserverPlayer else { return }
+        guard let token = timeObserverToken else { return }
         player.removeTimeObserver(token)
         timeObserverToken = nil
-        timeObserverPlayer = nil
     }
 
     private func setupItemFinishedObserver() {
-        guard let item = activePlayer.currentItem else { return }
+        guard let item = player.currentItem else { return }
         setupItemFinishedObserverForItem(item)
     }
 
@@ -336,13 +252,13 @@ final class CrossfadeEngine: ObservableObject {
             object: item,
             queue: .main
         ) { [weak self] _ in
-            guard let self, !self.isCrossfading else { return }
+            guard let self else { return }
             if self.gaplessPreloaded {
                 self.performGaplessSwap()
-                self.onTrackFinished?(true)
+                self.onTrackFinished?()
             } else {
                 self.isPlaying = false
-                self.onTrackFinished?(false)
+                self.onTrackFinished?()
             }
         }
     }
@@ -358,7 +274,7 @@ final class CrossfadeEngine: ObservableObject {
             duration = trustedDuration
             return
         }
-        guard let item = activePlayer.currentItem else { return }
+        guard let item = player.currentItem else { return }
         let d = item.duration.seconds
         if d.isFinite && d > 0 { duration = d }
     }

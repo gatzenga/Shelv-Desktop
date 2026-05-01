@@ -76,7 +76,7 @@ struct ArtistDetailView: View {
 
                                 HStack(spacing: 10) {
                                     Button {
-                                        Task { await vm.playAll(player: appState.player, shuffle: false) }
+                                        Task { await vm.playAll(player: appState.player, albums: displayAlbums, shuffle: false) }
                                     } label: {
                                         Group {
                                             if vm.isLoadingSongs {
@@ -90,17 +90,45 @@ struct ArtistDetailView: View {
                                     .buttonStyle(.borderedProminent)
                                     .tint(themeColor)
                                     .controlSize(.large)
-                                    .disabled(vm.albums.isEmpty || vm.isLoadingSongs)
+                                    .disabled(displayAlbums.isEmpty || vm.isLoadingSongs)
 
                                     Button {
-                                        Task { await vm.playAll(player: appState.player, shuffle: true) }
+                                        Task { await vm.playAll(player: appState.player, albums: displayAlbums, shuffle: true) }
                                     } label: {
                                         Label(tr("Shuffle", "Zufall"), systemImage: "shuffle")
                                             .frame(minWidth: 100)
                                     }
                                     .buttonStyle(.bordered)
                                     .controlSize(.large)
-                                    .disabled(vm.albums.isEmpty || vm.isLoadingSongs)
+                                    .disabled(displayAlbums.isEmpty || vm.isLoadingSongs)
+
+                                    Button {
+                                        Task {
+                                            let songs = await vm.fetchSongs(albums: displayAlbums)
+                                            guard !songs.isEmpty else { return }
+                                            appState.player.addPlayNext(songs)
+                                            NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                        }
+                                    } label: {
+                                        Label(tr("Play Next", "Als nächstes"), systemImage: "text.insert")
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.large)
+                                    .disabled(displayAlbums.isEmpty || vm.isLoadingSongs)
+
+                                    Button {
+                                        Task {
+                                            let songs = await vm.fetchSongs(albums: displayAlbums)
+                                            guard !songs.isEmpty else { return }
+                                            appState.player.addToUserQueue(songs)
+                                            NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                        }
+                                    } label: {
+                                        Label(tr("Add to Queue", "Zur Warteschlange"), systemImage: "text.badge.plus")
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .controlSize(.large)
+                                    .disabled(displayAlbums.isEmpty || vm.isLoadingSongs)
 
                                     if enableDownloads, let detail = vm.artist {
                                         artistDownloadButton(for: detail)
@@ -328,40 +356,45 @@ class ArtistDetailViewModel: ObservableObject {
         albums = albumsAsModel
     }
 
-    func playAll(player: AudioPlayerService, shuffle: Bool) async {
-        guard !albums.isEmpty else { return }
+    func fetchSongs(albums: [Album]) async -> [Song] {
+        guard !albums.isEmpty else { return [] }
         isLoadingSongs = true
+        defer { isLoadingSongs = false }
         if OfflineModeService.shared.isOffline {
-            let albumIds = Set(albums.map { $0.id })
-            var songs = DownloadStore.shared.songs
-                .filter { albumIds.contains($0.albumId) }
-                .map { $0.asSong() }
-            if songs.count > maxSongs { songs = Array(songs.shuffled().prefix(maxSongs)) }
-            if shuffle { player.playShuffled(songs: songs) } else { player.play(songs: songs) }
-            isLoadingSongs = false
-            return
+            let albumOrder = albums.map { $0.id }
+            let albumIds = Set(albumOrder)
+            let songsByAlbum = Dictionary(
+                grouping: DownloadStore.shared.songs.filter { albumIds.contains($0.albumId) },
+                by: { $0.albumId }
+            )
+            return albumOrder.flatMap { id in
+                (songsByAlbum[id] ?? []).sorted { ($0.track ?? 0) < ($1.track ?? 0) }.map { $0.asSong() }
+            }
         }
         do {
-            var songs = try await withThrowingTaskGroup(of: [Song].self) { group in
-                for album in albums {
-                    group.addTask { try await SubsonicAPIService.shared.getAlbum(id: album.id).song }
+            let indexed = Array(albums.enumerated())
+            return try await withThrowingTaskGroup(of: (Int, [Song]).self) { group in
+                for (i, album) in indexed {
+                    group.addTask {
+                        let s = try await SubsonicAPIService.shared.getAlbum(id: album.id).song
+                        return (i, s)
+                    }
                 }
-                var result: [Song] = []
-                for try await albumSongs in group { result.append(contentsOf: albumSongs) }
-                return result
-            }
-            if songs.count > maxSongs {
-                songs = Array(songs.shuffled().prefix(maxSongs))
-            }
-            if shuffle {
-                player.playShuffled(songs: songs)
-            } else {
-                player.play(songs: songs)
+                var results: [(Int, [Song])] = []
+                for try await result in group { results.append(result) }
+                return results.sorted { $0.0 < $1.0 }.flatMap { $0.1 }
             }
         } catch {
             NotificationCenter.default.post(name: .showToast, object: tr("Playback failed", "Wiedergabe fehlgeschlagen"))
+            return []
         }
-        isLoadingSongs = false
+    }
+
+    func playAll(player: AudioPlayerService, albums: [Album], shuffle: Bool) async {
+        var songs = await fetchSongs(albums: albums)
+        guard !songs.isEmpty else { return }
+        if songs.count > maxSongs { songs = Array(songs.shuffled().prefix(maxSongs)) }
+        if shuffle { player.playShuffled(songs: songs) } else { player.play(songs: songs) }
     }
 }
 

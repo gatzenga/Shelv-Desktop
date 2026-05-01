@@ -135,8 +135,10 @@ struct Shelv_DesktopApp: App {
                 Link(tr("Shelv on GitHub", "Shelv auf GitHub"), destination: URL(string: "https://github.com/gatzenga/Shelv-Desktop")!)
                 Link(tr("Navidrome Documentation", "Navidrome Dokumentation"), destination: URL(string: "https://www.navidrome.org/docs/")!)
                 Divider()
-                Link(tr("Privacy Policy", "Datenschutz"), destination: URL(string: "https://gatzenga.github.io/Shelv-Desktop/privacy.html")!)
-                Link(tr("Contact", "Kontakt"), destination: URL(string: "mailto:kontakt@vkugler.ch")!)
+                Link(tr("Developer Website", "Developer-Website"), destination: URL(string: "https://vkugler.app")!)
+                Link(tr("Privacy Policy", "Datenschutz"), destination: URL(string: "https://vkugler.app/shelv_privacy.html")!)
+                Link(tr("Contact", "Kontakt"), destination: URL(string: "mailto:contact@vkugler.app")!)
+                Link("Discord", destination: URL(string: "https://discord.gg/UdJK5mpmZu")!)
                 Divider()
                 Link(tr("Support my work", "Support my work"), destination: URL(string: "https://ko-fi.com/Shelv")!)
             }
