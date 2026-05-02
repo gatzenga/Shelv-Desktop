@@ -11,6 +11,12 @@ struct GaplessPanel: View {
                     Label(tr("Gapless Playback", "Lückenloses Abspielen"), systemImage: "music.note.list")
                 }
                 .tint(themeColor)
+                Text(tr(
+                    "Gapless and transcoding are not fully compatible — a short gap between tracks is expected.",
+                    "Gapless und Transcoding sind nicht vollständig kompatibel – ein kurzer Übergang zwischen Titeln ist normal."
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)

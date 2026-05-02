@@ -4,6 +4,13 @@ import MediaPlayer
 import Combine
 import SwiftUI
 
+private extension URL {
+    func queryParam(_ name: String) -> String? {
+        URLComponents(url: self, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == name })?.value
+    }
+}
+
 @MainActor
 class AudioPlayerService: ObservableObject {
     static let shared = AudioPlayerService()
@@ -89,6 +96,8 @@ class AudioPlayerService: ObservableObject {
         guard let raw = SubsonicAPIService.shared.rawStreamURL(songId: songId) else { return }
         playbackWatchdog?.cancel()
         let resumeAt = currentTime
+        currentStreamURL = raw
+        streamTimeOffset = 0
         isBuffering = true
         engine.play(url: raw)
         if resumeAt > 1 { engine.seek(to: resumeAt) }
@@ -125,6 +134,8 @@ class AudioPlayerService: ObservableObject {
     private var gaplessPreloadSong: Song?
     private var gaplessPreloadURL: URL?
     private var isEngineLoaded = false
+    private var currentStreamURL: URL?
+    private var streamTimeOffset: Double = 0
 
     private var apiService: SubsonicAPIService { SubsonicAPIService.shared }
 
@@ -161,9 +172,13 @@ class AudioPlayerService: ObservableObject {
     private var willTerminateObserver: NSObjectProtocol?
 
     private init() {
+        _ = NetworkStatus.shared
         setupRemoteControls()
         setupEngine()
-        restoreState()
+        Task { [weak self] in
+            await NetworkStatus.shared.waitUntilReady()
+            self?.restoreState()
+        }
         willTerminateObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
             object: nil,
@@ -589,6 +604,8 @@ class AudioPlayerService: ObservableObject {
         gaplessPreloadTriggered = false
         gaplessPreloadSong = nil
         gaplessPreloadURL = nil
+        currentStreamURL = nil
+        streamTimeOffset = 0
         artworkLoadTask?.cancel()
         artworkLoadTask = nil
         currentSong = nil
@@ -650,12 +667,33 @@ class AudioPlayerService: ObservableObject {
     }
 
     func seek(to time: Double) {
-        isSeeking = true
-        currentTime = time
-        engine.seek(to: time) { [weak self] finished in
-            Task { @MainActor [weak self] in
-                if finished { self?.currentTime = time }
-                self?.isSeeking = false
+        let isTranscodedStream = currentStreamURL.map {
+            !$0.isFileURL && ($0.queryParam("format").map { $0 != "raw" } ?? false)
+        } ?? false
+
+        if isTranscodedStream, let song = currentSong {
+            let offset = Int(time)
+            guard let newURL = apiService.streamURL(songId: song.id, timeOffset: offset) else { return }
+            currentStreamURL = newURL
+            streamTimeOffset = Double(offset)
+            currentTime = time
+            gaplessPreloadTriggered = false
+            gaplessPreloadSong = nil
+            gaplessPreloadURL = nil
+            isBuffering = true
+            schedulePlaybackWatchdog(songId: song.id, url: newURL, duration: Double(song.duration ?? 0))
+            if let d = song.duration { duration = Double(d) }
+            engine.play(url: newURL)
+            engine.trustedDuration = Double(song.duration ?? 0)
+            isEngineLoaded = true
+        } else {
+            isSeeking = true
+            currentTime = time
+            engine.seek(to: time) { [weak self] finished in
+                Task { @MainActor [weak self] in
+                    if finished { self?.currentTime = time }
+                    self?.isSeeking = false
+                }
             }
         }
     }
@@ -690,6 +728,8 @@ class AudioPlayerService: ObservableObject {
     }
 
     private func loadURL(_ url: URL, song: Song, seekTo: Double = 0) {
+        currentStreamURL = url
+        streamTimeOffset = 0
         gaplessPreloadTriggered = false
         gaplessPreloadSong = nil
         gaplessPreloadURL = nil
@@ -741,12 +781,14 @@ class AudioPlayerService: ObservableObject {
                     self.hasScrobbledCurrent = false
                     self.currentTime = 0
                     self.isSeeking = false
+                    self.streamTimeOffset = 0
                     if let d = song.duration { self.duration = Double(d) }
                     self.engine.trustedDuration = Double(song.duration ?? 0)
                     self.isEngineLoaded = true
                     self.updateNowPlayingInfo(song: song)
                     self.loadArtworkAsync(for: song)
                     if let url = self.resolveURL(songId: song.id) {
+                        self.currentStreamURL = url
                         self.probeStreamFormat(songId: song.id, url: url, duration: Double(song.duration ?? 0))
                     }
                     Task { try? await self.apiService.scrobble(songId: song.id, submission: false) }
@@ -765,13 +807,14 @@ class AudioPlayerService: ObservableObject {
                 guard let self else { return }
                 Task { @MainActor [self] in
                     guard self.isEngineLoaded, !self.isSeeking else { return }
-                    self.currentTime = time
-                    self.timePublisher.send((time: time, duration: self.duration))
+                    let adjusted = time + self.streamTimeOffset
+                    self.currentTime = adjusted
+                    self.timePublisher.send((time: adjusted, duration: self.duration))
                     self.updateNowPlayingInfo()
                     if let songId = self.currentSong?.id {
                         self.scrobbleIfNeeded(songId: songId)
                     }
-                    self.checkGaplessTrigger(currentTime: time)
+                    self.checkGaplessTrigger(currentTime: adjusted)
                 }
             }
             .store(in: &engineSubscriptions)

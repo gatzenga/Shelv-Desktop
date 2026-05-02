@@ -62,7 +62,7 @@ final class PlayerEngine: ObservableObject {
         let item = makePlayerItem(url: url)
         player.pause()
         player.removeAllItems()
-        player.automaticallyWaitsToMinimizeStalling = !url.isFileURL
+        player.automaticallyWaitsToMinimizeStalling = isTranscodedURL(url)
         player.insert(item, after: nil)
         player.volume = volume
         player.play()
@@ -142,7 +142,7 @@ final class PlayerEngine: ObservableObject {
         if let url = swappedURL {
             currentURL = url
             retryCount = 0
-            player.automaticallyWaitsToMinimizeStalling = !url.isFileURL
+            player.automaticallyWaitsToMinimizeStalling = isTranscodedURL(url)
         }
 
         if let item = swappedItem {
@@ -203,8 +203,15 @@ final class PlayerEngine: ObservableObject {
             asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
         }
         let item = AVPlayerItem(asset: asset)
-        item.preferredForwardBufferDuration = 30
+        item.preferredForwardBufferDuration = 10
         return item
+    }
+
+    private func isTranscodedURL(_ url: URL) -> Bool {
+        guard !url.isFileURL else { return false }
+        let format = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "format" })?.value
+        return format != nil && format != "raw"
     }
 
     private func removeFailureObservation() {

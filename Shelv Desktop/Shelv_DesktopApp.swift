@@ -159,6 +159,7 @@ struct Shelv_DesktopApp: App {
                 .keyboardShortcut(.leftArrow, modifiers: .command)
                 Divider()
                 PlaybackSettingsMenuItem()
+                DataSaverMenuItem()
             }
 
             CommandGroup(after: .sidebar) {
@@ -254,6 +255,16 @@ struct RecapMenuItem: View {
         Button(tr("Recap…", "Recap…")) {
             openWindow(id: "recap")
         }
+    }
+}
+
+struct DataSaverMenuItem: View {
+    @AppStorage("dataSaverEnabled") private var dataSaverEnabled = false
+    @AppStorage("transcodingEnabled") private var transcodingEnabled = false
+
+    var body: some View {
+        Toggle(tr("Data Saver", "Datensparmodus"), isOn: $dataSaverEnabled)
+            .disabled(!transcodingEnabled)
     }
 }
 

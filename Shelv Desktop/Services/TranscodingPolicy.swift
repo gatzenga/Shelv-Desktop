@@ -33,7 +33,8 @@ enum TranscodingBitrate: Int, CaseIterable, Identifiable {
 struct TranscodingPolicy {
     static func currentStreamFormat() -> (codec: TranscodingCodec, bitrate: Int)? {
         guard UserDefaults.standard.bool(forKey: "transcodingEnabled") else { return nil }
-        let isWifi = NetworkStatus.shared.isOnWifi
+        let dataSaver = UserDefaults.standard.bool(forKey: "dataSaverEnabled")
+        let isWifi = !dataSaver && NetworkStatus.shared.isOnWifi
         let codecKey = isWifi ? "transcodingWifiCodec" : "transcodingCellularCodec"
         let bitrateKey = isWifi ? "transcodingWifiBitrate" : "transcodingCellularBitrate"
         let codecRaw = UserDefaults.standard.string(forKey: codecKey) ?? "raw"

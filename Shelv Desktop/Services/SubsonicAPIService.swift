@@ -193,7 +193,7 @@ class SubsonicAPIService: ObservableObject {
         return components.url
     }
 
-    func streamURL(songId: String) -> URL? {
+    func streamURL(songId: String, timeOffset: Int = 0) -> URL? {
         guard let cfg = config else { return nil }
         var base = cfg.serverURL
         if base.hasSuffix("/") { base = String(base.dropLast()) }
@@ -205,6 +205,9 @@ class SubsonicAPIService: ObservableObject {
             items.append(URLQueryItem(name: "maxBitRate", value: "\(fmt.bitrate)"))
         } else {
             items.append(URLQueryItem(name: "format", value: "raw"))
+        }
+        if timeOffset > 0 {
+            items.append(URLQueryItem(name: "timeOffset", value: "\(timeOffset)"))
         }
         components.queryItems = items
         return components.url

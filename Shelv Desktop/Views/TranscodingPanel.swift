@@ -32,7 +32,7 @@ struct TranscodingPanel: View {
                            codecBinding: $wifiCodecRaw,
                            bitrateBinding: $wifiBitrate,
                            options: TranscodingCodec.streamingOptions)
-                subsection(title: tr("Cellular", "Mobilfunk"),
+                subsection(title: tr("Data Saver", "Datensparmodus"),
                            codecBinding: $cellularCodecRaw,
                            bitrateBinding: $cellularBitrate,
                            options: TranscodingCodec.streamingOptions)
