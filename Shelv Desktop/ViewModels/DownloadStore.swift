@@ -48,8 +48,10 @@ final class DownloadStore: ObservableObject {
                     if case .downloading = update.state { isDl = true } else { isDl = false }
                     if case .none = update.state {
                         self.inFlightStates.removeValue(forKey: update.key)
+                        self.inFlightProgress.removeValue(forKey: update.key)
                     } else if case .completed = update.state {
                         self.inFlightStates.removeValue(forKey: update.key)
+                        self.inFlightProgress.removeValue(forKey: update.key)
                     } else {
                         self.inFlightStates[update.key] = update.state
                     }

@@ -2,6 +2,7 @@ import AVFoundation
 import AppKit
 import MediaPlayer
 import Combine
+import Network
 import SwiftUI
 
 private extension URL {
@@ -17,6 +18,7 @@ class AudioPlayerService: ObservableObject {
 
     @Published var isPlaying: Bool = false
     @Published var isBuffering: Bool = false
+    @Published var showBufferingIndicator: Bool = false
     @Published var currentSong: Song?
     @Published var queue: [QueueItem] = []
     @Published var playNextQueue: [Song] = []
@@ -34,6 +36,13 @@ class AudioPlayerService: ObservableObject {
     @Published var isShuffled: Bool = false
     @Published var repeatMode: RepeatMode = .off
     @Published var actualStreamFormat: ActualStreamFormat?
+    @Published var artworkReloadToken: UUID = UUID()
+    @Published var isNetworkAvailable: Bool = true
+
+    private let networkMonitor = NWPathMonitor()
+    private let networkMonitorQueue = DispatchQueue(label: "shelv.desktop.netstatus", qos: .utility)
+    private var networkResumeSong: Song?
+    private var networkResumeTime: Double = 0
 
     private var formatProbeTask: Task<Void, Never>?
     private var playbackWatchdog: Task<Void, Never>?
@@ -130,6 +139,8 @@ class AudioPlayerService: ObservableObject {
 
     private let engine = PlayerEngine()
     private var engineSubscriptions = Set<AnyCancellable>()
+    private var bufferingShowTask: Task<Void, Never>?
+    private var lastArtworkCoverArt: String? = nil
     private var gaplessPreloadTriggered = false
     private var gaplessPreloadSong: Song?
     private var gaplessPreloadURL: URL?
@@ -173,6 +184,7 @@ class AudioPlayerService: ObservableObject {
 
     private init() {
         _ = NetworkStatus.shared
+        setupNetworkMonitor()
         setupRemoteControls()
         setupEngine()
         Task { [weak self] in
@@ -189,7 +201,30 @@ class AudioPlayerService: ObservableObject {
         }
     }
 
+    private func setupNetworkMonitor() {
+        networkMonitor.pathUpdateHandler = { [weak self] path in
+            // Synchroner Sync zu NetworkStatus.shared, damit ein anschliessender loadURL
+            // (der die TranscodingPolicy → isOnWifi liest) den korrekten Wert sieht — auch wenn
+            // der NetworkStatus-Monitor seinen eigenen Update noch nicht prozessiert hat.
+            NetworkStatus.shared.update(from: path)
+            let isAvailable = path.status == .satisfied
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.isNetworkAvailable = isAvailable
+                if isAvailable, let song = self.networkResumeSong {
+                    self.networkResumeSong = nil
+                    let t = self.networkResumeTime
+                    self.networkResumeTime = 0
+                    guard let url = self.resolveURL(songId: song.id) else { return }
+                    self.loadURL(url, song: song, seekTo: t)
+                }
+            }
+        }
+        networkMonitor.start(queue: networkMonitorQueue)
+    }
+
     deinit {
+        networkMonitor.cancel()
         if let obs = willTerminateObserver {
             NotificationCenter.default.removeObserver(obs)
         }
@@ -578,8 +613,10 @@ class AudioPlayerService: ObservableObject {
     }
 
     func pause() {
+        networkResumeSong = nil
         engine.pause()
         isPlaying = false
+        isBuffering = false
         MPNowPlayingInfoCenter.default().playbackState = .paused
         saveState()
     }
@@ -599,6 +636,8 @@ class AudioPlayerService: ObservableObject {
     }
 
     func stop() {
+        networkResumeSong = nil
+        networkResumeTime = 0
         engine.stop()
         isEngineLoaded = false
         gaplessPreloadTriggered = false
@@ -689,10 +728,18 @@ class AudioPlayerService: ObservableObject {
         } else {
             isSeeking = true
             currentTime = time
-            engine.seek(to: time) { [weak self] finished in
+            // loadedTimeRanges fragen: ist die Zielposition im Buffer? Wenn nicht UND der Player
+            // gerade spielt → aktiv pausieren und auf isPlaybackLikelyToKeepUp warten. Wenn der
+            // User schon pausiert hat, NICHT pause-and-resume, sonst springt der Player gegen
+            // seinen Wunsch wieder an.
+            let buffered = engine.isPositionBuffered(time)
+            let shouldPauseAndWait = !buffered && self.isPlaying
+            if shouldPauseAndWait { isBuffering = true }
+            engine.seek(to: time, pauseUntilBuffered: shouldPauseAndWait) { [weak self] finished in
                 Task { @MainActor [weak self] in
-                    if finished { self?.currentTime = time }
-                    self?.isSeeking = false
+                    guard let self else { return }
+                    if finished { self.currentTime = time }
+                    self.isSeeking = false
                 }
             }
         }
@@ -728,13 +775,21 @@ class AudioPlayerService: ObservableObject {
     }
 
     private func loadURL(_ url: URL, song: Song, seekTo: Double = 0) {
+        networkResumeSong = nil
         currentStreamURL = url
         streamTimeOffset = 0
         gaplessPreloadTriggered = false
         gaplessPreloadSong = nil
         gaplessPreloadURL = nil
+        formatProbeTask?.cancel()
+        actualStreamFormat = nil
         artworkLoadTask?.cancel()
         artworkLoadTask = nil
+        isPlaying = true
+        if song.coverArt != lastArtworkCoverArt {
+            artworkReloadToken = UUID()
+            lastArtworkCoverArt = song.coverArt
+        }
         isBuffering = true
         isSeeking = false
         currentTime = 0
@@ -785,6 +840,7 @@ class AudioPlayerService: ObservableObject {
                     if let d = song.duration { self.duration = Double(d) }
                     self.engine.trustedDuration = Double(song.duration ?? 0)
                     self.isEngineLoaded = true
+                    self.isBuffering = false
                     self.updateNowPlayingInfo(song: song)
                     self.loadArtworkAsync(for: song)
                     if let url = self.resolveURL(songId: song.id) {
@@ -833,13 +889,49 @@ class AudioPlayerService: ObservableObject {
                 guard let self else { return }
                 Task { @MainActor [self] in
                     if playing {
-                        self.isBuffering = false
                         self.playbackWatchdog?.cancel()
-                    }
-                    self.isPlaying = playing
-                    if playing {
                         MPNowPlayingInfoCenter.default().playbackState = .playing
                     }
+                }
+            }
+            .store(in: &engineSubscriptions)
+
+        engine.$isWaiting
+            .sink { [weak self] waiting in
+                guard let self else { return }
+                Task { @MainActor [self] in
+                    guard self.isEngineLoaded, self.isPlaying else { return }
+                    self.isBuffering = waiting
+                }
+            }
+            .store(in: &engineSubscriptions)
+
+        engine.onPlaybackFailed = { [weak self] in
+            guard let self else { return }
+            Task { @MainActor [self] in
+                self.isEngineLoaded = false
+                guard self.isPlaying else { return }
+                self.networkResumeSong = self.currentSong
+                self.networkResumeTime = self.currentTime
+                self.resumeTime = self.currentTime
+                self.isBuffering = true
+            }
+        }
+
+        $isBuffering
+            .removeDuplicates()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isBuf in
+                guard let self else { return }
+                self.bufferingShowTask?.cancel()
+                if isBuf {
+                    self.bufferingShowTask = Task { @MainActor [weak self] in
+                        try? await Task.sleep(for: .seconds(1))
+                        guard !Task.isCancelled, let self, self.isBuffering else { return }
+                        self.showBufferingIndicator = true
+                    }
+                } else {
+                    self.showBufferingIndicator = false
                 }
             }
             .store(in: &engineSubscriptions)

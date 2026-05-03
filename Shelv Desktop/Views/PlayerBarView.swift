@@ -9,15 +9,7 @@ struct PlayerBarView: View {
     @ObservedObject private var player = AudioPlayerService.shared
 
     private var audioBadge: String? {
-        if let actual = player.actualStreamFormat {
-            return actual.displayString
-        }
-        guard let song = player.currentSong else { return nil }
-        guard let suffix = song.suffix else { return nil }
-        if let br = song.bitRate {
-            return "\(suffix.uppercased()) · \(br) kbps"
-        }
-        return suffix.uppercased()
+        player.actualStreamFormat?.displayString
     }
     @Environment(\.themeColor) private var themeColor
     @AppStorage("enableFavorites") private var enableFavorites = true
@@ -46,15 +38,6 @@ struct PlayerBarView: View {
                                     .foregroundStyle(.secondary)
                             }
                             .frame(width: 62, height: 62)
-                        }
-                    }
-                    .overlay(alignment: .bottomTrailing) {
-                        if player.isBuffering || player.isPlaying {
-                            Circle()
-                                .fill(player.isBuffering ? Color.orange : Color.green)
-                                .frame(width: 10, height: 10)
-                                .overlay(Circle().stroke(Color(NSColor.windowBackgroundColor), lineWidth: 2))
-                                .offset(x: 3, y: 3)
                         }
                     }
 
@@ -156,16 +139,10 @@ struct PlayerBarView: View {
                         Button { player.togglePlayPause() } label: {
                             ZStack {
                                 Circle().fill(themeColor)
-                                if player.isBuffering {
-                                    ProgressView()
-                                        .controlSize(.regular)
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                                        .foregroundStyle(.white)
-                                        .font(.system(size: 17, weight: .semibold))
-                                        .offset(x: player.isPlaying ? 0 : 1.5)
-                                }
+                                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                                    .foregroundStyle(.white)
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .offset(x: player.isPlaying ? 0 : 1.5)
                             }
                             .frame(width: 46, height: 46)
                         }
@@ -248,13 +225,19 @@ struct PlayerBarView: View {
                 .frame(maxWidth: 560)
 
                 HStack(spacing: 16) {
-                    if let badge = audioBadge {
-                        Text(badge)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 5) {
+                        if player.showBufferingIndicator {
+                            ProgressView()
+                                .controlSize(.mini)
+                                .frame(width: 14, height: 14)
+                        }
+                        Text(player.showBufferingIndicator ? tr("Loading…", "Lädt…") : (audioBadge ?? ""))
                             .monospacedDigit()
-                            .padding(.trailing, 8)
                     }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(height: 14)
+                    .padding(.trailing, 8)
 
                     Button { showLyrics.toggle() } label: {
                         Image(systemName: "text.quote")

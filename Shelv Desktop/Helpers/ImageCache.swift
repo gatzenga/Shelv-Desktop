@@ -11,6 +11,18 @@ struct CoverArtView: View {
 
     @State private var image: NSImage?
 
+    init(url: URL?, size: CGFloat = 180, cornerRadius: CGFloat = 8, isCircle: Bool = false) {
+        self.url = url
+        self.size = size
+        self.cornerRadius = cornerRadius
+        self.isCircle = isCircle
+        if let url, let cached = ImageCacheService.shared.cachedImage(url: url) {
+            self._image = State(initialValue: cached)
+        } else {
+            self._image = State(initialValue: nil)
+        }
+    }
+
     var body: some View {
         let content = Group {
             if let img = image {
@@ -61,6 +73,9 @@ struct CoverArtView: View {
             image = hit; return
         }
 
+        // Stale-while-revalidate: altes Bild bleibt sichtbar während neues lädt.
+        // image nicht auf nil setzen — neues Bild ersetzt erst wenn fertig.
+
         let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
         if let artId = comps?.queryItems?.first(where: { $0.name == "id" })?.value,
            let localPath = LocalArtworkIndex.shared.localPath(for: artId) {
@@ -75,9 +90,13 @@ struct CoverArtView: View {
         }
 
         if UserDefaults.standard.bool(forKey: "offlineModeEnabled") {
-            image = await ImageCacheService.shared.diskOnlyImage(url: url)
+            if let img = await ImageCacheService.shared.diskOnlyImage(url: url) {
+                image = img
+            }
         } else {
-            image = await ImageCacheService.shared.image(url: url)
+            if let img = await ImageCacheService.shared.image(url: url) {
+                image = img
+            }
         }
     }
 }
