@@ -55,6 +55,9 @@ struct Shelv_DesktopApp: App {
                 .frame(minWidth: 900, minHeight: 600)
                 .task { await LyricsStore.shared.setup() }
                 .task {
+                    Task.detached(priority: .utility) {
+                        await StreamCacheService.shared.cleanupOldFiles()
+                    }
                     await PlayLogService.shared.setup()
                     await DownloadDatabase.shared.setup()
                     await DownloadService.shared.setup()
