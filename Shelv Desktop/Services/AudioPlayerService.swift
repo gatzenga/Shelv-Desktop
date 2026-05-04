@@ -45,7 +45,6 @@ class AudioPlayerService: ObservableObject {
     private var networkResumeTime: Double = 0
 
     private var formatProbeTask: Task<Void, Never>?
-    private var playbackWatchdog: Task<Void, Never>?
 
     func probeStreamFormat(songId: String, url: URL, duration: Double) {
         formatProbeTask?.cancel()
@@ -77,8 +76,7 @@ class AudioPlayerService: ObservableObject {
                 let (_, response) = try await URLSession.shared.data(for: req)
                 guard !Task.isCancelled, let http = response as? HTTPURLResponse else { return }
                 if http.statusCode != 200, isTranscoded {
-                    print("[Transcoding] HEAD status \(http.statusCode) → fallback to raw")
-                    await MainActor.run { self?.fallbackToRawStream(songId: songId, duration: duration) }
+                    print("[Transcoding] HEAD status \(http.statusCode)")
                     return
                 }
                 let codec = ActualStreamFormat.codecLabel(forMime: http.mimeType)
@@ -93,41 +91,8 @@ class AudioPlayerService: ObservableObject {
             } catch {
                 guard !Task.isCancelled else { return }
                 if isTranscoded {
-                    print("[Transcoding] HEAD failed (\(error.localizedDescription)) → fallback to raw")
-                    await MainActor.run { self?.fallbackToRawStream(songId: songId, duration: duration) }
+                    print("[Transcoding] HEAD failed (\(error.localizedDescription))")
                 }
-            }
-        }
-    }
-
-    private func fallbackToRawStream(songId: String, duration: Double) {
-        guard let song = currentSong, song.id == songId else { return }
-        guard let raw = SubsonicAPIService.shared.rawStreamURL(songId: songId) else { return }
-        playbackWatchdog?.cancel()
-        let resumeAt = currentTime
-        currentStreamURL = raw
-        streamTimeOffset = 0
-        isBuffering = true
-        engine.play(url: raw)
-        if resumeAt > 1 { engine.seek(to: resumeAt) }
-        isEngineLoaded = true
-        probeStreamFormat(songId: songId, url: raw, duration: duration)
-    }
-
-    private func schedulePlaybackWatchdog(songId: String, url: URL, duration: Double) {
-        playbackWatchdog?.cancel()
-        let formatParam = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-            .queryItems?.first(where: { $0.name == "format" })?.value
-        guard formatParam != nil, formatParam != "raw" else { return }
-        playbackWatchdog = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                guard let self, self.currentSong?.id == songId else { return }
-                let stuck = !self.isPlaying || self.currentTime < 0.1
-                guard stuck else { return }
-                print("[Transcoding] Playback watchdog timeout (isPlaying=\(self.isPlaying) currentTime=\(self.currentTime)) → fallback to raw")
-                self.fallbackToRawStream(songId: songId, duration: duration)
             }
         }
     }
@@ -144,6 +109,7 @@ class AudioPlayerService: ObservableObject {
     private var gaplessPreloadTriggered = false
     private var gaplessPreloadSong: Song?
     private var gaplessPreloadURL: URL?
+    private var prefetchScheduled = false
     private var isEngineLoaded = false
     private var currentStreamURL: URL?
     private var streamTimeOffset: Double = 0
@@ -158,6 +124,13 @@ class AudioPlayerService: ObservableObject {
         }
         guard !OfflineModeService.shared.isOffline else { return nil }
         return apiService.streamURL(songId: songId)
+    }
+
+    private func isTranscodedRemote(_ url: URL) -> Bool {
+        guard !url.isFileURL else { return false }
+        let fmt = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?.first(where: { $0.name == "format" })?.value
+        return fmt != nil && fmt != "raw"
     }
 
     private var currentArtwork: MPMediaItemArtwork?
@@ -643,6 +616,7 @@ class AudioPlayerService: ObservableObject {
         gaplessPreloadTriggered = false
         gaplessPreloadSong = nil
         gaplessPreloadURL = nil
+        prefetchScheduled = false
         currentStreamURL = nil
         streamTimeOffset = 0
         artworkLoadTask?.cancel()
@@ -706,41 +680,16 @@ class AudioPlayerService: ObservableObject {
     }
 
     func seek(to time: Double) {
-        let isTranscodedStream = currentStreamURL.map {
-            !$0.isFileURL && ($0.queryParam("format").map { $0 != "raw" } ?? false)
-        } ?? false
-
-        if isTranscodedStream, let song = currentSong {
-            let offset = Int(time)
-            guard let newURL = apiService.streamURL(songId: song.id, timeOffset: offset) else { return }
-            currentStreamURL = newURL
-            streamTimeOffset = Double(offset)
-            currentTime = time
-            gaplessPreloadTriggered = false
-            gaplessPreloadSong = nil
-            gaplessPreloadURL = nil
-            isBuffering = true
-            schedulePlaybackWatchdog(songId: song.id, url: newURL, duration: Double(song.duration ?? 0))
-            if let d = song.duration { duration = Double(d) }
-            engine.play(url: newURL)
-            engine.trustedDuration = Double(song.duration ?? 0)
-            isEngineLoaded = true
-        } else {
-            isSeeking = true
-            currentTime = time
-            // loadedTimeRanges fragen: ist die Zielposition im Buffer? Wenn nicht UND der Player
-            // gerade spielt → aktiv pausieren und auf isPlaybackLikelyToKeepUp warten. Wenn der
-            // User schon pausiert hat, NICHT pause-and-resume, sonst springt der Player gegen
-            // seinen Wunsch wieder an.
-            let buffered = engine.isPositionBuffered(time)
-            let shouldPauseAndWait = !buffered && self.isPlaying
-            if shouldPauseAndWait { isBuffering = true }
-            engine.seek(to: time, pauseUntilBuffered: shouldPauseAndWait) { [weak self] finished in
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    if finished { self.currentTime = time }
-                    self.isSeeking = false
-                }
+        isSeeking = true
+        currentTime = time
+        let buffered = engine.isPositionBuffered(time)
+        let shouldPauseAndWait = !buffered && self.isPlaying
+        if shouldPauseAndWait { isBuffering = true }
+        engine.seek(to: time, pauseUntilBuffered: shouldPauseAndWait) { [weak self] finished in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if finished { self.currentTime = time }
+                self.isSeeking = false
             }
         }
     }
@@ -781,6 +730,7 @@ class AudioPlayerService: ObservableObject {
         gaplessPreloadTriggered = false
         gaplessPreloadSong = nil
         gaplessPreloadURL = nil
+        prefetchScheduled = false
         formatProbeTask?.cancel()
         actualStreamFormat = nil
         artworkLoadTask?.cancel()
@@ -795,19 +745,58 @@ class AudioPlayerService: ObservableObject {
         currentTime = 0
         duration = Double(song.duration ?? 0)
 
-        engine.play(url: url)
-        engine.trustedDuration = Double(song.duration ?? 0)
-        isEngineLoaded = true
+        if let prev = currentSong {
+            Task { await StreamCacheService.shared.cancel(songId: prev.id) }
+        }
 
-        if seekTo > 1 {
-            engine.seek(to: seekTo)
+        if isTranscodedRemote(url), let fmt = TranscodingPolicy.currentStreamFormat() {
+            let songId = song.id
+            actualStreamFormat = ActualStreamFormat(
+                codecLabel: fmt.codec.rawValue.uppercased(),
+                bitrateKbps: fmt.bitrate
+            )
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                await StreamCacheService.shared.prefetch(
+                    songId: songId,
+                    url: url,
+                    codec: fmt.codec.rawValue,
+                    bitrate: fmt.bitrate
+                )
+                let deadline = Date().addingTimeInterval(60)
+                repeat {
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    guard self.currentSong?.id == songId else { return }
+                    if let local = await StreamCacheService.shared.localURL(for: songId) {
+                        self.currentStreamURL = local
+                        self.engine.play(url: local)
+                        self.engine.trustedDuration = Double(song.duration ?? 0)
+                        if seekTo > 1 { self.engine.seek(to: seekTo) }
+                        self.isEngineLoaded = true
+                        return
+                    }
+                } while Date() < deadline
+                if self.currentSong?.id == songId, !self.isEngineLoaded,
+                   let rawURL = self.apiService.rawStreamURL(songId: songId) {
+                    self.currentStreamURL = rawURL
+                    self.probeStreamFormat(songId: songId, url: rawURL, duration: Double(song.duration ?? 0))
+                    self.engine.play(url: rawURL)
+                    self.engine.trustedDuration = Double(song.duration ?? 0)
+                    if seekTo > 1 { self.engine.seek(to: seekTo) }
+                    self.isEngineLoaded = true
+                }
+            }
+        } else {
+            probeStreamFormat(songId: song.id, url: url, duration: Double(song.duration ?? 0))
+            engine.play(url: url)
+            engine.trustedDuration = Double(song.duration ?? 0)
+            isEngineLoaded = true
+            if seekTo > 1 { engine.seek(to: seekTo) }
         }
 
         currentArtwork = nil
         loadArtworkAsync(for: song)
         updateNowPlayingInfo(song: song)
-        probeStreamFormat(songId: song.id, url: url, duration: Double(song.duration ?? 0))
-        schedulePlaybackWatchdog(songId: song.id, url: url, duration: Double(song.duration ?? 0))
         Task { try? await apiService.scrobble(songId: song.id, submission: false) }
     }
 
@@ -817,15 +806,11 @@ class AudioPlayerService: ObservableObject {
         engine.onTrackFinished = { [weak self] in
             guard let self else { return }
             Task { @MainActor [self] in
-                if self.gaplessPreloadTriggered, let song = self.gaplessPreloadSong {
+                if self.gaplessPreloadTriggered, self.gaplessPreloadURL != nil, let song = self.gaplessPreloadSong {
                     self.gaplessPreloadTriggered = false
                     self.gaplessPreloadSong = nil
                     self.gaplessPreloadURL = nil
 
-                    // Queue darf zwischen Preload und tatsächlichem Songende mutiert
-                    // worden sein. Nur swappen, wenn der vorgepufferte Song noch der
-                    // nächste ist — sonst regulär playNext() laufen lassen, das räumt
-                    // den preloaded Item ab.
                     guard self.peekNextSong()?.id == song.id else {
                         self.playNext(triggeredByUser: false)
                         return
@@ -889,7 +874,6 @@ class AudioPlayerService: ObservableObject {
                 guard let self else { return }
                 Task { @MainActor [self] in
                     if playing {
-                        self.playbackWatchdog?.cancel()
                         MPNowPlayingInfoCenter.default().playbackState = .playing
                     }
                 }
@@ -944,13 +928,56 @@ class AudioPlayerService: ObservableObject {
     }
 
     private func checkGaplessTrigger(currentTime: Double) {
-        guard gaplessEnabled else { return }
-        guard !gaplessPreloadTriggered, duration > 11 else { return }
-        let preloadAt = duration - 10
-        guard currentTime >= preloadAt else { return }
+        guard duration > 11 else { return }
         guard !(repeatMode == .one && playNextQueue.isEmpty) else { return }
         guard let nextSong = peekNextSong() else { return }
+
+        let prefetchAt = max(0, duration - 30)
+        if currentTime >= prefetchAt,
+           !prefetchScheduled,
+           let nextURL = apiService.streamURL(songId: nextSong.id),
+           isTranscodedRemote(nextURL),
+           let fmt = TranscodingPolicy.currentStreamFormat() {
+            prefetchScheduled = true
+            Task {
+                await StreamCacheService.shared.prefetch(
+                    songId: nextSong.id,
+                    url: nextURL,
+                    codec: fmt.codec.rawValue,
+                    bitrate: fmt.bitrate
+                )
+            }
+        }
+
+        guard !gaplessPreloadTriggered else { return }
+        guard gaplessEnabled else { return }
+        let preloadAt = duration - 10
+        guard currentTime >= preloadAt else { return }
         guard let url = resolveURL(songId: nextSong.id) else { return }
+        guard !isTranscodedRemote(url) else {
+            let songId = nextSong.id
+            gaplessPreloadTriggered = true
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let deadline = Date().addingTimeInterval(8)
+                repeat {
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    guard self.gaplessPreloadSong?.id == songId || self.gaplessPreloadSong == nil else { return }
+                    if let local = await StreamCacheService.shared.localURL(for: songId) {
+                        self.gaplessPreloadURL = local
+                        self.engine.preloadForGapless(url: local)
+                        return
+                    }
+                } while Date() < deadline
+                if self.gaplessPreloadURL == nil {
+                    self.gaplessPreloadTriggered = false
+                    self.gaplessPreloadSong = nil
+                }
+            }
+            gaplessPreloadSong = nextSong
+            return
+        }
+
         gaplessPreloadSong = nextSong
         gaplessPreloadURL = url
         gaplessPreloadTriggered = true
