@@ -110,6 +110,7 @@ class AudioPlayerService: ObservableObject {
     private var gaplessPreloadSong: Song?
     private var gaplessPreloadURL: URL?
     private var prefetchScheduled = false
+    private var prefetchedSongId: String? = nil
     private var isEngineLoaded = false
     private var currentStreamURL: URL?
     private var streamTimeOffset: Double = 0
@@ -740,6 +741,8 @@ class AudioPlayerService: ObservableObject {
             artworkReloadToken = UUID()
             lastArtworkCoverArt = song.coverArt
         }
+        isEngineLoaded = false
+        isBuffering = false
         isBuffering = true
         isSeeking = false
         currentTime = 0
@@ -748,8 +751,13 @@ class AudioPlayerService: ObservableObject {
         if let prev = currentSong {
             Task { await StreamCacheService.shared.cancel(songId: prev.id) }
         }
+        if let prefId = prefetchedSongId, prefId != song.id {
+            Task { await StreamCacheService.shared.cancel(songId: prefId) }
+        }
+        prefetchedSongId = nil
 
         if isTranscodedRemote(url), let fmt = TranscodingPolicy.currentStreamFormat() {
+            engine.stop()
             let songId = song.id
             actualStreamFormat = ActualStreamFormat(
                 codecLabel: fmt.codec.rawValue.uppercased(),
@@ -768,9 +776,13 @@ class AudioPlayerService: ObservableObject {
                     try? await Task.sleep(nanoseconds: 200_000_000)
                     guard self.currentSong?.id == songId else { return }
                     if let local = await StreamCacheService.shared.localURL(for: songId) {
+                        let asset = AVURLAsset(url: local, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+                        let cmTime = try? await asset.load(.duration)
+                        guard self.currentSong?.id == songId else { return }
+                        let precise = cmTime.flatMap { $0.isValid && !$0.isIndefinite ? CMTimeGetSeconds($0) : nil }
                         self.currentStreamURL = local
                         self.engine.play(url: local)
-                        self.engine.trustedDuration = Double(song.duration ?? 0)
+                        self.engine.trustedDuration = (precise ?? 0) > 0 ? precise! : Double(song.duration ?? 0)
                         if seekTo > 1 { self.engine.seek(to: seekTo) }
                         self.isEngineLoaded = true
                         return
@@ -781,6 +793,46 @@ class AudioPlayerService: ObservableObject {
                     self.currentStreamURL = rawURL
                     self.probeStreamFormat(songId: songId, url: rawURL, duration: Double(song.duration ?? 0))
                     self.engine.play(url: rawURL)
+                    self.engine.trustedDuration = Double(song.duration ?? 0)
+                    if seekTo > 1 { self.engine.seek(to: seekTo) }
+                    self.isEngineLoaded = true
+                }
+            }
+        } else if !url.isFileURL, streamPreCacheEnabled {
+            // Original-Remote-Stream mit Pre-Cache → erst vollständig laden, dann lokal abspielen
+            engine.stop()
+            let songId = song.id
+            let suffix = song.suffix?.lowercased() ?? "audio"
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                await StreamCacheService.shared.prefetch(
+                    songId: songId,
+                    url: url,
+                    codec: suffix,
+                    bitrate: 0
+                )
+                let deadline = Date().addingTimeInterval(60)
+                repeat {
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                    guard self.currentSong?.id == songId else { return }
+                    if let local = await StreamCacheService.shared.localURL(for: songId) {
+                        let asset = AVURLAsset(url: local, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+                        let cmTime = try? await asset.load(.duration)
+                        guard self.currentSong?.id == songId else { return }
+                        let precise = cmTime.flatMap { $0.isValid && !$0.isIndefinite ? CMTimeGetSeconds($0) : nil }
+                        self.currentStreamURL = local
+                        self.probeStreamFormat(songId: songId, url: local, duration: Double(song.duration ?? 0))
+                        self.engine.play(url: local)
+                        self.engine.trustedDuration = (precise ?? 0) > 0 ? precise! : Double(song.duration ?? 0)
+                        if seekTo > 1 { self.engine.seek(to: seekTo) }
+                        self.isEngineLoaded = true
+                        return
+                    }
+                } while Date() < deadline
+                // Timeout-Fallback: direkt streamen
+                if self.currentSong?.id == songId, !self.isEngineLoaded {
+                    self.probeStreamFormat(songId: songId, url: url, duration: Double(song.duration ?? 0))
+                    self.engine.play(url: url)
                     self.engine.trustedDuration = Double(song.duration ?? 0)
                     if seekTo > 1 { self.engine.seek(to: seekTo) }
                     self.isEngineLoaded = true
@@ -822,6 +874,8 @@ class AudioPlayerService: ObservableObject {
                     self.currentTime = 0
                     self.isSeeking = false
                     self.streamTimeOffset = 0
+                    self.prefetchScheduled = false
+                    self.prefetchedSongId = nil
                     if let d = song.duration { self.duration = Double(d) }
                     self.engine.trustedDuration = Double(song.duration ?? 0)
                     self.isEngineLoaded = true
@@ -927,25 +981,40 @@ class AudioPlayerService: ObservableObject {
         UserDefaults.standard.bool(forKey: "gaplessEnabled")
     }
 
+    private var streamPreCacheEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "streamPreCacheEnabled")
+    }
+
     private func checkGaplessTrigger(currentTime: Double) {
         guard duration > 11 else { return }
         guard !(repeatMode == .one && playNextQueue.isEmpty) else { return }
         guard let nextSong = peekNextSong() else { return }
 
-        let prefetchAt = max(0, duration - 30)
-        if currentTime >= prefetchAt,
-           !prefetchScheduled,
-           let nextURL = resolveURL(songId: nextSong.id),
-           isTranscodedRemote(nextURL),
-           let fmt = TranscodingPolicy.currentStreamFormat() {
-            prefetchScheduled = true
-            Task {
-                await StreamCacheService.shared.prefetch(
-                    songId: nextSong.id,
-                    url: nextURL,
-                    codec: fmt.codec.rawValue,
-                    bitrate: fmt.bitrate
-                )
+        if currentTime >= 5, !prefetchScheduled,
+           let nextURL = resolveURL(songId: nextSong.id) {
+            if isTranscodedRemote(nextURL), let fmt = TranscodingPolicy.currentStreamFormat() {
+                prefetchScheduled = true
+                prefetchedSongId = nextSong.id
+                Task {
+                    await StreamCacheService.shared.prefetch(
+                        songId: nextSong.id,
+                        url: nextURL,
+                        codec: fmt.codec.rawValue,
+                        bitrate: fmt.bitrate
+                    )
+                }
+            } else if !nextURL.isFileURL, streamPreCacheEnabled {
+                prefetchScheduled = true
+                prefetchedSongId = nextSong.id
+                let suffix = nextSong.suffix?.lowercased() ?? "audio"
+                Task {
+                    await StreamCacheService.shared.prefetch(
+                        songId: nextSong.id,
+                        url: nextURL,
+                        codec: suffix,
+                        bitrate: 0
+                    )
+                }
             }
         }
 
@@ -954,7 +1023,8 @@ class AudioPlayerService: ObservableObject {
         let preloadAt = duration - 10
         guard currentTime >= preloadAt else { return }
         guard let url = resolveURL(songId: nextSong.id) else { return }
-        guard !isTranscodedRemote(url) else {
+
+        if isTranscodedRemote(url) {
             let songId = nextSong.id
             gaplessPreloadTriggered = true
             Task { @MainActor [weak self] in
@@ -975,13 +1045,34 @@ class AudioPlayerService: ObservableObject {
                 }
             }
             gaplessPreloadSong = nextSong
-            return
+        } else if !url.isFileURL, streamPreCacheEnabled {
+            // Original-Remote-Stream mit Pre-Cache — auf lokale Datei warten
+            let songId = nextSong.id
+            gaplessPreloadTriggered = true
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let deadline = Date().addingTimeInterval(8)
+                while Date() < deadline {
+                    if let local = await StreamCacheService.shared.localURL(for: songId) {
+                        guard self.gaplessPreloadSong?.id == songId else { return }
+                        self.gaplessPreloadURL = local
+                        self.engine.preloadForGapless(url: local)
+                        return
+                    }
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                }
+                if self.gaplessPreloadURL == nil {
+                    self.gaplessPreloadTriggered = false
+                    self.gaplessPreloadSong = nil
+                }
+            }
+            gaplessPreloadSong = nextSong
+        } else {
+            gaplessPreloadSong = nextSong
+            gaplessPreloadURL = url
+            gaplessPreloadTriggered = true
+            engine.preloadForGapless(url: url)
         }
-
-        gaplessPreloadSong = nextSong
-        gaplessPreloadURL = url
-        gaplessPreloadTriggered = true
-        engine.preloadForGapless(url: url)
     }
 
     private func peekNextSong() -> Song? {

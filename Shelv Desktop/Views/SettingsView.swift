@@ -357,9 +357,20 @@ struct AppearanceTab: View {
 struct CacheTab: View {
     @State private var cacheSize = "–"
     @State private var showClearConfirm = false
+    @AppStorage("streamPreCacheEnabled") private var streamPreCacheEnabled = false
 
     var body: some View {
         Form {
+            Section(tr("Playback", "Wiedergabe")) {
+                Toggle(tr("Precache original file", "Originaldatei vorab laden"), isOn: $streamPreCacheEnabled)
+                Text(tr(
+                    "Downloads the song before playback for seamless gapless and network-independent playback. Only applies when transcoding is off.",
+                    "Lädt den Song vollständig herunter, bevor er abgespielt wird. Ermöglicht unterbrechungsfreies Gapless-Playback und macht die Wiedergabe unabhängig vom Netzwerk. Nur wirksam, wenn kein Transcoding aktiv ist."
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
             Section(tr("Cover Images", "Cover-Bilder")) {
                 LabeledContent(tr("Size", "Grösse")) {
                     Text(cacheSize).foregroundStyle(.secondary)
