@@ -935,7 +935,7 @@ class AudioPlayerService: ObservableObject {
         let prefetchAt = max(0, duration - 30)
         if currentTime >= prefetchAt,
            !prefetchScheduled,
-           let nextURL = apiService.streamURL(songId: nextSong.id),
+           let nextURL = resolveURL(songId: nextSong.id),
            isTranscodedRemote(nextURL),
            let fmt = TranscodingPolicy.currentStreamFormat() {
             prefetchScheduled = true
