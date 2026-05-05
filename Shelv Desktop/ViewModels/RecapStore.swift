@@ -601,13 +601,13 @@ class RecapStore: ObservableObject {
         return entries.count > before
     }
 
-    func deleteEntry(playlistId: String, serverId: String) async {
+    func deleteEntry(playlistId: String, serverId: String) async throws {
         let entry = await PlayLogService.shared.registryEntry(playlistId: playlistId)
         CloudKitSyncService.debugLog("[UserAction:deleteEntry] playlistId=\(playlistId) marker=\(entry?.ckRecordName ?? "nil")")
         if let entry, entry.periodType == RecapPeriod.PeriodType.week.rawValue, !entry.isTest {
             RecapProcessedWeeks.insert(entry.periodStart)
         }
-        try? await SubsonicAPIService.shared.deletePlaylist(id: playlistId)
+        try await SubsonicAPIService.shared.deletePlaylist(id: playlistId)
         await PlayLogService.shared.deleteRegistryEntry(playlistId: playlistId)
         if let ckName = entry?.ckRecordName {
             await CloudKitSyncService.shared.deleteRecapMarker(ckRecordName: ckName)
