@@ -112,15 +112,6 @@ class LibraryViewModel: ObservableObject {
         isLoadingAlbums = false
     }
 
-    private func reconcileDownloadedAlbums(serverAlbumIds: Set<String>) async {
-        guard let stableId = AppState.shared.serverStore.activeServer?.stableId, !stableId.isEmpty else { return }
-        let downloadedAlbumIds = await DownloadDatabase.shared.allAlbumIds(serverId: stableId)
-        let missing = downloadedAlbumIds.subtracting(serverAlbumIds)
-        for albumId in missing {
-            await DownloadService.shared.deleteAlbum(albumId: albumId, serverId: stableId)
-        }
-    }
-
     // MARK: - Artists
 
     func loadArtists() async {
