@@ -55,8 +55,13 @@ actor DownloadService {
     private var pendingJobs: [DownloadJob] = []
     private var pendingJobKeys = Set<String>()
     private var inflightJobs: [Int: DownloadJob] = [:]
+    private var inflightTasks: [Int: URLSessionTask] = [:]
     private var jobKeyByTask: [Int: String] = [:]
     private var cancelledKeys = Set<String>()
+    private var suppressedAlbumIds = Set<String>()
+    private var suppressedArtistIds = Set<String>()
+    private var suppressedArtistNames = Set<String>()
+    private var enqueueEpoch = 0
     private var inCompletionJobs: [String: DownloadJob] = [:]
 
     nonisolated private let progressSubject = CurrentValueSubject<[String: Double], Never>([:])
@@ -184,9 +189,14 @@ actor DownloadService {
     }
 
     func enqueueAlbum(album: Album, serverId: String) async {
+        suppressedAlbumIds.remove(album.id)
+        let epoch = enqueueEpoch
         let api = SubsonicAPIService.shared
         do {
             let detail = try await api.getAlbum(id: album.id)
+            guard enqueueEpoch == epoch,
+                  !suppressedAlbumIds.contains(album.id) else { return }
+            if let name = detail.artist, suppressedArtistNames.contains(name) { return }
             let albumArtist = detail.artist ?? album.artist
             let songs = detail.song.map { song -> Song in
                 if song.artist != nil && song.albumId != nil { return song }
@@ -218,10 +228,19 @@ actor DownloadService {
     }
 
     func enqueueArtist(artist: Artist, serverId: String) async {
+        suppressedArtistIds.remove(artist.id)
+        suppressedArtistNames.remove(artist.name)
+        let epoch = enqueueEpoch
         let api = SubsonicAPIService.shared
         do {
             let detail = try await api.getArtist(id: artist.id)
+            guard enqueueEpoch == epoch,
+                  !suppressedArtistIds.contains(artist.id),
+                  !suppressedArtistNames.contains(artist.name) else { return }
             for album in detail.album {
+                guard enqueueEpoch == epoch,
+                      !suppressedArtistIds.contains(artist.id),
+                      !suppressedArtistNames.contains(artist.name) else { return }
                 await enqueueAlbum(album: album, serverId: serverId)
             }
         } catch {
@@ -242,16 +261,16 @@ actor DownloadService {
             .filter { Self.key(songId: $1.song.id, serverId: $1.serverId) == key }
             .map { $0.key }
         for taskId in matchingTaskIds {
-            session?.getAllTasks { tasks in
-                tasks.first(where: { $0.taskIdentifier == taskId })?.cancel()
-            }
+            inflightTasks[taskId]?.cancel()
+            inflightTasks.removeValue(forKey: taskId)
             inflightJobs.removeValue(forKey: taskId)
             jobKeyByTask.removeValue(forKey: taskId)
             removedInflight += 1
         }
         publishProgress(key: key, value: nil)
         stateSubject.send((key, .none))
-        let removed = removedPending + removedInflight
+        let inCompletion = inCompletionJobs.values.contains { Self.key(songId: $0.song.id, serverId: $0.serverId) == key } ? 1 : 0
+        let removed = removedPending + removedInflight + inCompletion
         if removed > 0 {
             batchTotal = max(0, batchTotal - removed)
             publishBatch()
@@ -272,6 +291,7 @@ actor DownloadService {
     }
 
     func deleteAlbum(albumId: String, serverId: String) async {
+        suppressedAlbumIds.insert(albumId)
         let queuedSongIds = jobSongIds(matching: { $0.albumId == albumId && $0.serverId == serverId })
         for songId in queuedSongIds { cancel(songId: songId, serverId: serverId) }
 
@@ -290,6 +310,17 @@ actor DownloadService {
     func deleteArtist(artistId: String, serverId: String) async {
         let isNameKey = artistId.hasPrefix("name:")
         let lookupName = isNameKey ? String(artistId.dropFirst("name:".count)) : artistId
+
+        suppressedArtistIds.insert(artistId)
+        suppressedArtistNames.insert(lookupName)
+        let artistAlbumIds = Set(
+            (pendingJobs + Array(inflightJobs.values)).filter { job in
+                guard job.serverId == serverId else { return false }
+                if isNameKey { return job.artistName == lookupName }
+                return job.artistId == artistId || job.artistName == lookupName
+            }.map { $0.albumId }
+        )
+        suppressedAlbumIds.formUnion(artistAlbumIds)
 
         let queuedSongIds = jobSongIds(matching: { job in
             guard job.serverId == serverId else { return false }
@@ -324,17 +355,19 @@ actor DownloadService {
     }
 
     func cancelBatch() {
+        enqueueEpoch += 1
         let pendingKeys = pendingJobs.map { Self.key(songId: $0.song.id, serverId: $0.serverId) }
         pendingJobs.removeAll()
         pendingJobKeys.removeAll()
         let inflightKeys = inflightJobs.values.map { Self.key(songId: $0.song.id, serverId: $0.serverId) }
         for taskId in Array(inflightJobs.keys) {
+            inflightTasks[taskId]?.cancel()
+            inflightTasks.removeValue(forKey: taskId)
             inflightJobs.removeValue(forKey: taskId)
             jobKeyByTask.removeValue(forKey: taskId)
         }
         let completionKeys = Array(inCompletionJobs.keys)
         for key in completionKeys { cancelledKeys.insert(key) }
-        session?.getAllTasks { tasks in tasks.forEach { $0.cancel() } }
         for key in pendingKeys + inflightKeys + completionKeys {
             publishProgress(key: key, value: nil)
             stateSubject.send((key, .none))
@@ -360,10 +393,11 @@ actor DownloadService {
         pendingJobs.removeAll()
         pendingJobKeys.removeAll()
         for taskId in Array(inflightJobs.keys) {
+            inflightTasks[taskId]?.cancel()
+            inflightTasks.removeValue(forKey: taskId)
             inflightJobs.removeValue(forKey: taskId)
             jobKeyByTask.removeValue(forKey: taskId)
         }
-        session?.getAllTasks { tasks in tasks.forEach { $0.cancel() } }
 
         await DownloadDatabase.shared.deleteAll()
 
@@ -504,6 +538,7 @@ actor DownloadService {
             pendingJobKeys.remove(jobKey)
             let task = session.downloadTask(with: job.downloadURL)
             inflightJobs[task.taskIdentifier] = job
+            inflightTasks[task.taskIdentifier] = task
             jobKeyByTask[task.taskIdentifier] = jobKey
             let initialProgress: Double = job.requestedFormat != nil ? -1 : 0
             publishProgress(key: jobKey, value: initialProgress)
@@ -525,6 +560,7 @@ actor DownloadService {
             return
         }
         inflightJobs.removeValue(forKey: taskIdentifier)
+        inflightTasks.removeValue(forKey: taskIdentifier)
         jobKeyByTask.removeValue(forKey: taskIdentifier)
 
         let key = Self.key(songId: job.song.id, serverId: job.serverId)
@@ -632,11 +668,13 @@ actor DownloadService {
 
     private func retryOrFail(job: DownloadJob, error: Error) async {
         let key = Self.key(songId: job.song.id, serverId: job.serverId)
+        let epoch = enqueueEpoch
         var next = job
         next.attempt += 1
         if next.attempt < maxAttempts {
             let backoff = pow(2.0, Double(next.attempt))
             try? await Task.sleep(nanoseconds: UInt64(backoff * 1_000_000_000))
+            guard enqueueEpoch == epoch else { return }
             pendingJobs.append(next)
             pendingJobKeys.insert(key)
             stateSubject.send((key, .queued))
