@@ -16,6 +16,7 @@ struct AlbumDetailView: View {
     @AppStorage("enableDownloads") private var enableDownloads = false
     @AppStorage("downloadsOnlyFilter") private var showDownloadsOnly: Bool = false
     @Environment(\.themeColor) private var themeColor
+    @State private var showDeleteDownloadConfirm = false
 
     private var effectiveShowDownloadsOnly: Bool {
         offlineMode.isOffline || showDownloadsOnly
@@ -24,6 +25,23 @@ struct AlbumDetailView: View {
     private var displaySongs: [Song] {
         guard effectiveShowDownloadsOnly else { return vm.songs }
         return vm.songs.filter { downloadStore.isDownloaded(songId: $0.id) }
+    }
+
+    private var discGroups: [(disc: Int, songs: [Song])] {
+        let discNumbers = Set(displaySongs.compactMap(\.discNumber))
+        guard discNumbers.count >= 2 else { return [] }
+        let sorted = displaySongs.sorted {
+            let d0 = $0.discNumber ?? 1, d1 = $1.discNumber ?? 1
+            if d0 != d1 { return d0 < d1 }
+            return ($0.track ?? 0) < ($1.track ?? 0)
+        }
+        let grouped = Dictionary(grouping: sorted) { $0.discNumber ?? 1 }
+        return grouped.keys.sorted().map { disc in (disc: disc, songs: grouped[disc]!) }
+    }
+
+    private var useDiscGrouping: Bool {
+        let discNumbers = Set(displaySongs.compactMap(\.discNumber))
+        return discNumbers.count >= 2
     }
 
     var body: some View {
@@ -158,25 +176,65 @@ struct AlbumDetailView: View {
                         .padding(.vertical, 60)
                 } else {
                     VStack(spacing: 0) {
-                        ForEach(Array(displaySongs.enumerated()), id: \.element.id) { index, song in
-                            TrackRow(
-                                song: song,
-                                isPlaying: player.currentSong?.id == song.id,
-                                showFavorite: enableFavorites,
-                                showPlaylist: enablePlaylists,
-                                isStarred: libraryStore.isSongStarred(song)
-                            ) {
-                                appState.player.play(songs: displaySongs, startIndex: index)
-                            } onPlayNext: {
-                                appState.player.addPlayNext(song)
-                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
-                            } onAddToQueue: {
-                                appState.player.addToUserQueue(song)
-                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
-                            } onFavorite: {
-                                Task { await libraryStore.toggleStarSong(song) }
-                            } onAddToPlaylist: {
-                                NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
+                        if useDiscGrouping {
+                            ForEach(discGroups, id: \.disc) { group in
+                                HStack {
+                                    Text(tr("Disc \(group.disc)", "Disc \(group.disc)"))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 28)
+                                        .padding(.vertical, 8)
+                                    Spacer()
+                                }
+                                .background(Color(NSColor.windowBackgroundColor))
+
+                                Divider()
+                                    .padding(.horizontal, 28)
+
+                                ForEach(Array(group.songs.enumerated()), id: \.element.id) { index, song in
+                                    let globalIndex = displaySongs.firstIndex(where: { $0.id == song.id }) ?? index
+                                    TrackRow(
+                                        song: song,
+                                        isPlaying: player.currentSong?.id == song.id,
+                                        showFavorite: enableFavorites,
+                                        showPlaylist: enablePlaylists,
+                                        isStarred: libraryStore.isSongStarred(song)
+                                    ) {
+                                        appState.player.play(songs: displaySongs, startIndex: globalIndex)
+                                    } onPlayNext: {
+                                        appState.player.addPlayNext(song)
+                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                    } onAddToQueue: {
+                                        appState.player.addToUserQueue(song)
+                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                    } onFavorite: {
+                                        Task { await libraryStore.toggleStarSong(song) }
+                                    } onAddToPlaylist: {
+                                        NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
+                                    }
+                                }
+                            }
+                        } else {
+                            ForEach(Array(displaySongs.enumerated()), id: \.element.id) { index, song in
+                                TrackRow(
+                                    song: song,
+                                    isPlaying: player.currentSong?.id == song.id,
+                                    showFavorite: enableFavorites,
+                                    showPlaylist: enablePlaylists,
+                                    isStarred: libraryStore.isSongStarred(song)
+                                ) {
+                                    appState.player.play(songs: displaySongs, startIndex: index)
+                                } onPlayNext: {
+                                    appState.player.addPlayNext(song)
+                                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                } onAddToQueue: {
+                                    appState.player.addToUserQueue(song)
+                                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                } onFavorite: {
+                                    Task { await libraryStore.toggleStarSong(song) }
+                                } onAddToPlaylist: {
+                                    NotificationCenter.default.post(name: .addSongsToPlaylist, object: [song.id])
+                                }
                             }
                         }
                     }
@@ -194,6 +252,14 @@ struct AlbumDetailView: View {
         .task(id: albumId) {
             let local = downloadStore.albums.first(where: { $0.albumId == albumId })
             await vm.load(albumId: albumId, fallback: local)
+        }
+        .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteDownloadConfirm) {
+            Button(tr("Delete", "Löschen"), role: .destructive) {
+                downloadStore.deleteAlbum(albumId)
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+        } message: {
+            Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
         }
         .onChange(of: downloadStore.songs.count) { _, _ in
             guard offlineMode.isOffline else { return }
@@ -244,7 +310,7 @@ struct AlbumDetailView: View {
                 .controlSize(.large)
             }
             Button {
-                downloadStore.deleteAlbum(album.id)
+                showDeleteDownloadConfirm = true
             } label: {
                 Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
                     .foregroundStyle(.red)
@@ -253,7 +319,7 @@ struct AlbumDetailView: View {
             .controlSize(.large)
         case .complete:
             Button {
-                downloadStore.deleteAlbum(album.id)
+                showDeleteDownloadConfirm = true
             } label: {
                 Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
                     .foregroundStyle(.red)
