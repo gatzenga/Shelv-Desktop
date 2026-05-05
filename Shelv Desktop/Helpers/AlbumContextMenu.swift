@@ -8,6 +8,7 @@ struct AlbumContextMenuModifier: ViewModifier {
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
     @AppStorage("enableDownloads") private var enableDownloads = false
+    @State private var showDeleteConfirm = false
 
     func body(content: Content) -> some View {
         content.contextMenu {
@@ -68,11 +69,19 @@ struct AlbumContextMenuModifier: ViewModifier {
                             DownloadStore.shared.enqueueAlbum(album)
                         }
                     }
-                    Button(role: .destructive) { DownloadStore.shared.deleteAlbum(album.id) } label: { Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) } }
+                    Button(role: .destructive) { showDeleteConfirm = true } label: { Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) } }
                 case .complete:
-                    Button(role: .destructive) { DownloadStore.shared.deleteAlbum(album.id) } label: { Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) } }
+                    Button(role: .destructive) { showDeleteConfirm = true } label: { Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) } }
                 }
             }
+        }
+        .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteConfirm) {
+            Button(tr("Delete", "Löschen"), role: .destructive) {
+                DownloadStore.shared.deleteAlbum(album.id)
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+        } message: {
+            Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
         }
     }
 

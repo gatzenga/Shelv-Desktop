@@ -245,6 +245,9 @@ struct SearchSection<Content: View>: View {
 
 struct SearchArtistRow: View {
     let artist: Artist
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @AppStorage("enableDownloads") private var enableDownloads = false
+    @Environment(\.themeColor) private var themeColor
     @State private var isHovered = false
 
     var body: some View {
@@ -258,6 +261,14 @@ struct SearchArtistRow: View {
                 }
             }
             Spacer()
+            if enableDownloads && downloadStore.artists.contains(where: { $0.name == artist.name }) {
+                Image(systemName: "arrow.down.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.white)
+                    .padding(4)
+                    .background(themeColor, in: Circle())
+                    .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
+            }
             Image(systemName: "chevron.right").foregroundStyle(.tertiary)
                 .padding(.trailing, 20)
         }
@@ -281,6 +292,7 @@ struct SearchAlbumRow: View {
                 if let artist = album.artist { Text(artist).font(.caption).foregroundStyle(.secondary) }
             }
             Spacer()
+            AlbumDownloadBadge(albumId: album.id)
             if let year = album.year { Text(String(year)).font(.caption).foregroundStyle(.tertiary) }
             Image(systemName: "chevron.right").foregroundStyle(.tertiary)
                 .padding(.trailing, 20)

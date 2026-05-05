@@ -16,6 +16,7 @@ struct ArtistDetailView: View {
     @AppStorage("artistDetailAlbumIsGrid") private var isGrid: Bool = true
     @AppStorage("downloadsOnlyFilter") private var showDownloadsOnly: Bool = false
     @Environment(\.themeColor) private var themeColor
+    @State private var showDeleteDownloadConfirm = false
 
     private var effectiveShowDownloadsOnly: Bool {
         offlineMode.isOffline || showDownloadsOnly
@@ -239,6 +240,16 @@ struct ArtistDetailView: View {
             Task { await vm.load(artistId: artistId, artistName: artistName) }
         }
         .task(id: artistId) { await vm.load(artistId: artistId, artistName: artistName) }
+        .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteDownloadConfirm) {
+            Button(tr("Delete", "Löschen"), role: .destructive) {
+                if let match = downloadStore.artists.first(where: { $0.name == artistName }) {
+                    downloadStore.deleteArtist(match.artistId)
+                }
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+        } message: {
+            Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
+        }
     }
 
     private var coverURL: URL? {
@@ -289,9 +300,9 @@ struct ArtistDetailView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
             }
-            if let match = downloadStore.artists.first(where: { $0.name == detail.name }) {
+            if downloadStore.artists.contains(where: { $0.name == detail.name }) {
                 Button {
-                    downloadStore.deleteArtist(match.artistId)
+                    showDeleteDownloadConfirm = true
                 } label: {
                     Label { Text(tr("Delete", "Löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
                 }
@@ -300,9 +311,9 @@ struct ArtistDetailView: View {
                 .tint(.red)
             }
         case .complete:
-            if let match = downloadStore.artists.first(where: { $0.name == detail.name }) {
+            if downloadStore.artists.contains(where: { $0.name == detail.name }) {
                 Button {
-                    downloadStore.deleteArtist(match.artistId)
+                    showDeleteDownloadConfirm = true
                 } label: {
                     Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
                 }

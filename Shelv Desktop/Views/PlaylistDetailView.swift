@@ -27,10 +27,7 @@ struct PlaylistDetailView: View {
         }
         if isMarked {
             Button {
-                for song in songs {
-                    downloadStore.deleteSong(song.id)
-                }
-                downloadStore.unmarkPlaylistDownloaded(id: playlist.id)
+                showDeleteDownloadConfirm = true
             } label: {
                 Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
                     .foregroundStyle(.red)
@@ -45,6 +42,7 @@ struct PlaylistDetailView: View {
     @State private var songs: [Song] = []
     @State private var isLoading = true
     @State private var showDeleteConfirm = false
+    @State private var showDeleteDownloadConfirm = false
     @State private var isSyncingOrder = false
     @State private var isEditMode = false
     @State private var editName: String = ""
@@ -91,6 +89,16 @@ struct PlaylistDetailView: View {
         .scrollContentBackground(.hidden)
         .navigationTitle(displayName.isEmpty ? playlist.name : displayName)
         .toolbar(content: toolbarContent)
+        .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteDownloadConfirm) {
+            Button(tr("Delete", "Löschen"), role: .destructive) {
+                for song in songs { downloadStore.deleteSong(song.id) }
+                downloadStore.unmarkPlaylistDownloaded(id: playlist.id)
+                NotificationCenter.default.post(name: .showToast, object: tr("Downloads deleted", "Downloads gelöscht"))
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+        } message: {
+            Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
+        }
         .alert(tr("Delete Playlist?", "Wiedergabeliste löschen?"), isPresented: $showDeleteConfirm) {
             Button(tr("Delete", "Löschen"), role: .destructive) {
                 Task {
@@ -358,6 +366,9 @@ struct PlaylistTrackRow: View {
     var onMoveUp: () -> Void = {}
     var onMoveDown: () -> Void = {}
 
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @ObservedObject private var offlineMode = OfflineModeService.shared
+    @AppStorage("enableDownloads") private var enableDownloads = false
     @State private var isHovered = false
 
     var body: some View {
@@ -474,6 +485,18 @@ struct PlaylistTrackRow: View {
                 if showPlaylist {
                     Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) {
                         onAddToPlaylist()
+                    }
+                }
+            }
+            if enableDownloads && !offlineMode.isOffline {
+                Divider()
+                if downloadStore.isDownloaded(songId: song.id) {
+                    Button(tr("Delete Download", "Download löschen"), role: .destructive) {
+                        downloadStore.deleteSong(song.id)
+                    }
+                } else {
+                    Button(tr("Download", "Herunterladen")) {
+                        downloadStore.enqueueSongs([song])
                     }
                 }
             }

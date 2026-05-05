@@ -9,6 +9,7 @@ struct ArtistContextMenuModifier: ViewModifier {
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
     @AppStorage("enableDownloads") private var enableDownloads = false
+    @State private var showDeleteConfirm = false
 
     func body(content: Content) -> some View {
         content.contextMenu {
@@ -100,14 +101,22 @@ struct ArtistContextMenuModifier: ViewModifier {
                 }
                 if downloadStore.artists.contains(where: { $0.name == artist.name }) {
                     Button(role: .destructive) {
-                        if let match = downloadStore.artists.first(where: { $0.name == artist.name }) {
-                            downloadStore.deleteArtist(match.artistId)
-                        }
+                        showDeleteConfirm = true
                     } label: {
                         Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
                     }
                 }
             }
+        }
+        .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteConfirm) {
+            Button(tr("Delete", "Löschen"), role: .destructive) {
+                if let match = downloadStore.artists.first(where: { $0.name == artist.name }) {
+                    downloadStore.deleteArtist(match.artistId)
+                }
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+        } message: {
+            Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
         }
     }
 

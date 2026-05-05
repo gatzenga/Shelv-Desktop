@@ -140,6 +140,9 @@ struct FavoriteSongRow: View {
     let onRemoveFavorite: () -> Void
     let onAddToPlaylist: () -> Void
 
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @ObservedObject private var offlineMode = OfflineModeService.shared
+    @AppStorage("enableDownloads") private var enableDownloads = false
     @State private var isHovered = false
 
     var body: some View {
@@ -174,6 +177,8 @@ struct FavoriteSongRow: View {
                     .frame(maxWidth: 150, alignment: .trailing)
             }
 
+            DownloadStatusIcon(songId: song.id)
+
             Text(song.durationString)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -201,6 +206,18 @@ struct FavoriteSongRow: View {
             Button(tr("Remove from Favorites", "Aus Favoriten entfernen")) { onRemoveFavorite() }
             if showPlaylist {
                 Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) { onAddToPlaylist() }
+            }
+            if enableDownloads && !offlineMode.isOffline {
+                Divider()
+                if downloadStore.isDownloaded(songId: song.id) {
+                    Button(tr("Delete Download", "Download löschen"), role: .destructive) {
+                        downloadStore.deleteSong(song.id)
+                    }
+                } else {
+                    Button(tr("Download", "Herunterladen")) {
+                        downloadStore.enqueueSongs([song])
+                    }
+                }
             }
         }
     }

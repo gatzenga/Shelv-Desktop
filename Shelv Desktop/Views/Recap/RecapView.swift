@@ -192,7 +192,15 @@ struct RecapView: View {
         ) { entry in
             Button(tr("Delete", "Löschen"), role: .destructive) {
                 guard let sid = appState.serverStore.activeServer?.stableId else { return }
-                Task { await recapStore.deleteEntry(playlistId: entry.playlistId, serverId: sid) }
+                Task {
+                    do {
+                        try await recapStore.deleteEntry(playlistId: entry.playlistId, serverId: sid)
+                    } catch {
+                        if !(error is CancellationError) {
+                            NotificationCenter.default.post(name: .showToast, object: tr("Could not delete recap", "Recap konnte nicht gelöscht werden"))
+                        }
+                    }
+                }
             }
             Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
         } message: { entry in

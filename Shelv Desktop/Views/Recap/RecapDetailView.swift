@@ -5,12 +5,18 @@ struct RecapDetailView: View {
     let serverId: String
 
     @ObservedObject private var libraryStore = LibraryViewModel.shared
+    @ObservedObject private var downloadStore = DownloadStore.shared
+    @ObservedObject private var offlineMode = OfflineModeService.shared
     @Environment(\.themeColor) private var themeColor
+    @Environment(\.dismiss) private var dismiss
     @AppStorage("enableFavorites") private var enableFavorites = true
     @AppStorage("enablePlaylists") private var enablePlaylists = true
+    @AppStorage("enableDownloads") private var enableDownloads = false
     @State private var songs: [SongWithCount] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var showDeleteRecapConfirm = false
+    @State private var showDeleteDownloadConfirm = false
 
     private struct SongWithCount: Identifiable {
         let id: String
@@ -98,7 +104,86 @@ struct RecapDetailView: View {
             }
         }
         .navigationTitle(period.playlistName)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button(tr("Play", "Abspielen")) {
+                        AudioPlayerService.shared.play(songs: songs.map { $0.song }, startIndex: 0)
+                    }
+                    .disabled(songs.isEmpty)
+                    Button(tr("Shuffle", "Zufällig")) {
+                        AudioPlayerService.shared.playShuffled(songs: songs.map { $0.song })
+                    }
+                    .disabled(songs.isEmpty)
+                    Divider()
+                    Button(tr("Play Next", "Als nächstes")) {
+                        AudioPlayerService.shared.addPlayNext(songs.map { $0.song })
+                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                    }
+                    .disabled(songs.isEmpty)
+                    Button(tr("Add to Queue", "Zur Warteschlange")) {
+                        AudioPlayerService.shared.addToUserQueue(songs.map { $0.song })
+                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                    }
+                    .disabled(songs.isEmpty)
+                    if enableDownloads {
+                        Divider()
+                        let isMarked = downloadStore.downloadedPlaylistIds.contains(entry.playlistId)
+                        if isMarked {
+                            Button(tr("Delete Downloads", "Downloads löschen"), role: .destructive) {
+                                showDeleteDownloadConfirm = true
+                            }
+                        } else if !offlineMode.isOffline {
+                            Button(tr("Download", "Herunterladen")) {
+                                let allSongs = songs.map { $0.song }
+                                let missing = allSongs.filter { !downloadStore.isDownloaded(songId: $0.id) }
+                                if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
+                                downloadStore.markPlaylistDownloaded(id: entry.playlistId, name: period.playlistName, songIds: allSongs.map(\.id))
+                                NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+                            }
+                        }
+                    }
+                    Divider()
+                    Button(tr("Delete Recap", "Recap löschen"), role: .destructive) {
+                        showDeleteRecapConfirm = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .disabled(isLoading)
+            }
+        }
         .task { await load() }
+        .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteDownloadConfirm) {
+            Button(tr("Delete", "Löschen"), role: .destructive) {
+                let allSongs = songs.map { $0.song }
+                for song in allSongs where downloadStore.isDownloaded(songId: song.id) {
+                    downloadStore.deleteSong(song.id)
+                }
+                downloadStore.unmarkPlaylistDownloaded(id: entry.playlistId)
+                NotificationCenter.default.post(name: .showToast, object: tr("Downloads deleted", "Downloads gelöscht"))
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+        } message: {
+            Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
+        }
+        .alert(tr("Delete Recap?", "Recap löschen?"), isPresented: $showDeleteRecapConfirm) {
+            Button(tr("Delete", "Löschen"), role: .destructive) {
+                Task {
+                    do {
+                        try await RecapStore.shared.deleteEntry(playlistId: entry.playlistId, serverId: serverId)
+                        dismiss()
+                    } catch {
+                        if !(error is CancellationError) {
+                            NotificationCenter.default.post(name: .showToast, object: tr("Could not delete recap", "Recap konnte nicht gelöscht werden"))
+                        }
+                    }
+                }
+            }
+            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+        } message: {
+            Text(period.playlistName)
+        }
     }
 
     private func songRow(rank: Int, entry: SongWithCount) -> some View {
