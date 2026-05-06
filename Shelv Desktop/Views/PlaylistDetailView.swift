@@ -49,6 +49,16 @@ struct PlaylistDetailView: View {
     @State private var editComment: String = ""
     @State private var displayName: String = ""
     @State private var displayComment: String = ""
+    @State private var searchQuery = ""
+
+    private var displayedSongs: [Song] {
+        guard !searchQuery.isEmpty, !isEditMode else { return songs }
+        return songs.filter {
+            $0.title.localizedCaseInsensitiveContains(searchQuery)
+                || ($0.artist?.localizedCaseInsensitiveContains(searchQuery) ?? false)
+                || ($0.album?.localizedCaseInsensitiveContains(searchQuery) ?? false)
+        }
+    }
 
     var body: some View {
         List {
@@ -64,6 +74,7 @@ struct PlaylistDetailView: View {
             PlaylistTracksList(
                 playlist: playlist,
                 songs: $songs,
+                displaySongs: displayedSongs,
                 isLoading: isLoading,
                 isEditMode: isEditMode,
                 enableFavorites: enableFavorites,
@@ -71,7 +82,7 @@ struct PlaylistDetailView: View {
                 themeColor: themeColor,
                 currentSongId: appState.player.currentSong?.id,
                 libraryStore: libraryStore,
-                onPlayAt: { index in appState.player.play(songs: songs, startIndex: index) },
+                onPlayAt: { index in appState.player.play(songs: displayedSongs, startIndex: index) },
                 onPlayNext: { song in
                     appState.player.addPlayNext(song)
                     NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
@@ -88,6 +99,7 @@ struct PlaylistDetailView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .navigationTitle(displayName.isEmpty ? playlist.name : displayName)
+        .searchable(text: $searchQuery, prompt: tr("Search songs…", "Titel suchen…"))
         .toolbar(content: toolbarContent)
         .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteDownloadConfirm) {
             Button(tr("Delete", "Löschen"), role: .destructive) {
@@ -507,6 +519,7 @@ struct PlaylistTrackRow: View {
 struct PlaylistTracksList: View {
     let playlist: Playlist
     @Binding var songs: [Song]
+    var displaySongs: [Song]? = nil
     let isLoading: Bool
     let isEditMode: Bool
     let enableFavorites: Bool
@@ -520,6 +533,8 @@ struct PlaylistTracksList: View {
     let onRemoveAt: (Int) -> Void
     let onMove: (IndexSet, Int) -> Void
     let onDelete: (IndexSet) -> Void
+
+    private var tracksToShow: [Song] { displaySongs ?? songs }
 
     var body: some View {
         if isLoading {
@@ -541,9 +556,19 @@ struct PlaylistTracksList: View {
             .listRowSeparator(.hidden)
             .moveDisabled(true)
             .deleteDisabled(true)
+        } else if tracksToShow.isEmpty {
+            ContentUnavailableView(
+                tr("No Results", "Keine Ergebnisse"),
+                systemImage: "magnifyingglass"
+            )
+            .padding(.vertical, 40)
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+            .moveDisabled(true)
+            .deleteDisabled(true)
         } else {
             Section {
-                ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
+                ForEach(Array(tracksToShow.enumerated()), id: \.element.id) { index, song in
                     PlaylistTrackRow(
                         song: song,
                         index: index,
@@ -554,7 +579,7 @@ struct PlaylistTracksList: View {
                         themeColor: themeColor,
                         isEditMode: isEditMode,
                         canMoveUp: index > 0,
-                        canMoveDown: index < songs.count - 1,
+                        canMoveDown: index < tracksToShow.count - 1,
                         onPlay: { onPlayAt(index) },
                         onPlayNext: { onPlayNext(song) },
                         onAddToQueue: { onAddToQueue(song) },

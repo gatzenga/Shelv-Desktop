@@ -17,6 +17,7 @@ struct ArtistDetailView: View {
     @AppStorage("downloadsOnlyFilter") private var showDownloadsOnly: Bool = false
     @Environment(\.themeColor) private var themeColor
     @State private var showDeleteDownloadConfirm = false
+    @State private var searchQuery = ""
 
     private var effectiveShowDownloadsOnly: Bool {
         offlineMode.isOffline || showDownloadsOnly
@@ -38,17 +39,18 @@ struct ArtistDetailView: View {
         } else {
             base = vm.albums
         }
+        let filtered = searchQuery.isEmpty ? base : base.filter { $0.name.localizedCaseInsensitiveContains(searchQuery) }
         switch sortOption {
         case .name:
-            return base.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            return filtered.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         case .mostPlayed:
-            let sorted = base.sorted { ($0.playCount ?? 0) < ($1.playCount ?? 0) }
+            let sorted = filtered.sorted { ($0.playCount ?? 0) < ($1.playCount ?? 0) }
             return direction == .ascending ? sorted : Array(sorted.reversed())
         case .recentlyAdded:
-            let sorted = base.sorted { ($0.created ?? "") < ($1.created ?? "") }
+            let sorted = filtered.sorted { ($0.created ?? "") < ($1.created ?? "") }
             return direction == .ascending ? sorted : Array(sorted.reversed())
         case .year:
-            let sorted = base.sorted { ($0.year ?? 0) < ($1.year ?? 0) }
+            let sorted = filtered.sorted { ($0.year ?? 0) < ($1.year ?? 0) }
             return direction == .ascending ? sorted : Array(sorted.reversed())
         }
     }
@@ -229,6 +231,7 @@ struct ArtistDetailView: View {
             }
         }
         .navigationTitle(vm.artist?.name ?? artistName)
+        .searchable(text: $searchQuery, prompt: tr("Search albums…", "Alben suchen…"))
         .onChange(of: offlineMode.isOffline) { _, isOffline in
             if isOffline && sortOption.requiresServer {
                 sortRaw = LibrarySortOption.name.rawValue

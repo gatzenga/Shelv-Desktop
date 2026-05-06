@@ -17,14 +17,21 @@ struct AlbumDetailView: View {
     @AppStorage("downloadsOnlyFilter") private var showDownloadsOnly: Bool = false
     @Environment(\.themeColor) private var themeColor
     @State private var showDeleteDownloadConfirm = false
+    @State private var searchQuery = ""
 
     private var effectiveShowDownloadsOnly: Bool {
         offlineMode.isOffline || showDownloadsOnly
     }
 
     private var displaySongs: [Song] {
-        guard effectiveShowDownloadsOnly else { return vm.songs }
-        return vm.songs.filter { downloadStore.isDownloaded(songId: $0.id) }
+        let base = effectiveShowDownloadsOnly
+            ? vm.songs.filter { downloadStore.isDownloaded(songId: $0.id) }
+            : vm.songs
+        guard !searchQuery.isEmpty else { return base }
+        return base.filter {
+            $0.title.localizedCaseInsensitiveContains(searchQuery)
+                || ($0.artist?.localizedCaseInsensitiveContains(searchQuery) ?? false)
+        }
     }
 
     private var discGroups: [(disc: Int, songs: [Song])] {
@@ -249,6 +256,7 @@ struct AlbumDetailView: View {
             }
         }
         .navigationTitle(vm.album?.name ?? albumName)
+        .searchable(text: $searchQuery, prompt: tr("Search songs…", "Titel suchen…"))
         .task(id: albumId) {
             let local = downloadStore.albums.first(where: { $0.albumId == albumId })
             await vm.load(albumId: albumId, fallback: local)
