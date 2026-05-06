@@ -107,7 +107,30 @@ final class DownloadStore: ObservableObject {
         isLoading = true
         pendingReload = false
         let sid = serverId
-        let records = await DownloadDatabase.shared.allRecords(serverId: sid)
+        let rawRecords = await DownloadDatabase.shared.allRecords(serverId: sid)
+        // Container-UUID kann sich nach Updates ändern; Pfade neu berechnen falls Datei nicht mehr auffindbar
+        let healResult = await Task.detached(priority: .utility) { () -> (records: [DownloadRecord], toUpdate: [DownloadRecord]) in
+            var healed: [DownloadRecord] = []
+            var toUpdate: [DownloadRecord] = []
+            for var record in rawRecords {
+                if FileManager.default.fileExists(atPath: record.filePath) {
+                    healed.append(record)
+                } else {
+                    let newURL = DownloadService.serverDirectory(serverId: record.serverId)
+                        .appendingPathComponent("\(record.songId).\(record.fileExtension)")
+                    if FileManager.default.fileExists(atPath: newURL.path) {
+                        record.filePath = newURL.path
+                        toUpdate.append(record)
+                    }
+                    healed.append(record)
+                }
+            }
+            return (records: healed, toUpdate: toUpdate)
+        }.value
+        for record in healResult.toUpdate {
+            await DownloadDatabase.shared.upsert(record)
+        }
+        let records = healResult.records
         let total = await DownloadDatabase.shared.totalBytes(serverId: sid)
         let playlistIds = await DownloadDatabase.shared.loadDownloadedPlaylistIds()
         let savedSongIds = UserDefaults.standard.dictionary(forKey: "shelv_mac_playlist_song_ids_\(sid)") as? [String: [String]] ?? [:]
