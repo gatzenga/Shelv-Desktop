@@ -31,12 +31,11 @@ final class DownloadStore: ObservableObject {
     init() {
         DownloadService.shared.progressUpdates
             .throttle(for: .milliseconds(200), scheduler: DispatchQueue.global(qos: .userInteractive), latest: true)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] progress in
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    self.inFlightProgress = progress
-                    self.progressPublisher.send(())
-                }
+                guard let self else { return }
+                self.inFlightProgress = progress
+                self.progressPublisher.send(())
             }
             .store(in: &cancellables)
 
