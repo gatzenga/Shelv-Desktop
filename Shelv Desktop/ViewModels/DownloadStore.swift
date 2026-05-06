@@ -60,6 +60,7 @@ final class DownloadStore: ObservableObject {
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: .downloadsLibraryChanged)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in Task { @MainActor [weak self] in await self?.reload() } }
             .store(in: &cancellables)
 
@@ -69,6 +70,7 @@ final class DownloadStore: ObservableObject {
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: .libraryArtistsLoaded)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] note in
                 guard let map = note.object as? [String: String] else { return }
                 Task { @MainActor [weak self] in self?.updateArtistCovers(map) }

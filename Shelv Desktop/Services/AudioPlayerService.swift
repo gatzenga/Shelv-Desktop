@@ -687,10 +687,12 @@ class AudioPlayerService: ObservableObject {
         let shouldPauseAndWait = !buffered && self.isPlaying
         if shouldPauseAndWait { isBuffering = true }
         engine.seek(to: time, pauseUntilBuffered: shouldPauseAndWait) { [weak self] finished in
-            Task { @MainActor [weak self] in
+            DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
-                if finished { self.currentTime = time }
-                self.isSeeking = false
+                MainActor.assumeIsolated {
+                    if finished { self.currentTime = time }
+                    self.isSeeking = false
+                }
             }
         }
     }
@@ -861,6 +863,7 @@ class AudioPlayerService: ObservableObject {
     private func setupEngine() {
         engine.onTrackFinished = { [weak self] in
             guard let self else { return }
+            DispatchQueue.main.async {
             Task { @MainActor [self] in
                 if self.gaplessPreloadTriggered, self.gaplessPreloadURL != nil, let song = self.gaplessPreloadSong {
                     self.gaplessPreloadTriggered = false
@@ -899,9 +902,11 @@ class AudioPlayerService: ObservableObject {
                     self.playNext(triggeredByUser: false)
                 }
             }
+            }
         }
 
         engine.$currentTime
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] time in
                 guard let self else { return }
                 Task { @MainActor [self] in
@@ -919,6 +924,7 @@ class AudioPlayerService: ObservableObject {
             .store(in: &engineSubscriptions)
 
         engine.$duration
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] d in
                 guard let self, d > 0 else { return }
                 Task { @MainActor [self] in
@@ -928,6 +934,7 @@ class AudioPlayerService: ObservableObject {
             .store(in: &engineSubscriptions)
 
         engine.$isPlaying
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] playing in
                 guard let self else { return }
                 Task { @MainActor [self] in
@@ -939,6 +946,7 @@ class AudioPlayerService: ObservableObject {
             .store(in: &engineSubscriptions)
 
         engine.$isWaiting
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] waiting in
                 guard let self else { return }
                 Task { @MainActor [self] in
@@ -950,13 +958,15 @@ class AudioPlayerService: ObservableObject {
 
         engine.onPlaybackFailed = { [weak self] in
             guard let self else { return }
-            Task { @MainActor [self] in
-                self.isEngineLoaded = false
-                guard self.isPlaying else { return }
-                self.networkResumeSong = self.currentSong
-                self.networkResumeTime = self.currentTime
-                self.resumeTime = self.currentTime
-                self.isBuffering = true
+            DispatchQueue.main.async {
+                Task { @MainActor [self] in
+                    self.isEngineLoaded = false
+                    guard self.isPlaying else { return }
+                    self.networkResumeSong = self.currentSong
+                    self.networkResumeTime = self.currentTime
+                    self.resumeTime = self.currentTime
+                    self.isBuffering = true
+                }
             }
         }
 

@@ -115,7 +115,7 @@ final class PlayerEngine: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             guard let self else { return }
-            Task { @MainActor in self.notifyFailure(for: url) }
+            DispatchQueue.main.async { MainActor.assumeIsolated { self.notifyFailure(for: url) } }
         }
 
         if let obs = itemStallObserver { NotificationCenter.default.removeObserver(obs) }
@@ -126,7 +126,7 @@ final class PlayerEngine: ObservableObject {
         ) { [weak self] _ in
             guard let self, let currentItem = self.player.currentItem else { return }
             if currentItem.status == .failed {
-                Task { @MainActor in self.notifyFailure(for: url) }
+                DispatchQueue.main.async { MainActor.assumeIsolated { self.notifyFailure(for: url) } }
             }
         }
     }
