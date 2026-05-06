@@ -110,9 +110,9 @@ actor DownloadService {
         guard let cfg = api.currentConfig else { return }
         let downloadedIds = await DownloadDatabase.shared.allSongIds(serverId: serverId)
         let artistCoverById: [String: String] = await MainActor.run {
-            Dictionary(uniqueKeysWithValues: LibraryViewModel.shared.artists.compactMap { a in
+            Dictionary(LibraryViewModel.shared.artists.compactMap { a in
                 a.coverArt.map { (a.name, $0) }
-            })
+            }, uniquingKeysWith: { first, _ in first })
         }
 
         // Album-Metadaten vorab fetchen wenn keine Overrides vorliegen, damit

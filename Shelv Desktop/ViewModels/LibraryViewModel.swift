@@ -136,10 +136,10 @@ class LibraryViewModel: ObservableObject {
                     LibraryViewModel.saveLibraryCache(toSave, name: "artists", serverId: sid)
                 }
             }
-            let map = Dictionary(uniqueKeysWithValues: artists.compactMap { artist -> (String, String)? in
+            let map = Dictionary(artists.compactMap { artist -> (String, String)? in
                 guard let cover = artist.coverArt else { return nil }
                 return (artist.name, cover)
-            })
+            }, uniquingKeysWith: { first, _ in first })
             NotificationCenter.default.post(name: .libraryArtistsLoaded, object: map)
         } catch {
             errorMessage = error.localizedDescription
