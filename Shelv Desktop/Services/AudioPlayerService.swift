@@ -321,6 +321,9 @@ class AudioPlayerService: ObservableObject {
                 truthPlayNextQueue.remove(at: i)
             }
             isPlayingFromPlayNext = true
+            if let prev = currentSong, prev.id != song.id {
+                Task { await StreamCacheService.shared.cancel(songId: prev.id) }
+            }
             currentSong = song
             hasScrobbledCurrent = false
             saveState()
@@ -404,6 +407,9 @@ class AudioPlayerService: ObservableObject {
         guard queue.indices.contains(index), index > currentIndex else { return }
         let item = queue.remove(at: index)
         isPlayingFromPlayNext = true
+        if let prev = currentSong, prev.id != item.song.id {
+            Task { await StreamCacheService.shared.cancel(songId: prev.id) }
+        }
         currentSong = item.song
         hasScrobbledCurrent = false
         guard let url = resolveURL(songId: item.song.id) else { return }
@@ -415,6 +421,9 @@ class AudioPlayerService: ObservableObject {
         guard userQueue.indices.contains(index) else { return }
         let song = userQueue.remove(at: index)
         isPlayingFromPlayNext = true
+        if let prev = currentSong, prev.id != song.id {
+            Task { await StreamCacheService.shared.cancel(songId: prev.id) }
+        }
         currentSong = song
         hasScrobbledCurrent = false
         guard let url = resolveURL(songId: song.id) else { return }
@@ -472,6 +481,9 @@ class AudioPlayerService: ObservableObject {
             truthPlayNextQueue.remove(at: i)
         }
         isPlayingFromPlayNext = true
+        if let prev = currentSong, prev.id != song.id {
+            Task { await StreamCacheService.shared.cancel(songId: prev.id) }
+        }
         currentSong = song
         hasScrobbledCurrent = false
         guard let url = resolveURL(songId: song.id) else { return }
