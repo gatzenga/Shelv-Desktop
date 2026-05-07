@@ -1032,7 +1032,7 @@ class AudioPlayerService: ObservableObject {
                         bitrate: fmt.bitrate
                     )
                 }
-            } else if !nextURL.isFileURL, streamPreCacheEnabled || gaplessEnabled || isLossless(suffix: nextSong.suffix) {
+            } else if !nextURL.isFileURL, streamPreCacheEnabled || isLossless(suffix: nextSong.suffix) {
                 prefetchScheduled = true
                 prefetchedSongId = nextSong.id
                 let suffix = nextSong.suffix?.lowercased() ?? "audio"
@@ -1074,7 +1074,7 @@ class AudioPlayerService: ObservableObject {
                 }
             }
             gaplessPreloadSong = nextSong
-        } else if !url.isFileURL, streamPreCacheEnabled || gaplessEnabled || isLossless(suffix: nextSong.suffix) {
+        } else if !url.isFileURL, streamPreCacheEnabled || isLossless(suffix: nextSong.suffix) {
             // Original-Remote-Stream — auf lokale Datei warten (Prefetch läuft seit 5s-Marker)
             let songId = nextSong.id
             gaplessPreloadTriggered = true
