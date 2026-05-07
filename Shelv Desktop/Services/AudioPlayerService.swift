@@ -637,6 +637,7 @@ class AudioPlayerService: ObservableObject {
         gaplessPreloadSong = nil
         gaplessPreloadURL = nil
         prefetchScheduled = false
+        prefetchedSongId = nil
         currentStreamURL = nil
         streamTimeOffset = 0
         artworkLoadTask?.cancel()
