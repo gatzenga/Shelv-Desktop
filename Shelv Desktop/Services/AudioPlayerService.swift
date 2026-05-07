@@ -909,7 +909,7 @@ class AudioPlayerService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] time in
                 guard let self else { return }
-                Task { @MainActor [self] in
+                MainActor.assumeIsolated {
                     guard self.isEngineLoaded, !self.isSeeking else { return }
                     let adjusted = time + self.streamTimeOffset
                     self.currentTime = adjusted
@@ -927,7 +927,7 @@ class AudioPlayerService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] d in
                 guard let self, d > 0 else { return }
-                Task { @MainActor [self] in
+                MainActor.assumeIsolated {
                     self.duration = d
                 }
             }
@@ -937,7 +937,7 @@ class AudioPlayerService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] playing in
                 guard let self else { return }
-                Task { @MainActor [self] in
+                MainActor.assumeIsolated {
                     if playing {
                         MPNowPlayingInfoCenter.default().playbackState = .playing
                     }
@@ -949,7 +949,7 @@ class AudioPlayerService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] waiting in
                 guard let self else { return }
-                Task { @MainActor [self] in
+                MainActor.assumeIsolated {
                     guard self.isEngineLoaded, self.isPlaying else { return }
                     self.isBuffering = waiting
                 }
