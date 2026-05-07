@@ -134,6 +134,13 @@ class AudioPlayerService: ObservableObject {
         return fmt != nil && fmt != "raw"
     }
 
+    private func isLossless(suffix: String?) -> Bool {
+        switch suffix?.lowercased() {
+        case "flac", "wav", "aiff", "aif", "alac": return true
+        default: return false
+        }
+    }
+
     private var currentArtwork: MPMediaItemArtwork?
     private var artworkLoadTask: Task<Void, Never>?
     private var hasScrobbledCurrent: Bool = false
@@ -806,7 +813,7 @@ class AudioPlayerService: ObservableObject {
                     self.isBuffering = false
                 }
             }
-        } else if !url.isFileURL, streamPreCacheEnabled {
+        } else if !url.isFileURL, streamPreCacheEnabled || isLossless(suffix: song.suffix) {
             // Original-Remote-Stream mit Pre-Cache → erst vollständig laden, dann lokal abspielen
             engine.stop()
             let songId = song.id
@@ -1025,7 +1032,7 @@ class AudioPlayerService: ObservableObject {
                         bitrate: fmt.bitrate
                     )
                 }
-            } else if !nextURL.isFileURL, streamPreCacheEnabled || gaplessEnabled {
+            } else if !nextURL.isFileURL, streamPreCacheEnabled || gaplessEnabled || isLossless(suffix: nextSong.suffix) {
                 prefetchScheduled = true
                 prefetchedSongId = nextSong.id
                 let suffix = nextSong.suffix?.lowercased() ?? "audio"
@@ -1067,7 +1074,7 @@ class AudioPlayerService: ObservableObject {
                 }
             }
             gaplessPreloadSong = nextSong
-        } else if !url.isFileURL, streamPreCacheEnabled || gaplessEnabled {
+        } else if !url.isFileURL, streamPreCacheEnabled || gaplessEnabled || isLossless(suffix: nextSong.suffix) {
             // Original-Remote-Stream — auf lokale Datei warten (Prefetch läuft seit 5s-Marker)
             let songId = nextSong.id
             gaplessPreloadTriggered = true
