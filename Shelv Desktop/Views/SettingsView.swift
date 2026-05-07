@@ -356,11 +356,14 @@ struct AppearanceTab: View {
 
 struct CacheTab: View {
     @AppStorage("streamPreCacheEnabled") private var streamPreCacheEnabled = false
+    @State private var cacheSize = "–"
+    @State private var showClearConfirm = false
     @State private var showInfo = false
+    @State private var showCacheLog = false
 
     var body: some View {
         Form {
-            Section(tr("Playback", "Wiedergabe")) {
+            Section {
                 Toggle(tr("Pre-cache original file", "Originaldatei vorab laden"), isOn: $streamPreCacheEnabled)
                 Button {
                     showInfo = true
@@ -369,11 +372,46 @@ struct CacheTab: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(Color.accentColor)
-                NavigationLink(tr("Logs", "Logs"), destination: CacheLogView())
+            }
+
+            Section {
+                LabeledContent(tr("Cache Size", "Cache-Grösse")) {
+                    Text(cacheSize).foregroundStyle(.secondary)
+                }
+                Button(role: .destructive) {
+                    showClearConfirm = true
+                } label: {
+                    Label(tr("Clear Cache", "Cache leeren"), systemImage: "trash")
+                }
+                .confirmationDialog(tr("Clear Cache?", "Cache leeren?"), isPresented: $showClearConfirm) {
+                    Button(tr("Clear", "Leeren"), role: .destructive) {
+                        Task {
+                            await ImageCacheService.shared.clearAll()
+                            await recalculateCacheSize()
+                        }
+                    }
+                    Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+                } message: {
+                    Text(tr(
+                        "All cached cover images will be deleted and reloaded next time they are displayed.",
+                        "Alle zwischengespeicherten Cover-Bilder werden gelöscht und beim nächsten Anzeigen neu geladen."
+                    ))
+                }
+            }
+
+            Section {
+                Button {
+                    showCacheLog = true
+                } label: {
+                    Label(tr("Logs", "Logs"), systemImage: "doc.text.magnifyingglass")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.accentColor)
             }
         }
         .formStyle(.grouped)
         .padding()
+        .task { await recalculateCacheSize() }
         .sheet(isPresented: $showInfo) {
             VStack(alignment: .leading, spacing: 16) {
                 Text(tr("Pre-cache", "Pre-cache"))
@@ -394,6 +432,17 @@ struct CacheTab: View {
             .padding(24)
             .frame(width: 420, height: 340)
         }
+        .sheet(isPresented: $showCacheLog) {
+            CacheLogView()
+                .frame(width: 600, height: 440)
+        }
+    }
+
+    private func recalculateCacheSize() async {
+        let bytes = await ImageCacheService.shared.diskUsageBytes()
+        cacheSize = bytes > 0
+            ? ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
+            : "0 KB"
     }
 }
 
