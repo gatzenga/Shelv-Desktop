@@ -782,10 +782,12 @@ class AudioPlayerService: ObservableObject {
                         let cmTime = try? await asset.load(.duration)
                         guard self.currentSong?.id == songId else { return }
                         let precise = cmTime.flatMap { $0.isValid && !$0.isIndefinite ? CMTimeGetSeconds($0) : nil }
+                        let resolvedDuration = (precise ?? 0) > 0 ? precise! : Double(song.duration ?? 0)
                         self.currentStreamURL = local
                         self.engine.play(url: local)
                         if !self.isPlaying { self.engine.pause() }
-                        self.engine.trustedDuration = (precise ?? 0) > 0 ? precise! : Double(song.duration ?? 0)
+                        self.engine.trustedDuration = resolvedDuration
+                        self.duration = resolvedDuration
                         if seekTo > 1 { self.engine.seek(to: seekTo) }
                         self.isEngineLoaded = true
                         self.isBuffering = false
@@ -826,11 +828,13 @@ class AudioPlayerService: ObservableObject {
                         let cmTime = try? await asset.load(.duration)
                         guard self.currentSong?.id == songId else { return }
                         let precise = cmTime.flatMap { $0.isValid && !$0.isIndefinite ? CMTimeGetSeconds($0) : nil }
+                        let resolvedDuration = (precise ?? 0) > 0 ? precise! : Double(song.duration ?? 0)
                         self.currentStreamURL = local
-                        self.probeStreamFormat(songId: songId, url: local, duration: Double(song.duration ?? 0))
+                        self.probeStreamFormat(songId: songId, url: local, duration: resolvedDuration)
                         self.engine.play(url: local)
                         if !self.isPlaying { self.engine.pause() }
-                        self.engine.trustedDuration = (precise ?? 0) > 0 ? precise! : Double(song.duration ?? 0)
+                        self.engine.trustedDuration = resolvedDuration
+                        self.duration = resolvedDuration
                         if seekTo > 1 { self.engine.seek(to: seekTo) }
                         self.isEngineLoaded = true
                         self.isBuffering = false
