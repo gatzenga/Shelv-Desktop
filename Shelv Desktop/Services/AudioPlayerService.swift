@@ -787,7 +787,7 @@ class AudioPlayerService: ObservableObject {
                     if let local = await StreamCacheService.shared.localURL(for: songId) {
                         let asset = AVURLAsset(url: local, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
                         let cmTime = try? await asset.load(.duration)
-                        guard self.currentSong?.id == songId else { return }
+                        guard self.currentSong?.id == songId, !self.isEngineLoaded else { return }
                         let precise = cmTime.flatMap { $0.isValid && !$0.isIndefinite ? CMTimeGetSeconds($0) : nil }
                         let resolvedDuration = (precise ?? 0) > 0 ? precise! : Double(song.duration ?? 0)
                         self.currentStreamURL = local
@@ -833,7 +833,7 @@ class AudioPlayerService: ObservableObject {
                     if let local = await StreamCacheService.shared.localURL(for: songId) {
                         let asset = AVURLAsset(url: local, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
                         let cmTime = try? await asset.load(.duration)
-                        guard self.currentSong?.id == songId else { return }
+                        guard self.currentSong?.id == songId, !self.isEngineLoaded else { return }
                         let precise = cmTime.flatMap { $0.isValid && !$0.isIndefinite ? CMTimeGetSeconds($0) : nil }
                         let resolvedDuration = (precise ?? 0) > 0 ? precise! : Double(song.duration ?? 0)
                         self.currentStreamURL = local
