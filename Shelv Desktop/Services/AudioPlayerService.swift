@@ -808,7 +808,7 @@ class AudioPlayerService: ObservableObject {
                         if !self.isPlaying { self.engine.pause() }
                         self.engine.trustedDuration = resolvedDuration
                         self.duration = resolvedDuration
-                        if seekTo > 1 { self.engine.seek(to: seekTo) }
+                        if seekTo > 0 { self.engine.seek(to: seekTo) }
                         self.isEngineLoaded = true
                         self.isBuffering = false
                         return
@@ -821,7 +821,7 @@ class AudioPlayerService: ObservableObject {
                     self.engine.play(url: rawURL)
                     if !self.isPlaying { self.engine.pause() }
                     self.engine.trustedDuration = Double(song.duration ?? 0)
-                    if seekTo > 1 { self.engine.seek(to: seekTo) }
+                    if seekTo > 0 { self.engine.seek(to: seekTo) }
                     self.isEngineLoaded = true
                     self.isBuffering = false
                 }
@@ -855,7 +855,7 @@ class AudioPlayerService: ObservableObject {
                         if !self.isPlaying { self.engine.pause() }
                         self.engine.trustedDuration = resolvedDuration
                         self.duration = resolvedDuration
-                        if seekTo > 1 { self.engine.seek(to: seekTo) }
+                        if seekTo > 0 { self.engine.seek(to: seekTo) }
                         self.isEngineLoaded = true
                         self.isBuffering = false
                         return
@@ -867,7 +867,7 @@ class AudioPlayerService: ObservableObject {
                     self.engine.play(url: url)
                     if !self.isPlaying { self.engine.pause() }
                     self.engine.trustedDuration = Double(song.duration ?? 0)
-                    if seekTo > 1 { self.engine.seek(to: seekTo) }
+                    if seekTo > 0 { self.engine.seek(to: seekTo) }
                     self.isEngineLoaded = true
                     self.isBuffering = false
                 }
@@ -877,7 +877,7 @@ class AudioPlayerService: ObservableObject {
             engine.play(url: url)
             engine.trustedDuration = Double(song.duration ?? 0)
             isEngineLoaded = true
-            if seekTo > 1 { engine.seek(to: seekTo) }
+            if seekTo > 0 { engine.seek(to: seekTo) }
         }
 
         currentArtwork = nil
