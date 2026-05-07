@@ -877,9 +877,8 @@ class AudioPlayerService: ObservableObject {
 
     private func setupEngine() {
         engine.onTrackFinished = { [weak self] in
-            guard let self else { return }
-            DispatchQueue.main.async {
-            Task { @MainActor [self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
                 if self.gaplessPreloadTriggered, self.gaplessPreloadURL != nil, let song = self.gaplessPreloadSong {
                     self.gaplessPreloadTriggered = false
                     self.gaplessPreloadSong = nil
@@ -917,24 +916,20 @@ class AudioPlayerService: ObservableObject {
                     self.playNext(triggeredByUser: false)
                 }
             }
-            }
         }
 
         engine.$currentTime
             .receive(on: DispatchQueue.main)
             .sink { [weak self] time in
-                guard let self else { return }
-                MainActor.assumeIsolated {
-                    guard self.isEngineLoaded, !self.isSeeking else { return }
-                    let adjusted = time + self.streamTimeOffset
-                    self.currentTime = adjusted
-                    self.timePublisher.send((time: adjusted, duration: self.duration))
-                    self.updateNowPlayingInfo()
-                    if let songId = self.currentSong?.id {
-                        self.scrobbleIfNeeded(songId: songId)
-                    }
-                    self.checkGaplessTrigger(currentTime: adjusted)
+                guard let self, self.isEngineLoaded, !self.isSeeking else { return }
+                let adjusted = time + self.streamTimeOffset
+                self.currentTime = adjusted
+                self.timePublisher.send((time: adjusted, duration: self.duration))
+                self.updateNowPlayingInfo()
+                if let songId = self.currentSong?.id {
+                    self.scrobbleIfNeeded(songId: songId)
                 }
+                self.checkGaplessTrigger(currentTime: adjusted)
             }
             .store(in: &engineSubscriptions)
 
@@ -942,47 +937,35 @@ class AudioPlayerService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] d in
                 guard let self, d > 0 else { return }
-                MainActor.assumeIsolated {
-                    self.duration = d
-                }
+                self.duration = d
+                self.timePublisher.send((time: self.currentTime, duration: d))
             }
             .store(in: &engineSubscriptions)
 
         engine.$isPlaying
             .receive(on: DispatchQueue.main)
             .sink { [weak self] playing in
-                guard let self else { return }
-                MainActor.assumeIsolated {
-                    if playing {
-                        MPNowPlayingInfoCenter.default().playbackState = .playing
-                    }
-                }
+                guard let self, playing else { return }
+                MPNowPlayingInfoCenter.default().playbackState = .playing
             }
             .store(in: &engineSubscriptions)
 
         engine.$isWaiting
             .receive(on: DispatchQueue.main)
             .sink { [weak self] waiting in
-                guard let self else { return }
-                MainActor.assumeIsolated {
-                    guard self.isEngineLoaded, self.isPlaying else { return }
-                    self.isBuffering = waiting
-                }
+                guard let self, self.isEngineLoaded, self.isPlaying else { return }
+                self.isBuffering = waiting
             }
             .store(in: &engineSubscriptions)
 
         engine.onPlaybackFailed = { [weak self] in
             guard let self else { return }
-            DispatchQueue.main.async {
-                Task { @MainActor [self] in
-                    self.isEngineLoaded = false
-                    guard self.isPlaying else { return }
-                    self.networkResumeSong = self.currentSong
-                    self.networkResumeTime = self.currentTime
-                    self.resumeTime = self.currentTime
-                    self.isBuffering = true
-                }
-            }
+            self.isEngineLoaded = false
+            guard self.isPlaying else { return }
+            self.networkResumeSong = self.currentSong
+            self.networkResumeTime = self.currentTime
+            self.resumeTime = self.currentTime
+            self.isBuffering = true
         }
 
         $isBuffering
