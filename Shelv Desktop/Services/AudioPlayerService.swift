@@ -791,7 +791,8 @@ class AudioPlayerService: ObservableObject {
                     songId: songId,
                     url: url,
                     codec: fmt.codec.rawValue,
-                    bitrate: fmt.bitrate
+                    bitrate: fmt.bitrate,
+                    songTitle: song.title
                 )
                 let deadline = Date().addingTimeInterval(60)
                 repeat {
@@ -837,7 +838,8 @@ class AudioPlayerService: ObservableObject {
                     songId: songId,
                     url: url,
                     codec: suffix,
-                    bitrate: 0
+                    bitrate: 0,
+                    songTitle: song.title
                 )
                 let deadline = Date().addingTimeInterval(60)
                 repeat {
@@ -1025,7 +1027,8 @@ class AudioPlayerService: ObservableObject {
                         songId: nextSong.id,
                         url: nextURL,
                         codec: fmt.codec.rawValue,
-                        bitrate: fmt.bitrate
+                        bitrate: fmt.bitrate,
+                        songTitle: nextSong.title
                     )
                 }
             } else if !nextURL.isFileURL, streamPreCacheEnabled || isLossless(suffix: nextSong.suffix) {
@@ -1037,7 +1040,8 @@ class AudioPlayerService: ObservableObject {
                         songId: nextSong.id,
                         url: nextURL,
                         codec: suffix,
-                        bitrate: 0
+                        bitrate: 0,
+                        songTitle: nextSong.title
                     )
                 }
             }

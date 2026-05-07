@@ -8,15 +8,15 @@ struct PlaybackSettingsWindow: View {
                     Image(systemName: "music.note.list")
                     Text(tr("Gapless", "Gapless"))
                 }
-            LyricsSettingsPanel()
-                .tabItem {
-                    Image(systemName: "music.note.list")
-                    Text(tr("Lyrics", "Lyrics"))
-                }
             TranscodingPanel()
                 .tabItem {
                     Image(systemName: "waveform.badge.magnifyingglass")
                     Text(tr("Transcoding", "Transcoding"))
+                }
+            LyricsSettingsPanel()
+                .tabItem {
+                    Image(systemName: "text.quote")
+                    Text(tr("Lyrics", "Lyrics"))
                 }
         }
         .frame(width: 820, height: 660)

@@ -355,57 +355,45 @@ struct AppearanceTab: View {
 }
 
 struct CacheTab: View {
-    @State private var cacheSize = "–"
-    @State private var showClearConfirm = false
     @AppStorage("streamPreCacheEnabled") private var streamPreCacheEnabled = false
+    @State private var showInfo = false
 
     var body: some View {
         Form {
             Section(tr("Playback", "Wiedergabe")) {
                 Toggle(tr("Pre-cache original file", "Originaldatei vorab laden"), isOn: $streamPreCacheEnabled)
-                Text(tr(
-                    "Stable, network-independent playback with seamless gapless transitions. The first song may take longer to load.\n\n• Downloads the current song fully before playback\n• While it plays, the next song pre-fetches in the background\n• Every subsequent song starts instantly\n• Cached files are removed when the next song starts\n\nOnly active when transcoding is set to Original or off.",
-                    "Stabile, netzwerkunabhängige Wiedergabe mit nahtlosen Gapless-Übergängen. Beim ersten Song kann es zu einer längeren Ladezeit kommen.\n\n• Lädt den aktuellen Song vollständig vor der Wiedergabe\n• Währenddessen wird der nächste Song im Hintergrund geladen\n• Ab dem zweiten Song startet die Wiedergabe sofort\n• Gecachte Dateien werden beim Start des nächsten Songs gelöscht\n\nNur wirksam, wenn Transcoding auf Original gestellt oder deaktiviert ist."
-                ))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            Section(tr("Cover Images", "Cover-Bilder")) {
-                LabeledContent(tr("Size", "Grösse")) {
-                    Text(cacheSize).foregroundStyle(.secondary)
-                }
-                Button(role: .destructive) {
-                    showClearConfirm = true
+                Button {
+                    showInfo = true
                 } label: {
-                    Label(tr("Clear Cache", "Cache leeren"), systemImage: "trash")
+                    Label(tr("About Pre-cache", "Über Pre-cache"), systemImage: "info.circle")
                 }
-                .confirmationDialog(tr("Clear Cache?", "Cache leeren?"), isPresented: $showClearConfirm) {
-                    Button(tr("Clear", "Leeren"), role: .destructive) {
-                        Task {
-                            await ImageCacheService.shared.clearAll()
-                            await recalculateCacheSize()
-                        }
-                    }
-                    Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
-                } message: {
-                    Text(tr(
-                        "All cached cover images will be deleted and reloaded next time they are displayed.",
-                        "Alle zwischengespeicherten Cover-Bilder werden gelöscht und beim nächsten Anzeigen neu geladen."
-                    ))
-                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.accentColor)
+                NavigationLink(tr("Logs", "Logs"), destination: CacheLogView())
             }
         }
         .formStyle(.grouped)
         .padding()
-        .task { await recalculateCacheSize() }
-    }
-
-    private func recalculateCacheSize() async {
-        let bytes = await ImageCacheService.shared.diskUsageBytes()
-        cacheSize = bytes > 0
-            ? ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
-            : "0 KB"
+        .sheet(isPresented: $showInfo) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(tr("Pre-cache", "Pre-cache"))
+                    .font(.headline)
+                ScrollView {
+                    Text(tr(
+                        "Stable, network-independent playback with seamless gapless transitions. The first song may take longer to load.\n\n• Downloads the current song fully before playback\n• While it plays, the next song pre-fetches in the background\n• Every subsequent song starts instantly\n• Cached files are removed when the next song starts\n\nOnly active when transcoding is set to Original or off.",
+                        "Stabile, netzwerkunabhängige Wiedergabe mit nahtlosen Gapless-Übergängen. Beim ersten Song kann es zu einer längeren Ladezeit kommen.\n\n• Lädt den aktuellen Song vollständig vor der Wiedergabe\n• Währenddessen wird der nächste Song im Hintergrund geladen\n• Ab dem zweiten Song startet die Wiedergabe sofort\n• Gecachte Dateien werden beim Start des nächsten Songs gelöscht\n\nNur wirksam, wenn Transcoding auf Original gestellt oder deaktiviert ist."
+                    ))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                HStack {
+                    Spacer()
+                    Button(tr("Done", "Fertig")) { showInfo = false }
+                        .keyboardShortcut(.defaultAction)
+                }
+            }
+            .padding(24)
+            .frame(width: 420, height: 340)
+        }
     }
 }
 
