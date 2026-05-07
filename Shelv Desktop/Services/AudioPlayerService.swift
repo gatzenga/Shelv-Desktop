@@ -1017,7 +1017,7 @@ class AudioPlayerService: ObservableObject {
                         bitrate: fmt.bitrate
                     )
                 }
-            } else if !nextURL.isFileURL, streamPreCacheEnabled {
+            } else if !nextURL.isFileURL, streamPreCacheEnabled || gaplessEnabled {
                 prefetchScheduled = true
                 prefetchedSongId = nextSong.id
                 let suffix = nextSong.suffix?.lowercased() ?? "audio"
@@ -1059,8 +1059,8 @@ class AudioPlayerService: ObservableObject {
                 }
             }
             gaplessPreloadSong = nextSong
-        } else if !url.isFileURL, streamPreCacheEnabled {
-            // Original-Remote-Stream mit Pre-Cache — auf lokale Datei warten
+        } else if !url.isFileURL, streamPreCacheEnabled || gaplessEnabled {
+            // Original-Remote-Stream — auf lokale Datei warten (Prefetch läuft seit 5s-Marker)
             let songId = nextSong.id
             gaplessPreloadTriggered = true
             Task { @MainActor [weak self] in
