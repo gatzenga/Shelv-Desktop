@@ -750,7 +750,7 @@ class AudioPlayerService: ObservableObject {
         currentTime = 0
         duration = Double(song.duration ?? 0)
 
-        if let prev = currentSong {
+        if let prev = currentSong, prev.id != song.id {
             Task { await StreamCacheService.shared.cancel(songId: prev.id) }
         }
         if let prefId = prefetchedSongId, prefId != song.id {
@@ -788,6 +788,7 @@ class AudioPlayerService: ObservableObject {
                         self.engine.trustedDuration = (precise ?? 0) > 0 ? precise! : Double(song.duration ?? 0)
                         if seekTo > 1 { self.engine.seek(to: seekTo) }
                         self.isEngineLoaded = true
+                        self.isBuffering = false
                         return
                     }
                 } while Date() < deadline
@@ -800,6 +801,7 @@ class AudioPlayerService: ObservableObject {
                     self.engine.trustedDuration = Double(song.duration ?? 0)
                     if seekTo > 1 { self.engine.seek(to: seekTo) }
                     self.isEngineLoaded = true
+                    self.isBuffering = false
                 }
             }
         } else if !url.isFileURL, streamPreCacheEnabled {
@@ -831,6 +833,7 @@ class AudioPlayerService: ObservableObject {
                         self.engine.trustedDuration = (precise ?? 0) > 0 ? precise! : Double(song.duration ?? 0)
                         if seekTo > 1 { self.engine.seek(to: seekTo) }
                         self.isEngineLoaded = true
+                        self.isBuffering = false
                         return
                     }
                 } while Date() < deadline
@@ -842,6 +845,7 @@ class AudioPlayerService: ObservableObject {
                     self.engine.trustedDuration = Double(song.duration ?? 0)
                     if seekTo > 1 { self.engine.seek(to: seekTo) }
                     self.isEngineLoaded = true
+                    self.isBuffering = false
                 }
             }
         } else {
