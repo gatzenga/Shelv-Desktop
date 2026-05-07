@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CacheLogView: View {
     @ObservedObject private var cacheLog = StreamCacheLog.shared
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,9 +34,12 @@ struct CacheLogView: View {
         }
         .navigationTitle(tr("Cache Log", "Cache-Log"))
         .toolbar {
-            ToolbarItem(placement: .automatic) {
+            ToolbarItem(placement: .cancellationAction) {
                 Button(tr("Clear", "Leeren")) { StreamCacheLog.shared.clear() }
                     .disabled(cacheLog.entries.isEmpty)
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button(tr("Done", "Fertig")) { dismiss() }
             }
         }
     }
