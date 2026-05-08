@@ -5,27 +5,117 @@ struct DiscoverView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var libraryStore = LibraryViewModel.shared
     @ObservedObject var offlineMode = OfflineModeService.shared
+    @ObservedObject var downloadStore = DownloadStore.shared
     @AppStorage("recapEnabled") private var recapEnabled = false
     @State private var mixLoading: String?
+    private let player = AudioPlayerService.shared
 
     @ViewBuilder
     var body: some View {
         if offlineMode.isOffline {
-            offlineEmptyState
-                .navigationTitle(tr("Discover", "Entdecken"))
-                .toolbar {
-                    ToolbarItem(placement: .automatic) {
-                        ThemePickerButton()
-                    }
-                    ToolbarItem(placement: .automatic) {
-                        OfflineRecapToolbarItem()
-                    }
+            Group {
+                if downloadStore.songs.isEmpty {
+                    offlineEmptyState
+                } else {
+                    offlineMixState
                 }
-                .onChange(of: offlineMode.isOffline) { _, isOffline in
-                    if !isOffline { Task { await vm.load() } }
+            }
+            .navigationTitle(tr("Discover", "Entdecken"))
+            .toolbar {
+                ToolbarItem(placement: .automatic) {
+                    ThemePickerButton()
                 }
+                ToolbarItem(placement: .automatic) {
+                    OfflineRecapToolbarItem()
+                }
+            }
+            .onChange(of: offlineMode.isOffline) { _, isOffline in
+                if !isOffline { Task { await vm.load() } }
+            }
         } else {
             onlineBody
+        }
+    }
+
+    private var offlineMixState: some View {
+        VStack(spacing: 20) {
+            Text(tr("Offline Mixes", "Offline-Mixes"))
+                .font(.title2).bold()
+            VStack(spacing: 10) {
+                MixButton(
+                    title: tr("Play: All Downloads", "Play: Alle Downloads"),
+                    icon: "play.fill",
+                    color: .blue,
+                    isLoading: mixLoading == "offline_play"
+                ) {
+                    mixLoading = "offline_play"
+                    loadOfflineMix(type: "offline_play")
+                    mixLoading = nil
+                }
+                MixButton(
+                    title: tr("Shuffle: All Downloads", "Shuffle: Alle Downloads"),
+                    icon: "shuffle",
+                    color: .orange,
+                    isLoading: mixLoading == "offline_shuffle"
+                ) {
+                    mixLoading = "offline_shuffle"
+                    loadOfflineMix(type: "offline_shuffle")
+                    mixLoading = nil
+                }
+                MixButton(
+                    title: tr("Mix: Latest Downloads", "Mix: Neueste Downloads"),
+                    icon: "arrow.down.circle.fill",
+                    color: .green,
+                    isLoading: mixLoading == "offline_newest"
+                ) {
+                    mixLoading = "offline_newest"
+                    loadOfflineMix(type: "offline_newest")
+                    mixLoading = nil
+                }
+            }
+            .frame(maxWidth: 480)
+            Button {
+                offlineMode.exitOfflineMode()
+            } label: {
+                Label(tr("Go Online", "Online gehen"), systemImage: "wifi")
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func loadOfflineMix(type: String) {
+        let allSongs = downloadStore.songs.map { $0.asSong() }
+        guard !allSongs.isEmpty else { return }
+
+        switch type {
+        case "offline_play":
+            let sorted = allSongs.sorted {
+                let a = desktopStripArticle($0.artist ?? "")
+                    .localizedStandardCompare(desktopStripArticle($1.artist ?? ""))
+                if a != .orderedSame { return a == .orderedAscending }
+                let b = ($0.album ?? "").localizedStandardCompare($1.album ?? "")
+                if b != .orderedSame { return b == .orderedAscending }
+                let d0 = $0.discNumber ?? 0, d1 = $1.discNumber ?? 0
+                if d0 != d1 { return d0 < d1 }
+                return ($0.track ?? 0) < ($1.track ?? 0)
+            }
+            player.play(songs: Array(sorted.prefix(500)))
+
+        case "offline_shuffle":
+            let sampled = Array(allSongs.shuffled().prefix(500))
+            player.playShuffled(songs: sampled)
+
+        case "offline_newest":
+            let top100 = downloadStore.songs
+                .sorted { $0.addedAt > $1.addedAt }
+                .prefix(100)
+                .map { $0.asSong() }
+            player.playShuffled(songs: Array(top100))
+
+        default:
+            break
         }
     }
 
@@ -430,6 +520,23 @@ private struct OfflineRecapToolbarItem: View {
             RecapToolbarButton()
         }
     }
+}
+
+private func desktopStripArticle(_ title: String) -> String {
+    let lower = title.lowercased()
+    let prefixes: [String] = [
+        "the ", "an ", "a ",
+        "der ", "die ", "das ", "dem ", "den ", "des ",
+        "eine ", "einer ", "einem ", "einen ", "ein ",
+        "les ", "le ", "la ", "l\u{2019}", "l'",
+        "une ", "des ", "un ",
+        "los ", "las ", "el ", "una ", "un ",
+        "gli ", "uno ", "una ", "il ", "lo ",
+        "umas ", "uma ", "uns ", "um ", "os ", "as ",
+        "het ", "een ", "de ",
+    ]
+    for p in prefixes where lower.hasPrefix(p) { return String(title.dropFirst(p.count)) }
+    return title
 }
 
 #Preview {

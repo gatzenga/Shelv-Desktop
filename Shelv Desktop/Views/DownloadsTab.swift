@@ -172,8 +172,10 @@ struct BulkDownloadSheet: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var libraryStore = LibraryViewModel.shared
     @ObservedObject var downloadStore = DownloadStore.shared
+    @ObservedObject var recapStore = RecapStore.shared
     @Environment(\.dismiss) private var dismiss
     @AppStorage("enableFavorites") private var enableFavorites = true
+    @AppStorage("recapEnabled") private var recapEnabled = false
 
     @State private var plan: BulkDownloadPlan?
     @State private var isPlanning = false
@@ -227,6 +229,10 @@ struct BulkDownloadSheet: View {
                                 Label(tr("Then favorites", "Dann Favoriten"),
                                       systemImage: "heart")
                             }
+                            if recapEnabled && !recapStore.recapPlaylistIds.isEmpty {
+                                Label(tr("Then recap playlists", "Dann Recap-Playlists"),
+                                      systemImage: "calendar.badge.clock")
+                            }
                             Label(tr("Then alphabetical by artist", "Dann alphabetisch"),
                                   systemImage: "textformat")
                         }
@@ -275,9 +281,11 @@ struct BulkDownloadSheet: View {
         if libraryStore.albums.isEmpty {
             await libraryStore.loadAlbums()
         }
+        let recapIds = recapEnabled ? Array(recapStore.recapPlaylistIds) : []
         let computed = await DownloadService.shared.planBulkDownload(
             serverId: stable, maxBytes: maxBytes,
             favorites: enableFavorites,
+            recapPlaylistIds: recapIds,
             libraryAlbums: libraryStore.albums
         )
         plan = computed
