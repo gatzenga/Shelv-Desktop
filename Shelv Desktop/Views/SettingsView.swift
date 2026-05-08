@@ -356,6 +356,7 @@ struct AppearanceTab: View {
 
 struct CacheTab: View {
     @AppStorage("streamPreCacheEnabled") private var streamPreCacheEnabled = false
+    @Environment(\.themeColor) private var themeColor
     @State private var cacheSize = "–"
     @State private var showClearConfirm = false
     @State private var showInfo = false
@@ -371,7 +372,7 @@ struct CacheTab: View {
                     Label(tr("About Pre-cache", "Über Pre-cache"), systemImage: "info.circle")
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(themeColor)
             }
 
             Section {
@@ -406,7 +407,7 @@ struct CacheTab: View {
                     Label(tr("Logs", "Logs"), systemImage: "doc.text.magnifyingglass")
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(themeColor)
             }
         }
         .formStyle(.grouped)

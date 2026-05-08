@@ -354,10 +354,27 @@ struct QueuePopover: View {
             || !player.userQueue.isEmpty
     }
 
+    private var totalCount: Int {
+        if player.isShuffled {
+            return albumEntries.count
+        }
+        return playNextEntries.count + albumEntries.count + userQueueEntries.count
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(tr("Queue", "Warteschlange")).font(.headline)
+                HStack(spacing: 6) {
+                    Text(tr("Queue", "Warteschlange")).font(.headline)
+                    if totalCount > 0 {
+                        Text("\(totalCount)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.secondary.opacity(0.12), in: Capsule())
+                    }
+                }
                 Spacer()
                 if hasUpcoming {
                     Button(tr("Clear", "Leeren")) { showClearConfirm = true }
