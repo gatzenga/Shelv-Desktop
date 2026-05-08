@@ -263,6 +263,10 @@ struct BulkDownloadSheet: View {
                 Button(tr("Start", "Starten")) {
                     guard let plan else { return }
                     downloadStore.enqueueSongs(plan.planned)
+                    for (playlistId, songIds) in plan.recapPlaylistSongIds {
+                        let name = libraryStore.playlists.first { $0.id == playlistId }?.name ?? "Recap"
+                        downloadStore.markPlaylistDownloaded(id: playlistId, name: name, songIds: songIds)
+                    }
                     dismiss()
                 }
                 .keyboardShortcut(.defaultAction)
