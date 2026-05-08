@@ -27,6 +27,7 @@ final class DownloadStore: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var artistCoverByName: [String: String] = [:]
     private var pendingReload = false
+    private var protectedPlaylistIds: Set<String> = []
 
     init() {
         DownloadService.shared.progressUpdates
@@ -186,7 +187,10 @@ final class DownloadStore: ObservableObject {
         albums = albumsGrouped
         artists = artistsGrouped
         favoriteSongs = mappedSongs.filter { $0.isFavorite }
-        downloadedPlaylistIds = playlistIds
+        // Geschützte IDs (DB-Schreibung noch ausstehend) mit DB-Stand zusammenführen;
+        // sobald die DB sie enthält, Schutz aufheben.
+        protectedPlaylistIds = protectedPlaylistIds.subtracting(playlistIds)
+        downloadedPlaylistIds = playlistIds.union(protectedPlaylistIds)
         playlistSongIds = savedSongIds
         totalBytes = total
 
@@ -451,6 +455,7 @@ final class DownloadStore: ObservableObject {
 
     func markPlaylistDownloaded(id: String, name: String, songIds: [String] = []) {
         downloadedPlaylistIds.insert(id)
+        protectedPlaylistIds.insert(id)
         if !songIds.isEmpty {
             playlistSongIds[id] = songIds
             let key = "shelv_mac_playlist_song_ids_\(serverId)"
@@ -463,6 +468,7 @@ final class DownloadStore: ObservableObject {
 
     func unmarkPlaylistDownloaded(id: String) {
         downloadedPlaylistIds.remove(id)
+        protectedPlaylistIds.remove(id)
         playlistSongIds.removeValue(forKey: id)
         let key = "shelv_mac_playlist_song_ids_\(serverId)"
         var current = UserDefaults.standard.dictionary(forKey: key) as? [String: [String]] ?? [:]
