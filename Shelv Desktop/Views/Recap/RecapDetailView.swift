@@ -213,6 +213,9 @@ struct RecapDetailView: View {
                 }
             }
             Spacer(minLength: 0)
+            if enableDownloads {
+                DownloadStatusIcon(songId: entry.song.id)
+            }
             HStack(spacing: 3) {
                 Image(systemName: "play.fill").font(.caption2)
                 Text("\(entry.playCount)").font(.caption.monospacedDigit())
