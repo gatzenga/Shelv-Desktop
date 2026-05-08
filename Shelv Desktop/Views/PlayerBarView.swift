@@ -454,8 +454,10 @@ struct QueuePopover: View {
                         onDelete: { onDelete(entry) }
                     )
                     .onTapGesture { onTap(entry) }
+                    .listRowSeparator(.hidden)
                 }
             }
+            .listSectionSeparator(.hidden)
         }
     }
 }
