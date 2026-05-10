@@ -202,6 +202,7 @@ struct Shelv_DesktopApp: App {
                 .environmentObject(LibraryViewModel.shared)
                 .tint(AppTheme.color(for: themeColorName))
                 .environment(\.themeColor, AppTheme.color(for: themeColorName))
+                .frame(width: 720, height: 660)
         }
         .windowResizability(.contentSize)
 

@@ -307,12 +307,12 @@ struct AlbumDetailView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.large)
             }
-        case .partial:
+        case .partial(let done, let tot):
             if !offlineMode.isOffline {
                 Button {
                     downloadStore.enqueueAlbum(albumModel)
                 } label: {
-                    Label(tr("Rest", "Rest"), systemImage: "arrow.down.circle")
+                    Label(tr("Rest (\(tot - done))", "Rest (\(tot - done))"), systemImage: "arrow.down.circle")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
@@ -427,18 +427,6 @@ struct TrackRow: View {
                 if showPlaylist, let onAddToPlaylist {
                     Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) {
                         onAddToPlaylist()
-                    }
-                }
-            }
-            if enableDownloads {
-                Divider()
-                if downloadStore.isDownloaded(songId: song.id) {
-                    Button(role: .destructive) { downloadStore.deleteSong(song.id) } label: {
-                        Label { Text(tr("Delete Download", "Download löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
-                    }
-                } else if !offlineMode.isOffline {
-                    Button(tr("Download", "Herunterladen")) {
-                        downloadStore.enqueueSongs([song])
                     }
                 }
             }

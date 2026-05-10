@@ -369,18 +369,6 @@ struct SearchSongRow: View {
                     }
                 }
             }
-            if enableDownloads && !offlineMode.isOffline {
-                Divider()
-                if downloadStore.isDownloaded(songId: song.id) {
-                    Button(tr("Delete Download", "Download löschen"), role: .destructive) {
-                        downloadStore.deleteSong(song.id)
-                    }
-                } else {
-                    Button(tr("Download", "Herunterladen")) {
-                        downloadStore.enqueueSongs([song])
-                    }
-                }
-            }
         }
     }
 }
@@ -523,22 +511,6 @@ struct LyricsSearchRow: View {
                 }
                 if showPlaylist, let onAddToPlaylist {
                     Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) { onAddToPlaylist() }
-                }
-            }
-            if enableDownloads && !offlineMode.isOffline {
-                Divider()
-                if downloadStore.isDownloaded(songId: item.songId) {
-                    Button(tr("Delete Download", "Download löschen"), role: .destructive) {
-                        downloadStore.deleteSong(item.songId)
-                    }
-                } else {
-                    Button(tr("Download", "Herunterladen")) {
-                        Task {
-                            if let song = try? await SubsonicAPIService.shared.getSong(id: item.songId) {
-                                await MainActor.run { downloadStore.enqueueSongs([song]) }
-                            }
-                        }
-                    }
                 }
             }
         }

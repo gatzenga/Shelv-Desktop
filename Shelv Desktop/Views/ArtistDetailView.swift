@@ -307,22 +307,22 @@ struct ArtistDetailView: View {
                 Button {
                     showDeleteDownloadConfirm = true
                 } label: {
-                    Label { Text(tr("Delete", "Löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
+                    Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                        .foregroundStyle(.red)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
-                .tint(.red)
             }
         case .complete:
             if downloadStore.artists.contains(where: { $0.name == detail.name }) {
                 Button {
                     showDeleteDownloadConfirm = true
                 } label: {
-                    Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
+                    Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                        .foregroundStyle(.red)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
-                .tint(.red)
             }
         }
     }

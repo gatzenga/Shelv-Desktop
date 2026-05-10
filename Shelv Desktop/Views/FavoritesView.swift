@@ -207,18 +207,6 @@ struct FavoriteSongRow: View {
             if showPlaylist {
                 Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) { onAddToPlaylist() }
             }
-            if enableDownloads && !offlineMode.isOffline {
-                Divider()
-                if downloadStore.isDownloaded(songId: song.id) {
-                    Button(tr("Delete Download", "Download löschen"), role: .destructive) {
-                        downloadStore.deleteSong(song.id)
-                    }
-                } else {
-                    Button(tr("Download", "Herunterladen")) {
-                        downloadStore.enqueueSongs([song])
-                    }
-                }
-            }
         }
     }
 }

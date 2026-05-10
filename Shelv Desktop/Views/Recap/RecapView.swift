@@ -26,7 +26,10 @@ struct RecapView: View {
     }
 
     private var filteredEntries: [RecapRegistryRecord] {
-        recapStore.entries.filter { $0.periodType == segment.rawValue }
+        let typed = recapStore.entries.filter { $0.periodType == segment.rawValue }
+        return offlineMode.isOffline
+            ? typed.filter { downloadStore.downloadedPlaylistIds.contains($0.playlistId) }
+            : typed
     }
 
     var body: some View {
@@ -123,7 +126,7 @@ struct RecapView: View {
                                                 Task {
                                                     if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
                                                        let songs = detail.songs {
-                                                        for song in songs where downloadStore.isDownloaded(songId: song.id) {
+                                                        for song in songs {
                                                             downloadStore.deleteSong(song.id)
                                                         }
                                                     }
@@ -139,7 +142,7 @@ struct RecapView: View {
                                                        let songs = detail.songs {
                                                         let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
                                                         if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
-                                                        downloadStore.markPlaylistDownloaded(id: entry.playlistId, name: recapPeriod.playlistName)
+                                                        downloadStore.markPlaylistDownloaded(id: entry.playlistId, name: recapPeriod.playlistName, songIds: songs.map(\.id))
                                                         NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
                                                     }
                                                 }
@@ -160,7 +163,7 @@ struct RecapView: View {
                     }
                 }
             }
-            .frame(width: 520, height: 580)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle(tr("Recap", "Recap"))
             .toolbar {
                 ToolbarItem(placement: .automatic) {

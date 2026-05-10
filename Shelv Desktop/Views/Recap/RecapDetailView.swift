@@ -22,6 +22,7 @@ struct RecapDetailView: View {
         let id: String
         let song: Song
         let playCount: Int
+        let originalRank: Int
     }
 
     private var period: RecapPeriod {
@@ -58,6 +59,35 @@ struct RecapDetailView: View {
                 )
             } else {
                 List {
+                    Section {
+                        HStack(spacing: 10) {
+                            Button {
+                                AudioPlayerService.shared.play(songs: songs.map { $0.song }, startIndex: 0)
+                            } label: {
+                                Label(tr("Play", "Abspielen"), systemImage: "play.fill")
+                                    .frame(minWidth: 100)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(themeColor)
+                            .controlSize(.large)
+
+                            Button {
+                                AudioPlayerService.shared.playShuffled(songs: songs.map { $0.song })
+                            } label: {
+                                Label(tr("Shuffle", "Zufällig"), systemImage: "shuffle")
+                                    .frame(minWidth: 100)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.large)
+
+                            if enableDownloads {
+                                recapDownloadContentButtons
+                            }
+                        }
+                        .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 8, trailing: 12))
+                        .listRowSeparator(.hidden)
+                    }
+
                     ForEach(Array(songs.enumerated()), id: \.element.id) { idx, entry in
                         Button {
                             AudioPlayerService.shared.play(
@@ -65,7 +95,7 @@ struct RecapDetailView: View {
                                 startIndex: idx
                             )
                         } label: {
-                            songRow(rank: idx + 1, entry: entry)
+                            songRow(rank: entry.originalRank, entry: entry)
                         }
                         .buttonStyle(.plain)
                         .listRowSeparator(.hidden)
@@ -107,15 +137,6 @@ struct RecapDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Button(tr("Play", "Abspielen")) {
-                        AudioPlayerService.shared.play(songs: songs.map { $0.song }, startIndex: 0)
-                    }
-                    .disabled(songs.isEmpty)
-                    Button(tr("Shuffle", "Zufällig")) {
-                        AudioPlayerService.shared.playShuffled(songs: songs.map { $0.song })
-                    }
-                    .disabled(songs.isEmpty)
-                    Divider()
                     Button(tr("Play Next", "Als nächstes")) {
                         AudioPlayerService.shared.addPlayNext(songs.map { $0.song })
                         NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
@@ -126,23 +147,6 @@ struct RecapDetailView: View {
                         NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
                     }
                     .disabled(songs.isEmpty)
-                    if enableDownloads {
-                        Divider()
-                        let isMarked = downloadStore.downloadedPlaylistIds.contains(entry.playlistId)
-                        if isMarked {
-                            Button(tr("Delete Downloads", "Downloads löschen"), role: .destructive) {
-                                showDeleteDownloadConfirm = true
-                            }
-                        } else if !offlineMode.isOffline {
-                            Button(tr("Download", "Herunterladen")) {
-                                let allSongs = songs.map { $0.song }
-                                let missing = allSongs.filter { !downloadStore.isDownloaded(songId: $0.id) }
-                                if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
-                                downloadStore.markPlaylistDownloaded(id: entry.playlistId, name: period.playlistName, songIds: allSongs.map(\.id))
-                                NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
-                            }
-                        }
-                    }
                     Divider()
                     Button(tr("Delete Recap", "Recap löschen"), role: .destructive) {
                         showDeleteRecapConfirm = true
@@ -157,7 +161,7 @@ struct RecapDetailView: View {
         .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteDownloadConfirm) {
             Button(tr("Delete", "Löschen"), role: .destructive) {
                 let allSongs = songs.map { $0.song }
-                for song in allSongs where downloadStore.isDownloaded(songId: song.id) {
+                for song in allSongs {
                     downloadStore.deleteSong(song.id)
                 }
                 downloadStore.unmarkPlaylistDownloaded(id: entry.playlistId)
@@ -241,6 +245,49 @@ struct RecapDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private var recapDownloadContentButtons: some View {
+        let isMarked = downloadStore.downloadedPlaylistIds.contains(entry.playlistId)
+        let totalCount = downloadStore.playlistSongIds[entry.playlistId]?.count ?? songs.count
+        let downloadedCount = isMarked ? (downloadStore.playlistSongIds[entry.playlistId]?.filter { downloadStore.isDownloaded(songId: $0) }.count ?? 0) : 0
+        let remaining = max(0, totalCount - downloadedCount)
+        if !isMarked && !offlineMode.isOffline {
+            Button {
+                let allSongs = songs.map { $0.song }
+                let missing = allSongs.filter { !downloadStore.isDownloaded(songId: $0.id) }
+                if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
+                downloadStore.markPlaylistDownloaded(id: entry.playlistId, name: period.playlistName, songIds: allSongs.map(\.id))
+                NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+            } label: {
+                Label(tr("Download", "Herunterladen"), systemImage: "arrow.down.circle")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        }
+        if isMarked && remaining > 0 && !offlineMode.isOffline {
+            Button {
+                let allSongs = songs.map { $0.song }
+                let missing = allSongs.filter { !downloadStore.isDownloaded(songId: $0.id) }
+                if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
+                NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+            } label: {
+                Label(tr("Rest (\(remaining))", "Rest (\(remaining))"), systemImage: "arrow.down.circle")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        }
+        if isMarked {
+            Button {
+                showDeleteDownloadConfirm = true
+            } label: {
+                Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        }
+    }
+
     private func load() async {
         isLoading = true
         defer { isLoading = false }
@@ -259,8 +306,12 @@ struct RecapDetailView: View {
         )
         let countMap = Dictionary(uniqueKeysWithValues: counts.map { ($0.songId, $0.count) })
 
-        songs = playlistSongs.map { song in
-            SongWithCount(id: song.id, song: song, playCount: countMap[song.id] ?? 0)
+        let ranked = playlistSongs.enumerated().map { (idx, song) in
+            (rank: idx + 1, song: song, playCount: countMap[song.id] ?? 0)
         }
+        let filtered = offlineMode.isOffline
+            ? ranked.filter { downloadStore.isDownloaded(songId: $0.song.id) }
+            : ranked
+        songs = filtered.map { SongWithCount(id: $0.song.id, song: $0.song, playCount: $0.playCount, originalRank: $0.rank) }
     }
 }

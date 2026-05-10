@@ -13,6 +13,9 @@ struct PlaylistDetailView: View {
     @ViewBuilder
     private var playlistDownloadButtons: some View {
         let isMarked = downloadStore.downloadedPlaylistIds.contains(playlist.id)
+        let totalCount = downloadStore.playlistSongIds[playlist.id]?.count ?? songs.count
+        let downloadedCount = isMarked ? (downloadStore.playlistSongIds[playlist.id]?.filter { downloadStore.isDownloaded(songId: $0) }.count ?? 0) : 0
+        let remaining = max(0, totalCount - downloadedCount)
         if !isMarked && !offlineMode.isOffline {
             Button {
                 let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
@@ -21,6 +24,17 @@ struct PlaylistDetailView: View {
                 NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
             } label: {
                 Label(tr("Download", "Herunterladen"), systemImage: "arrow.down.circle")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+        }
+        if isMarked && remaining > 0 && !offlineMode.isOffline {
+            Button {
+                let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
+                if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
+                NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+            } label: {
+                Label(tr("Rest (\(remaining))", "Rest (\(remaining))"), systemImage: "arrow.down.circle")
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
@@ -40,6 +54,7 @@ struct PlaylistDetailView: View {
 
     @State private var detail: PlaylistDetail?
     @State private var songs: [Song] = []
+    @State private var songOriginalRanks: [String: Int] = [:]
     @State private var isLoading = true
     @State private var showDeleteConfirm = false
     @State private var showDeleteDownloadConfirm = false
@@ -82,6 +97,7 @@ struct PlaylistDetailView: View {
                 themeColor: themeColor,
                 currentSongId: appState.player.currentSong?.id,
                 libraryStore: libraryStore,
+                originalRanks: songOriginalRanks,
                 onPlayAt: { index in appState.player.play(songs: displayedSongs, startIndex: index) },
                 onPlayNext: { song in
                     appState.player.addPlayNext(song)
@@ -260,6 +276,7 @@ struct PlaylistDetailView: View {
         if let loaded = await libraryStore.loadPlaylistDetail(id: playlist.id) {
             detail = loaded
             let allSongs = loaded.songs ?? []
+            songOriginalRanks = Dictionary(uniqueKeysWithValues: allSongs.enumerated().map { ($1.id, $0 + 1) })
             songs = offlineMode.isOffline
                 ? allSongs.filter { downloadStore.isDownloaded(songId: $0.id) }
                 : allSongs
@@ -269,17 +286,6 @@ struct PlaylistDetailView: View {
         if songs.isEmpty && !offlineMode.isOffline && downloadStore.downloadedPlaylistIds.contains(playlist.id) {
             let ids = downloadStore.playlistSongIds[playlist.id] ?? []
             songs = ids.compactMap { id in downloadStore.songs.first { $0.songId == id }?.asSong() }
-        }
-        if !offlineMode.isOffline && downloadStore.downloadedPlaylistIds.contains(playlist.id) {
-            let hasActive = songs.contains {
-                switch downloadStore.downloadState(songId: $0.id) {
-                case .queued, .downloading: return true
-                default: return false
-                }
-            }
-            if !hasActive && songs.contains(where: { !downloadStore.isDownloaded(songId: $0.id) }) {
-                downloadStore.unmarkPlaylistDownloaded(id: playlist.id)
-            }
         }
         isLoading = false
     }
@@ -366,7 +372,7 @@ struct PlaylistDetailView: View {
 
 struct PlaylistTrackRow: View {
     let song: Song
-    let index: Int
+    let trackNumber: Int
     let isPlaying: Bool
     var showFavorite: Bool = false
     var showPlaylist: Bool = false
@@ -384,9 +390,6 @@ struct PlaylistTrackRow: View {
     var onMoveUp: () -> Void = {}
     var onMoveDown: () -> Void = {}
 
-    @ObservedObject private var downloadStore = DownloadStore.shared
-    @ObservedObject private var offlineMode = OfflineModeService.shared
-    @AppStorage("enableDownloads") private var enableDownloads = false
     @State private var isHovered = false
 
     var body: some View {
@@ -400,7 +403,7 @@ struct PlaylistTrackRow: View {
                         .foregroundStyle(themeColor)
                         .symbolEffect(.variableColor.iterative)
                 } else {
-                    Text("\(index + 1)")
+                    Text("\(trackNumber)")
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -506,18 +509,6 @@ struct PlaylistTrackRow: View {
                     }
                 }
             }
-            if enableDownloads && !offlineMode.isOffline {
-                Divider()
-                if downloadStore.isDownloaded(songId: song.id) {
-                    Button(tr("Delete Download", "Download löschen"), role: .destructive) {
-                        downloadStore.deleteSong(song.id)
-                    }
-                } else {
-                    Button(tr("Download", "Herunterladen")) {
-                        downloadStore.enqueueSongs([song])
-                    }
-                }
-            }
         }
     }
 }
@@ -533,6 +524,7 @@ struct PlaylistTracksList: View {
     let themeColor: Color
     let currentSongId: String?
     @ObservedObject var libraryStore: LibraryViewModel
+    var originalRanks: [String: Int] = [:]
     let onPlayAt: (Int) -> Void
     let onPlayNext: (Song) -> Void
     let onAddToQueue: (Song) -> Void
@@ -577,7 +569,7 @@ struct PlaylistTracksList: View {
                 ForEach(Array(tracksToShow.enumerated()), id: \.element.id) { index, song in
                     PlaylistTrackRow(
                         song: song,
-                        index: index,
+                        trackNumber: originalRanks[song.id] ?? (index + 1),
                         isPlaying: currentSongId == song.id,
                         showFavorite: enableFavorites,
                         showPlaylist: enablePlaylists,
