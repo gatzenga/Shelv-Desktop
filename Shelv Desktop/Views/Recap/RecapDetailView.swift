@@ -203,6 +203,9 @@ struct RecapDetailView: View {
                 url: entry.song.coverArt.flatMap { SubsonicAPIService.shared.coverArtURL(id: $0, size: 100) },
                 size: 44, cornerRadius: 6
             )
+            .overlay {
+                NowPlayingOverlay(songId: entry.song.id, size: 44, cornerRadius: 6)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.song.title)

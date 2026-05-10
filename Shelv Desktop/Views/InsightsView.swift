@@ -267,6 +267,9 @@ struct InsightsView: View {
         return rankCard(isTop3: isTop3) {
             rankLabel(rank: rank, isTop3: isTop3)
             CoverArtView(url: url, size: 52, cornerRadius: 8)
+                .overlay {
+                    NowPlayingOverlay(songId: song.id, size: 52, cornerRadius: 8)
+                }
             VStack(alignment: .leading, spacing: 2) {
                 Text(song.title)
                     .font(isTop3 ? .body.bold() : .body)
