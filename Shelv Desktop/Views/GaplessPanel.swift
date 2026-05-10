@@ -12,8 +12,8 @@ struct GaplessPanel: View {
                 }
                 .tint(themeColor)
                 Text(tr(
-                    "Gapless and transcoding are not fully compatible — a short gap between tracks is expected.",
-                    "Gapless und Transcoding sind nicht vollständig kompatibel – ein kurzer Übergang zwischen Titeln ist normal."
+                    "Pre-cache Original File recommended.\nTranscoded streams are pre-cached automatically.",
+                    "Pre-cache Originaldatei empfohlen.\nTranskodierte Streams werden automatisch pre-gecached."
                 ))
                 .font(.caption)
                 .foregroundStyle(.secondary)

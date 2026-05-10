@@ -371,8 +371,6 @@ struct CacheTab: View {
                 } label: {
                     Label(tr("About Pre-cache", "Über Pre-cache"), systemImage: "info.circle")
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(themeColor)
             }
 
             Section {
@@ -406,8 +404,6 @@ struct CacheTab: View {
                 } label: {
                     Label(tr("Logs", "Logs"), systemImage: "doc.text.magnifyingglass")
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(themeColor)
             }
         }
         .formStyle(.grouped)

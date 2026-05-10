@@ -163,6 +163,8 @@ struct Shelv_DesktopApp: App {
                 Divider()
                 PlaybackSettingsMenuItem()
                 DataSaverMenuItem()
+                Divider()
+                OfflineModeMenuItem()
             }
 
             CommandGroup(after: .sidebar) {
@@ -173,8 +175,6 @@ struct Shelv_DesktopApp: App {
                 Toggle(isOn: Binding(get: { enablePlaylists }, set: { enablePlaylists = $0 })) {
                     Text(tr("Show Playlists", "Wiedergabelisten anzeigen"))
                 }
-                Divider()
-                OfflineModeMenuItem()
             }
         }
 
