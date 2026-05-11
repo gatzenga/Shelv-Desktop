@@ -160,7 +160,7 @@ struct DownloadsTab: View {
             Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
         }
         .sheet(isPresented: $showBulkSheet) {
-            BulkDownloadSheet(maxBytes: Int64(maxBulkStorageGB) * 1024 * 1024 * 1024)
+            BulkDownloadSheet(maxBytes: Int64(maxBulkStorageGB) * 1_000_000_000)
                 .environmentObject(appState)
                 .frame(width: 520, height: 540)
         }
