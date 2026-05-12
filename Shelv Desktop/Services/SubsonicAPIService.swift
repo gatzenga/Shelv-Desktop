@@ -67,6 +67,7 @@ class SubsonicAPIService: ObservableObject {
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             throw APIError.httpError
         }
+        Task { @MainActor in OfflineModeService.shared.clearServerError() }
         do {
             return try decoder.decode(type, from: data)
         } catch {
