@@ -158,7 +158,11 @@ Credentials are authenticated using the Subsonic API's token-based method: `MD5(
 
 ## Contributing
 
-Pull requests are welcome. For larger changes, please open an issue first to discuss what you'd like to change. Feature ideas, feedback, and general discussion are welcome on the [Discord server](https://discord.gg/zU3qv9v6Vn).
+Pull requests are welcome. For larger changes, please open an issue first to discuss what you'd like to change. Feature ideas, feedback, and general discussion are welcome on the [Discord server](https://discord.gg/UdJK5mpmZu).
+
+### Translations
+
+To add a new language, create a `<language-code>.lproj/Localizable.strings` file (e.g. `zh-Hans.lproj/Localizable.strings`) modelled after `en.lproj/Localizable.strings`. Submit it as a pull request — no Swift changes are required.
 
 ## License
 
