@@ -16,7 +16,7 @@ struct SearchView: View {
             HStack {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
-                TextField(tr("Search artists, albums, tracks…", "Künstler, Alben, Titel suchen…"), text: $vm.query)
+                TextField(String(localized: "search_artists_albums_tracks"), text: $vm.query)
                     .textFieldStyle(.plain)
                     .focused($isSearchFocused)
                     .onSubmit { Task { await vm.search() } }
@@ -35,7 +35,7 @@ struct SearchView: View {
             Divider()
 
             if vm.isLoading {
-                ProgressView(tr("Searching…", "Suchen…"))
+                ProgressView(String(localized: "searching"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if vm.isEmpty && lyricsResults.isEmpty && !vm.query.isEmpty {
                 ContentUnavailableView.search(text: vm.query)
@@ -45,7 +45,7 @@ struct SearchView: View {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 48))
                         .foregroundStyle(.secondary)
-                    Text(tr("Enter a search term", "Suchbegriff eingeben"))
+                    Text(String(localized: "enter_a_search_term"))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -53,7 +53,7 @@ struct SearchView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 28) {
                         if !vm.artists.isEmpty {
-                            SearchSection(title: tr("Artists", "Künstler")) {
+                            SearchSection(title: String(localized: "artists")) {
                                 ForEach(vm.artists) { artist in
                                     NavigationLink(value: artist) {
                                         SearchArtistRow(artist: artist)
@@ -64,7 +64,7 @@ struct SearchView: View {
                             }
                         }
                         if !vm.albums.isEmpty {
-                            SearchSection(title: tr("Albums", "Alben")) {
+                            SearchSection(title: String(localized: "albums")) {
                                 ForEach(vm.albums) { album in
                                     NavigationLink(value: album) {
                                         SearchAlbumRow(album: album)
@@ -76,7 +76,7 @@ struct SearchView: View {
                             }
                         }
                         if !vm.songs.isEmpty {
-                            SearchSection(title: tr("Tracks", "Titel")) {
+                            SearchSection(title: String(localized: "tracks")) {
                                 ForEach(vm.songs) { song in
                                     SearchSongRow(
                                         song: song,
@@ -88,10 +88,10 @@ struct SearchView: View {
                                         appState.player.play(songs: vm.songs, startIndex: idx)
                                     } onPlayNext: {
                                         appState.player.addPlayNext(song)
-                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                        NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                                     } onAddToQueue: {
                                         appState.player.addToUserQueue(song)
-                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                                        NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                                     } onFavorite: {
                                         Task { await libraryStore.toggleStarSong(song) }
                                     } onAddToPlaylist: {
@@ -101,7 +101,7 @@ struct SearchView: View {
                             }
                         }
                         if !lyricsResults.isEmpty {
-                            SearchSection(title: tr("Lyrics", "Lyrics")) {
+                            SearchSection(title: String(localized: "lyrics")) {
                                 ForEach(lyricsResults) { item in
                                     LyricsSearchRow(
                                         item: item,
@@ -111,13 +111,13 @@ struct SearchView: View {
                                         onPlayNext: {
                                             withLyricsSong(item) { song in
                                                 appState.player.addPlayNext(song)
-                                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                                NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                                             }
                                         },
                                         onAddToQueue: {
                                             withLyricsSong(item) { song in
                                                 appState.player.addToUserQueue(song)
-                                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                                                NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                                             }
                                         },
                                         onFavorite: {
@@ -137,7 +137,7 @@ struct SearchView: View {
                 }
             }
         }
-        .navigationTitle(tr("Search", "Suchen"))
+        .navigationTitle(String(localized: "search"))
         .onAppear { isSearchFocused = true }
         .onChange(of: vm.query) { _, newValue in
             if newValue.count >= 2 {
@@ -257,7 +257,7 @@ struct SearchArtistRow: View {
             VStack(alignment: .leading) {
                 Text(artist.name).font(.callout.bold())
                 if let count = artist.albumCount {
-                    Text(tr("\(count) Albums", "\(count) Alben")).font(.caption).foregroundStyle(.secondary)
+                    Text(String(format: String(localized: "count_albums_format"), count)).font(.caption).foregroundStyle(.secondary)
                 }
             }
             Spacer()
@@ -346,25 +346,25 @@ struct SearchSongRow: View {
         .onHover { isHovered = $0 }
         .onTapGesture(count: 2) { onPlay() }
         .contextMenu {
-            Button(tr("Play", "Abspielen")) { onPlay() }
+            Button(String(localized: "play")) { onPlay() }
             Divider()
             if let onPlayNext {
-                Button(tr("Play Next", "Als nächstes")) { onPlayNext() }
+                Button(String(localized: "play_next")) { onPlayNext() }
             }
             if let onAddToQueue {
-                Button(tr("Add to Queue", "Zur Warteschlange")) { onAddToQueue() }
+                Button(String(localized: "add_to_queue")) { onAddToQueue() }
             }
             if showFavorite || showPlaylist {
                 Divider()
                 if showFavorite, let onFavorite {
                     Button(isStarred
-                           ? tr("Remove from Favorites", "Aus Favoriten entfernen")
-                           : tr("Add to Favorites", "Zu Favoriten hinzufügen")) {
+                           ? String(localized: "remove_from_favorites")
+                           : String(localized: "add_to_favorites")) {
                         onFavorite()
                     }
                 }
                 if showPlaylist, let onAddToPlaylist {
-                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) {
+                    Button(String(localized: "add_to_playlist")) {
                         onAddToPlaylist()
                     }
                 }
@@ -402,7 +402,7 @@ class SearchViewModel: ObservableObject {
                     songs = result.song ?? []
                 } catch {
                     guard !Task.isCancelled else { return }
-                    NotificationCenter.default.post(name: .showToast, object: tr("Search failed", "Suche fehlgeschlagen"))
+                    NotificationCenter.default.post(name: .showToast, object: String(localized: "search_failed"))
                 }
             }
             isLoading = false
@@ -458,7 +458,7 @@ struct LyricsSearchRow: View {
             )
             .padding(.leading, 20)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.songTitle ?? tr("Unknown Song", "Unbekannter Titel"))
+                Text(item.songTitle ?? String(localized: "unknown_song"))
                     .font(.callout.bold())
                     .foregroundStyle(item.songTitle != nil ? Color.primary : Color.secondary)
                     .lineLimit(1)
@@ -496,21 +496,21 @@ struct LyricsSearchRow: View {
         .onHover { isHovered = $0 }
         .onTapGesture(count: 2) { onPlay() }
         .contextMenu {
-            Button(tr("Play", "Abspielen")) { onPlay() }
+            Button(String(localized: "play")) { onPlay() }
             Divider()
             if let onPlayNext {
-                Button(tr("Play Next", "Als nächstes")) { onPlayNext() }
+                Button(String(localized: "play_next")) { onPlayNext() }
             }
             if let onAddToQueue {
-                Button(tr("Add to Queue", "Zur Warteschlange")) { onAddToQueue() }
+                Button(String(localized: "add_to_queue")) { onAddToQueue() }
             }
             if showFavorite || showPlaylist {
                 Divider()
                 if showFavorite, let onFavorite {
-                    Button(tr("Add to Favorites", "Zu Favoriten hinzufügen")) { onFavorite() }
+                    Button(String(localized: "add_to_favorites")) { onFavorite() }
                 }
                 if showPlaylist, let onAddToPlaylist {
-                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) { onAddToPlaylist() }
+                    Button(String(localized: "add_to_playlist")) { onAddToPlaylist() }
                 }
             }
         }

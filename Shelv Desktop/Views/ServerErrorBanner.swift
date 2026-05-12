@@ -10,18 +10,15 @@ struct ServerErrorBanner: View {
                     .font(.headline)
                     .foregroundStyle(.white)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(tr("Server unreachable", "Server nicht erreichbar"))
+                    Text(String(localized: "server_unreachable"))
                         .font(.subheadline.bold())
                         .foregroundStyle(.white)
-                    Text(tr(
-                        "Switch to offline mode to use your downloads.",
-                        "In Offline-Modus wechseln um Downloads zu verwenden."
-                    ))
+                    Text(String(localized: "switch_to_offline_mode_to_use_your_downloads"))
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.85))
                 }
                 Spacer()
-                Button(tr("Offline", "Offline")) {
+                Button(String(localized: "offline")) {
                     offlineMode.enterOfflineMode()
                 }
                 .buttonStyle(.borderedProminent)

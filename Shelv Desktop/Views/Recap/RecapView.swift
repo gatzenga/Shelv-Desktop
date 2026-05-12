@@ -40,7 +40,7 @@ struct RecapView: View {
                 } else if enabledTypes.isEmpty {
                     emptyStateView(
                         icon: "chart.bar.xaxis",
-                        message: tr("Enable at least one period in Settings.", "Aktiviere mindestens eine Periode in den Einstellungen.")
+                        message: String(localized: "enable_at_least_one_period_in_settings")
                     )
                 } else {
                     if enabledTypes.count > 1 {
@@ -59,7 +59,7 @@ struct RecapView: View {
                     if filteredEntries.isEmpty {
                         emptyStateView(
                             icon: "clock",
-                            message: tr("No recap generated yet for this period.", "Noch kein Recap für diese Periode erstellt.")
+                            message: String(localized: "no_recap_generated_yet_for_this_period")
                         )
                     } else {
                         List {
@@ -73,46 +73,46 @@ struct RecapView: View {
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                                 .contextMenu {
-                                    Button(tr("Play", "Abspielen")) {
+                                    Button(String(localized: "play")) {
                                         Task {
                                             if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
                                                let songs = detail.songs, !songs.isEmpty {
                                                 AudioPlayerService.shared.play(songs: songs)
                                             } else {
-                                                NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
+                                                NotificationCenter.default.post(name: .showToast, object: String(localized: "action_failed"))
                                             }
                                         }
                                     }
-                                    Button(tr("Shuffle", "Zufällig abspielen")) {
+                                    Button(String(localized: "shuffle")) {
                                         Task {
                                             if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
                                                let songs = detail.songs, !songs.isEmpty {
                                                 AudioPlayerService.shared.playShuffled(songs: songs)
                                             } else {
-                                                NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
+                                                NotificationCenter.default.post(name: .showToast, object: String(localized: "action_failed"))
                                             }
                                         }
                                     }
                                     Divider()
-                                    Button(tr("Play Next", "Als nächstes")) {
+                                    Button(String(localized: "play_next")) {
                                         Task {
                                             if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
                                                let songs = detail.songs, !songs.isEmpty {
                                                 AudioPlayerService.shared.addPlayNext(songs)
-                                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                                NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                                             } else {
-                                                NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
+                                                NotificationCenter.default.post(name: .showToast, object: String(localized: "action_failed"))
                                             }
                                         }
                                     }
-                                    Button(tr("Add to Queue", "Zur Warteschlange")) {
+                                    Button(String(localized: "add_to_queue")) {
                                         Task {
                                             if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
                                                let songs = detail.songs, !songs.isEmpty {
                                                 AudioPlayerService.shared.addToUserQueue(songs)
-                                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                                                NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                                             } else {
-                                                NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
+                                                NotificationCenter.default.post(name: .showToast, object: String(localized: "action_failed"))
                                             }
                                         }
                                     }
@@ -133,17 +133,17 @@ struct RecapView: View {
                                                     downloadStore.unmarkPlaylistDownloaded(id: entry.playlistId)
                                                 }
                                             } label: {
-                                                Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                                                Label(String(localized: "delete_downloads"), systemImage: "arrow.down.circle")
                                             }
                                         } else if !offlineMode.isOffline {
-                                            Button(tr("Download", "Herunterladen")) {
+                                            Button(String(localized: "download")) {
                                                 Task {
                                                     if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
                                                        let songs = detail.songs {
                                                         let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
                                                         if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
                                                         downloadStore.markPlaylistDownloaded(id: entry.playlistId, name: recapPeriod.playlistName, songIds: songs.map(\.id))
-                                                        NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+                                                        NotificationCenter.default.post(name: .showToast, object: String(localized: "download_started"))
                                                     }
                                                 }
                                             }
@@ -153,7 +153,7 @@ struct RecapView: View {
                                     Button(role: .destructive) {
                                         entryToDelete = entry
                                     } label: {
-                                        Label(tr("Delete", "Löschen"), systemImage: "trash")
+                                        Label(String(localized: "delete"), systemImage: "trash")
                                     }
                                 }
                             }
@@ -164,7 +164,7 @@ struct RecapView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationTitle(tr("Recap", "Recap"))
+            .navigationTitle(String(localized: "recap"))
             .toolbar {
                 ToolbarItem(placement: .automatic) {
                     Button {
@@ -178,7 +178,7 @@ struct RecapView: View {
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
-                    .help(tr("Reload", "Neu laden"))
+                    .help(String(localized: "reload"))
                 }
             }
             .navigationDestination(for: RecapRegistryRecord.self) { entry in
@@ -189,23 +189,23 @@ struct RecapView: View {
             }
         }
         .confirmationDialog(
-            tr("Delete Recap?", "Recap löschen?"),
+            String(localized: "delete_recap_2"),
             isPresented: Binding(get: { entryToDelete != nil }, set: { if !$0 { entryToDelete = nil } }),
             presenting: entryToDelete
         ) { entry in
-            Button(tr("Delete", "Löschen"), role: .destructive) {
+            Button(String(localized: "delete"), role: .destructive) {
                 guard let sid = appState.serverStore.activeServer?.stableId else { return }
                 Task {
                     do {
                         try await recapStore.deleteEntry(playlistId: entry.playlistId, serverId: sid)
                     } catch {
                         if !(error is CancellationError) {
-                            NotificationCenter.default.post(name: .showToast, object: tr("Could not delete recap", "Recap konnte nicht gelöscht werden"))
+                            NotificationCenter.default.post(name: .showToast, object: String(localized: "could_not_delete_recap"))
                         }
                     }
                 }
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+            Button(String(localized: "cancel"), role: .cancel) {}
         } message: { entry in
             let type = RecapPeriod.PeriodType(rawValue: entry.periodType) ?? .week
             let period = RecapPeriod(
@@ -267,7 +267,7 @@ struct RecapView: View {
                             )
                     }
                 }
-                Text(tr("Top \(type.songLimit)", "Top \(type.songLimit)"))
+                Text("Top \(type.songLimit)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -293,10 +293,10 @@ struct RecapView: View {
             Image(systemName: "chart.bar.xaxis")
                 .font(.system(size: 48))
                 .foregroundStyle(.quaternary)
-            Text(tr("Recap is disabled", "Recap ist deaktiviert"))
+            Text(String(localized: "recap_is_disabled"))
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            Text(tr("Enable Recap in Settings to start tracking your listening history.", "Aktiviere Recap in den Einstellungen, um dein Hörverhalten aufzuzeichnen."))
+            Text(String(localized: "enable_recap_in_settings_to_start_tracking_your_listening_history"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -323,9 +323,9 @@ struct RecapView: View {
 extension RecapPeriod.PeriodType {
     var label: String {
         switch self {
-        case .week:  return tr("Weekly", "Wöchentlich")
-        case .month: return tr("Monthly", "Monatlich")
-        case .year:  return tr("Yearly", "Jährlich")
+        case .week:  return String(localized: "weekly")
+        case .month: return String(localized: "monthly")
+        case .year:  return String(localized: "yearly")
         }
     }
 

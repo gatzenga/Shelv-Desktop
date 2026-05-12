@@ -732,7 +732,7 @@ class AudioPlayerService: ObservableObject {
         hasScrobbledCurrent = false
         guard let url = resolveURL(songId: song.id) else {
             if OfflineModeService.shared.isOffline {
-                NotificationCenter.default.post(name: .showToast, object: tr("Not available offline", "Offline nicht verfügbar"))
+                NotificationCenter.default.post(name: .showToast, object: String(localized: "not_available_offline"))
             }
             return
         }

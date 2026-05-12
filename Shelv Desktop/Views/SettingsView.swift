@@ -10,32 +10,32 @@ struct SettingsView: View {
             ServerTab()
                 .tabItem {
                     Image(systemName: "server.rack")
-                    Text(tr("Server", "Server"))
+                    Text(String(localized: "server"))
                 }
             AppearanceTab(colorScheme: $colorScheme)
                 .tabItem {
                     Image(systemName: "paintpalette")
-                    Text(tr("Appearance", "Erscheinungsbild"))
+                    Text(String(localized: "appearance"))
                 }
             RecapTab()
                 .tabItem {
                     Image(systemName: "calendar.badge.clock")
-                    Text(tr("Recap", "Recap"))
+                    Text(String(localized: "recap"))
                 }
             DownloadsTab()
                 .tabItem {
                     Image(systemName: "arrow.down.circle")
-                    Text(tr("Downloads", "Downloads"))
+                    Text(String(localized: "downloads"))
                 }
             CacheTab()
                 .tabItem {
                     Image(systemName: "internaldrive")
-                    Text(tr("Cache", "Cache"))
+                    Text(String(localized: "cache"))
                 }
             AboutTab()
                 .tabItem {
                     Image(systemName: "info.circle")
-                    Text(tr("Info", "Info"))
+                    Text(String(localized: "info"))
                 }
         }
         .frame(width: 820, height: 660)
@@ -72,7 +72,7 @@ struct ServerTab: View {
                 Button {
                     showAddServer = true
                 } label: {
-                    Label(tr("Add Server…", "Server hinzufügen…"), systemImage: "plus")
+                    Label(String(localized: "add_server"), systemImage: "plus")
                 }
                 .buttonStyle(.borderless)
                 .padding(.horizontal, 12)
@@ -89,18 +89,17 @@ struct ServerTab: View {
                 .environmentObject(appState)
         }
         .confirmationDialog(
-            tr("Remove Server?", "Server entfernen?"),
+            String(localized: "remove_server"),
             isPresented: Binding(get: { serverToDelete != nil }, set: { if !$0 { serverToDelete = nil } }),
             presenting: serverToDelete
         ) { server in
-            Button(tr("Remove", "Entfernen"), role: .destructive) {
+            Button(String(localized: "remove"), role: .destructive) {
                 appState.deleteServer(server)
                 serverToDelete = nil
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) { serverToDelete = nil }
+            Button(String(localized: "cancel"), role: .cancel) { serverToDelete = nil }
         } message: { server in
-            Text(tr("\"\(server.displayName)\" will be removed and its credentials deleted.",
-                    "\"\(server.displayName)\" wird entfernt und die Zugangsdaten gelöscht."))
+            Text(String(format: String(localized: "server_will_be_removed_format"), server.displayName))
         }
     }
 }
@@ -139,7 +138,7 @@ struct ServerRow: View {
             Spacer()
 
             if !isActive {
-                Button(tr("Connect", "Verbinden")) { onActivate() }
+                Button(String(localized: "connect")) { onActivate() }
                     .buttonStyle(.borderless)
                     .font(.caption)
             }
@@ -171,7 +170,7 @@ struct AddServerSheet: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Text(tr("Add Server", "Server hinzufügen"))
+            Text(String(localized: "add_server_2"))
                 .font(.title2.bold())
 
             serverForm
@@ -184,14 +183,14 @@ struct AddServerSheet: View {
             }
 
             HStack {
-                Button(tr("Cancel", "Abbrechen")) { dismiss() }
+                Button(String(localized: "cancel")) { dismiss() }
                     .keyboardShortcut(.escape)
                 Spacer()
                 Button {
                     Task { await connect() }
                 } label: {
                     if isLoading { ProgressView().controlSize(.small) }
-                    else { Text(tr("Connect", "Verbinden")) }
+                    else { Text(String(localized: "connect")) }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isLoading || url.isEmpty || username.isEmpty || password.isEmpty)
@@ -205,20 +204,20 @@ struct AddServerSheet: View {
     @ViewBuilder
     private var serverForm: some View {
         VStack(alignment: .leading, spacing: 10) {
-            formFieldLabel(tr("Server Name", "Servername"))
-            TextField(tr("My Navidrome", "Mein Navidrome"), text: $name)
+            formFieldLabel(String(localized: "server_name"))
+            TextField(String(localized: "my_navidrome"), text: $name)
                 .textFieldStyle(.roundedBorder).autocorrectionDisabled()
 
             formFieldLabel("URL")
             TextField("https://music.example.com", text: $url)
                 .textFieldStyle(.roundedBorder).autocorrectionDisabled()
 
-            formFieldLabel(tr("Username", "Benutzername"))
-            TextField(tr("Username", "Benutzername"), text: $username)
+            formFieldLabel(String(localized: "username"))
+            TextField(String(localized: "username"), text: $username)
                 .textFieldStyle(.roundedBorder).autocorrectionDisabled()
 
-            formFieldLabel(tr("Password", "Passwort"))
-            SecureField(tr("Password", "Passwort"), text: $password)
+            formFieldLabel(String(localized: "password"))
+            SecureField(String(localized: "password"), text: $password)
                 .textFieldStyle(.roundedBorder)
         }
     }
@@ -233,7 +232,7 @@ struct AddServerSheet: View {
             password: password
         )
         if success { dismiss() }
-        else { errorMessage = appState.errorMessage ?? tr("Connection failed.", "Verbindung fehlgeschlagen.") }
+        else { errorMessage = appState.errorMessage ?? String(localized: "connection_failed") }
         isLoading = false
     }
 }
@@ -256,32 +255,32 @@ struct EditServerSheet: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Text(tr("Edit Server", "Server bearbeiten"))
+            Text(String(localized: "edit_server"))
                 .font(.title2.bold())
 
             VStack(alignment: .leading, spacing: 10) {
-                formFieldLabel(tr("Server Name", "Servername"))
-                TextField(tr("My Navidrome", "Mein Navidrome"), text: $name)
+                formFieldLabel(String(localized: "server_name"))
+                TextField(String(localized: "my_navidrome"), text: $name)
                     .textFieldStyle(.roundedBorder).autocorrectionDisabled()
 
                 formFieldLabel("URL")
                 TextField("https://music.example.com", text: $url)
                     .textFieldStyle(.roundedBorder).autocorrectionDisabled()
 
-                formFieldLabel(tr("Username", "Benutzername"))
-                TextField(tr("Username", "Benutzername"), text: $username)
+                formFieldLabel(String(localized: "username"))
+                TextField(String(localized: "username"), text: $username)
                     .textFieldStyle(.roundedBorder).autocorrectionDisabled()
 
-                formFieldLabel(tr("Password", "Passwort"))
-                SecureField(tr("Leave blank to keep current", "Leer lassen zum Beibehalten"), text: $password)
+                formFieldLabel(String(localized: "password"))
+                SecureField(String(localized: "leave_blank_to_keep_current"), text: $password)
                     .textFieldStyle(.roundedBorder)
             }
 
             HStack {
-                Button(tr("Cancel", "Abbrechen")) { dismiss() }
+                Button(String(localized: "cancel")) { dismiss() }
                     .keyboardShortcut(.escape)
                 Spacer()
-                Button(tr("Save", "Speichern")) {
+                Button(String(localized: "save")) {
                     var updated = server
                     updated.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
                     updated.baseURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -310,9 +309,9 @@ enum AppColorScheme: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .system: return tr("System", "System")
-        case .light:  return tr("Light", "Hell")
-        case .dark:   return tr("Dark", "Dunkel")
+        case .system: return String(localized: "system")
+        case .light:  return String(localized: "light")
+        case .dark:   return String(localized: "dark")
         }
     }
 
@@ -338,8 +337,8 @@ struct AppearanceTab: View {
 
     var body: some View {
         Form {
-            Section(tr("Appearance", "Erscheinungsbild")) {
-                Picker(tr("Mode", "Modus"), selection: $colorScheme) {
+            Section(String(localized: "appearance")) {
+                Picker(String(localized: "mode"), selection: $colorScheme) {
                     ForEach(AppColorScheme.allCases, id: \.self) { scheme in
                         Text(scheme.displayName).tag(scheme)
                     }
@@ -363,36 +362,33 @@ struct CacheTab: View {
     var body: some View {
         Form {
             Section {
-                Toggle(tr("Pre-cache original file", "Originaldatei vorab laden"), isOn: $streamPreCacheEnabled)
+                Toggle(String(localized: "precache_original_file"), isOn: $streamPreCacheEnabled)
                 Button {
                     showInfo = true
                 } label: {
-                    Label(tr("About Pre-cache", "Über Pre-cache"), systemImage: "info.circle")
+                    Label(String(localized: "about_precache"), systemImage: "info.circle")
                 }
             }
 
             Section {
-                LabeledContent(tr("Cache Size", "Cache-Grösse")) {
+                LabeledContent(String(localized: "cache_size")) {
                     Text(cacheSize).foregroundStyle(.secondary)
                 }
                 Button(role: .destructive) {
                     showClearConfirm = true
                 } label: {
-                    Label(tr("Clear Cache", "Cache leeren"), systemImage: "trash")
+                    Label(String(localized: "clear_cache"), systemImage: "trash")
                 }
-                .confirmationDialog(tr("Clear Cache?", "Cache leeren?"), isPresented: $showClearConfirm) {
-                    Button(tr("Clear", "Leeren"), role: .destructive) {
+                .confirmationDialog(String(localized: "clear_cache_2"), isPresented: $showClearConfirm) {
+                    Button(String(localized: "clear"), role: .destructive) {
                         Task {
                             await ImageCacheService.shared.clearAll()
                             await recalculateCacheSize()
                         }
                     }
-                    Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+                    Button(String(localized: "cancel"), role: .cancel) {}
                 } message: {
-                    Text(tr(
-                        "All cached cover images will be deleted and reloaded next time they are displayed.",
-                        "Alle zwischengespeicherten Cover-Bilder werden gelöscht und beim nächsten Anzeigen neu geladen."
-                    ))
+                    Text(String(localized: "all_cached_cover_images_will_be_deleted_and_reload"))
                 }
             }
 
@@ -400,7 +396,7 @@ struct CacheTab: View {
                 Button {
                     showCacheLog = true
                 } label: {
-                    Label(tr("Logs", "Logs"), systemImage: "doc.text.magnifyingglass")
+                    Label(String(localized: "logs"), systemImage: "doc.text.magnifyingglass")
                 }
             }
         }
@@ -409,18 +405,15 @@ struct CacheTab: View {
         .task { await recalculateCacheSize() }
         .sheet(isPresented: $showInfo) {
             VStack(alignment: .leading, spacing: 16) {
-                Text(tr("Pre-cache", "Pre-cache"))
+                Text(String(localized: "precache"))
                     .font(.headline)
                 ScrollView {
-                    Text(tr(
-                        "Stable, network-independent playback with seamless gapless transitions. The first song may take longer to load.\n\n• Downloads the current song fully before playback\n• While it plays, the next song pre-fetches in the background\n• Every subsequent song starts instantly\n• Cached files are removed when the next song starts\n\nOnly active when transcoding is set to Original or off.",
-                        "Stabile, netzwerkunabhängige Wiedergabe mit nahtlosen Gapless-Übergängen. Beim ersten Song kann es zu einer längeren Ladezeit kommen.\n\n• Lädt den aktuellen Song vollständig vor der Wiedergabe\n• Währenddessen wird der nächste Song im Hintergrund geladen\n• Ab dem zweiten Song startet die Wiedergabe sofort\n• Gecachte Dateien werden beim Start des nächsten Songs gelöscht\n\nNur wirksam, wenn Transcoding auf Original gestellt oder deaktiviert ist."
-                    ))
+                    Text(String(localized: "stable_networkindependent_playback_with_seamless_g"))
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 HStack {
                     Spacer()
-                    Button(tr("Done", "Fertig")) { showInfo = false }
+                    Button(String(localized: "done")) { showInfo = false }
                         .keyboardShortcut(.defaultAction)
                 }
             }
@@ -486,51 +479,48 @@ struct RecapTab: View {
     var body: some View {
         Form {
             Section {
-                Toggle(tr("Enable Recap", "Recap aktivieren"), isOn: $recapEnabled)
+                Toggle(String(localized: "enable_recap"), isOn: $recapEnabled)
             } footer: {
                 if !recapEnabled {
-                    Text(tr(
-                        "Track your listening history and generate automatic playlists.",
-                        "Hörhistorie aufzeichnen und automatische Playlists erstellen."
-                    ))
+                    Text(String(localized: "track_your_listening_history_and_generate_automati"))
                     .font(.caption).foregroundStyle(.secondary)
                 }
             }
 
             if recapEnabled {
-                Section(tr("Periods", "Perioden")) {
-                    periodRow(title: tr("Weekly", "Wöchentlich"),
+                Section(String(localized: "periods")) {
+                    periodRow(title: String(localized: "weekly"),
                               enabled: $recapWeeklyEnabled,
                               retention: $weekRetentionDraft, range: 1...52,
                               type: .week)
-                    periodRow(title: tr("Monthly", "Monatlich"),
+                    periodRow(title: String(localized: "monthly"),
                               enabled: $recapMonthlyEnabled,
                               retention: $monthRetentionDraft, range: 1...24,
                               type: .month)
-                    periodRow(title: tr("Yearly", "Jährlich"),
+                    periodRow(title: String(localized: "yearly"),
                               enabled: $recapYearlyEnabled,
                               retention: $yearRetentionDraft, range: 1...10,
                               type: .year)
-                    Picker(tr("Count from", "Zählen ab"), selection: $recapThreshold) {
+                    Picker(String(localized: "count_from"), selection: $recapThreshold) {
                         ForEach([10, 20, 30, 40, 50], id: \.self) { pct in
                             Text("\(pct)%").tag(pct)
                         }
                     }
                 }
 
-                Section(tr("Overview", "Übersicht")) {
-                    LabeledContent(tr("Total plays", "Gesamte Plays")) {
+                Section(String(localized: "overview")) {
+                    LabeledContent(String(localized: "total_plays")) {
                         Text("\(totalPlays)").foregroundStyle(.secondary).monospacedDigit()
                     }
                     Button {
                         showVerify = true
                     } label: {
-                        Label(tr("Sync with Navidrome", "Mit Navidrome abgleichen"),
+                        Label(String(localized: "sync_with_navidrome"),
                               systemImage: "arrow.triangle.2.circlepath")
                     }
                 }
 
-                Section(tr("Database", "Datenbank")) {
+                Section(String(localized: "database")) {
                     Button {
                         guard !isPreparingExport else { return }
                         isPreparingExport = true
@@ -547,7 +537,7 @@ struct RecapTab: View {
                         if isPreparingExport {
                             ProgressView().controlSize(.small)
                         } else {
-                            Label(tr("Export database", "Datenbank exportieren"), systemImage: "square.and.arrow.up")
+                            Label(String(localized: "export_database"), systemImage: "square.and.arrow.up")
                         }
                     }
                     .disabled(isPreparingExport)
@@ -555,47 +545,43 @@ struct RecapTab: View {
                     Button {
                         runImportOpenPanel()
                     } label: {
-                        Label(tr("Import database", "Datenbank importieren"), systemImage: "square.and.arrow.down")
+                        Label(String(localized: "import_database"), systemImage: "square.and.arrow.down")
                     }
                 }
 
-                Section(tr("iCloud Sync", "iCloud-Sync")) {
-                    Toggle(tr("Enable iCloud Sync", "iCloud-Sync aktivieren"), isOn: $iCloudSyncEnabled)
+                Section(String(localized: "icloud_sync")) {
+                    Toggle(String(localized: "enable_icloud_sync"), isOn: $iCloudSyncEnabled)
                         .onChange(of: iCloudSyncEnabled) { _, _ in
                             Task { await CloudKitSyncService.shared.handleSyncEnabledChange() }
                         }
 
                     if !iCloudSyncEnabled {
-                        Text(tr(
-                            "Data stays local. Multiple devices may create duplicate recap playlists.",
-                            "Daten bleiben lokal. Mehrere Geräte können doppelte Recap-Playlists erstellen."
-                        ))
+                        Text(String(localized: "data_stays_local_multiple_devices_may_create_dupli"))
                         .font(.caption).foregroundStyle(.secondary)
                     } else if !ckStatus.accountAvailable {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(tr("No iCloud account", "Kein iCloud-Konto"))
-                                Text(tr("Use Export/Import as backup instead.",
-                                        "Export/Import als Datensicherung nutzen."))
+                                Text(String(localized: "no_icloud_account"))
+                                Text(String(localized: "use_exportimport_as_backup_instead"))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         } icon: {
                             Image(systemName: "icloud.slash").foregroundStyle(.secondary)
                         }
                     } else {
-                        LabeledContent(tr("Last sync", "Letzter Sync")) {
+                        LabeledContent(String(localized: "last_sync_2")) {
                             if let date = ckStatus.lastSyncDate {
                                 Text(date, style: .relative).font(.caption).foregroundStyle(.secondary)
                             } else {
-                                Text(tr("Never", "Noch nie")).font(.caption).foregroundStyle(.secondary)
+                                Text(String(localized: "never")).font(.caption).foregroundStyle(.secondary)
                             }
                         }
-                        LabeledContent(tr("Pending uploads", "Ausstehende Uploads")) {
+                        LabeledContent(String(localized: "pending_uploads")) {
                             Text(ckStatus.pendingUploads > 0 ? "\(ckStatus.pendingUploads)" : "—")
                                 .font(.caption)
                                 .foregroundStyle(.secondary).monospacedDigit()
                         }
-                        LabeledContent(tr("Pending scrobbles", "Ausstehende Scrobbles")) {
+                        LabeledContent(String(localized: "pending_scrobbles")) {
                             Text(ckStatus.pendingScrobbles > 0 ? "\(ckStatus.pendingScrobbles)" : "—")
                                 .font(.caption)
                                 .foregroundStyle(.secondary).monospacedDigit()
@@ -609,7 +595,7 @@ struct RecapTab: View {
                             }
                         } label: {
                             Label {
-                                Text(tr("Sync now", "Jetzt synchronisieren"))
+                                Text(String(localized: "sync_now"))
                             } icon: {
                                 if isSyncingManually {
                                     ProgressView().controlSize(.small)
@@ -622,36 +608,36 @@ struct RecapTab: View {
                     }
                 }
 
-                Section(tr("Logs", "Logs")) {
+                Section(String(localized: "logs")) {
                     Button {
                         showPlayLog = true
                     } label: {
-                        Label(tr("Recent plays", "Letzte Plays"), systemImage: "list.bullet.clipboard")
+                        Label(String(localized: "recent_plays"), systemImage: "list.bullet.clipboard")
                     }
                     Button {
                         showRegistry = true
                     } label: {
-                        Label(tr("Registry", "Registry"), systemImage: "square.stack.3d.up")
+                        Label(String(localized: "registry"), systemImage: "square.stack.3d.up")
                     }
                     Button {
                         showRecapLog = true
                     } label: {
-                        Label(tr("Recap log", "Recap-Protokoll"), systemImage: "sparkles.rectangle.stack")
+                        Label(String(localized: "recap_log"), systemImage: "sparkles.rectangle.stack")
                     }
                     Button {
                         showSyncLog = true
                     } label: {
-                        Label(tr("Sync log", "Sync-Protokoll"), systemImage: "doc.text")
+                        Label(String(localized: "sync_log"), systemImage: "doc.text")
                     }
                     Button {
                         showDBLog = true
                     } label: {
-                        Label(tr("Database errors", "Datenbank-Fehler"), systemImage: "exclamationmark.octagon")
+                        Label(String(localized: "database_errors"), systemImage: "exclamationmark.octagon")
                     }
                     Button {
                         showMarkersLog = true
                     } label: {
-                        Label(tr("Auto-gen markers", "Auto-Gen-Marker"), systemImage: "checkmark.circle.badge.questionmark")
+                        Label(String(localized: "autogen_markers"), systemImage: "checkmark.circle.badge.questionmark")
                     }
                 }
 
@@ -659,7 +645,7 @@ struct RecapTab: View {
                     Button {
                         showAdvanced = true
                     } label: {
-                        Label(tr("Advanced", "Erweitert"), systemImage: "slider.horizontal.2.square")
+                        Label(String(localized: "advanced"), systemImage: "slider.horizontal.2.square")
                     }
                 }
             }
@@ -674,10 +660,7 @@ struct RecapTab: View {
         }
         .alert(
             pendingRetention.map {
-                tr(
-                    "Delete \($0.excess) \(periodTypeName($0.type))?",
-                    "\($0.excess) \(periodTypeName($0.type)) löschen?"
-                )
+                String(format: String(localized: "delete_count_period_format"), $0.excess, periodTypeName($0.type))
             } ?? "",
             isPresented: Binding(
                 get: { pendingRetention != nil },
@@ -685,7 +668,7 @@ struct RecapTab: View {
             ),
             presenting: pendingRetention
         ) { pending in
-            Button(tr("Delete", "Löschen"), role: .destructive) {
+            Button(String(localized: "delete"), role: .destructive) {
                 guard let sid = appState.serverStore.activeServer?.stableId else { return }
                 let type = pending.type
                 let newValue = pending.newValue
@@ -697,15 +680,12 @@ struct RecapTab: View {
                 }
                 pendingRetention = nil
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) {
+            Button(String(localized: "cancel"), role: .cancel) {
                 setDraft(pending.type, storedRetention(for: pending.type))
                 pendingRetention = nil
             }
         } message: { _ in
-            Text(tr(
-                "These playlists will be permanently deleted from Navidrome and iCloud.",
-                "Diese Playlists werden unwiderruflich aus Navidrome und iCloud gelöscht."
-            ))
+            Text(String(localized: "these_playlists_will_be_permanently_deleted_from_n"))
         }
         .onReceive(NotificationCenter.default.publisher(for: .recapRegistryUpdated)) { _ in
             Task { await refreshTotalPlays() }
@@ -714,11 +694,11 @@ struct RecapTab: View {
             Task { await refreshTotalPlays() }
         }
         .alert(
-            tr("Export failed", "Export fehlgeschlagen"),
+            String(localized: "export_failed"),
             isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } }),
             presenting: exportError
         ) { _ in
-            Button(tr("OK", "OK"), role: .cancel) {}
+            Button(String(localized: "ok"), role: .cancel) {}
         } message: { msg in
             Text(msg)
         }
@@ -779,7 +759,7 @@ struct RecapTab: View {
             if enabled.wrappedValue {
                 Stepper(value: retention, in: range) {
                     HStack {
-                        Text(tr("Keep", "Behalten")).foregroundStyle(.secondary)
+                        Text(String(localized: "keep")).foregroundStyle(.secondary)
                         Spacer()
                         Text("\(retention.wrappedValue)").foregroundStyle(.secondary).monospacedDigit()
                     }
@@ -841,16 +821,16 @@ struct RecapTab: View {
 
     private func periodTypeName(_ type: RecapPeriod.PeriodType) -> String {
         switch type {
-        case .week:  return tr("weekly recaps", "Wochen-Recaps")
-        case .month: return tr("monthly recaps", "Monats-Recaps")
-        case .year:  return tr("yearly recaps", "Jahres-Recaps")
+        case .week:  return String(localized: "weekly_recaps")
+        case .month: return String(localized: "monthly_recaps")
+        case .year:  return String(localized: "yearly_recaps")
         }
     }
 
     @MainActor
     private func runExportSavePanel(sourceURL: URL) async {
         let panel = NSSavePanel()
-        panel.title = tr("Save Recap database", "Recap-Datenbank speichern")
+        panel.title = String(localized: "save_recap_database")
         panel.nameFieldStringValue = "shelv_recap_export.db"
         let response = await panel.beginSheetModalForCurrentWindow()
         guard response == .OK, let dest = panel.url else { return }
@@ -866,7 +846,7 @@ struct RecapTab: View {
 
     private func runImportOpenPanel() {
         let panel = NSOpenPanel()
-        panel.title = tr("Import Recap database", "Recap-Datenbank importieren")
+        panel.title = String(localized: "import_recap_database")
         panel.allowedContentTypes = [.data]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
@@ -910,23 +890,23 @@ struct AboutTab: View {
                 .font(.title2.bold())
             Text(appVersion)
                 .foregroundStyle(.secondary)
-            Text(tr("Navidrome / Subsonic Client for macOS", "Navidrome / Subsonic Client für macOS"))
+            Text(String(localized: "navidrome_subsonic_client_for_macos"))
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Divider()
             HStack(spacing: 16) {
-                Link(tr("Developer Website", "Developer-Website"), destination: URL(string: "https://vkugler.app")!)
+                Link(String(localized: "developer_website"), destination: URL(string: "https://vkugler.app")!)
                 Text("·").foregroundStyle(.secondary)
                 Link("GitHub", destination: URL(string: "https://github.com/gatzenga/Shelv-Desktop")!)
                 Text("·").foregroundStyle(.secondary)
-                Link(tr("Privacy Policy", "Datenschutz"), destination: URL(string: "https://vkugler.app/shelv_privacy.html")!)
+                Link(String(localized: "privacy_policy"), destination: URL(string: "https://vkugler.app/shelv_privacy.html")!)
                 Text("·").foregroundStyle(.secondary)
-                Link(tr("Contact", "Kontakt"), destination: URL(string: "mailto:contact@vkugler.app")!)
+                Link(String(localized: "contact"), destination: URL(string: "mailto:contact@vkugler.app")!)
                 Text("·").foregroundStyle(.secondary)
                 Link("Discord", destination: URL(string: "https://discord.gg/UdJK5mpmZu")!)
             }
             .font(.callout)
-            Link(tr("Support my work", "Support my work"), destination: URL(string: "https://ko-fi.com/Shelv")!)
+            Link(String(localized: "support_my_work"), destination: URL(string: "https://ko-fi.com/Shelv")!)
                 .font(.callout)
         }
         .padding()

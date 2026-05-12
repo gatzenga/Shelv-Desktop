@@ -12,7 +12,7 @@ struct RecapCreationLogView: View {
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.largeTitle)
                         .foregroundStyle(.tertiary)
-                    Text(tr("No recap activity yet.", "Noch keine Recap-Aktivität."))
+                    Text(String(localized: "no_recap_activity_yet"))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -28,10 +28,10 @@ struct RecapCreationLogView: View {
             }
         }
         .frame(width: 680, height: 520)
-        .navigationTitle(tr("Recap log", "Recap-Protokoll"))
+        .navigationTitle(String(localized: "recap_log"))
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("Done", "Fertig")) { dismiss() }
+                Button(String(localized: "done")) { dismiss() }
             }
         }
     }

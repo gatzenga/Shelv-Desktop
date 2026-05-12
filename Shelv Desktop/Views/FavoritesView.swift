@@ -36,23 +36,22 @@ struct FavoritesView: View {
                 && visibleArtists.isEmpty
                 && visibleAlbums.isEmpty
                 && visibleSongs.isEmpty {
-                ProgressView(tr("Loading favorites…", "Favoriten laden…"))
+                ProgressView(String(localized: "loading_favorites"))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 60)
             } else if visibleArtists.isEmpty
                         && visibleAlbums.isEmpty
                         && visibleSongs.isEmpty {
                 ContentUnavailableView(
-                    tr("No Favorites", "Keine Favoriten"),
+                    String(localized: "no_favorites"),
                     systemImage: "heart",
-                    description: Text(tr("Mark tracks, albums and artists as favorites.",
-                                        "Markiere Titel, Alben und Künstler als Favoriten."))
+                    description: Text(String(localized: "mark_tracks_albums_and_artists_as_favorites"))
                 )
                 .padding(.vertical, 60)
             } else {
                 VStack(alignment: .leading, spacing: 28) {
                     if !visibleArtists.isEmpty {
-                        FavoritesSection(title: tr("Artists", "Künstler")) {
+                        FavoritesSection(title: String(localized: "artists")) {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 130, maximum: 170), spacing: 16)], spacing: 20) {
                                 ForEach(visibleArtists) { artist in
                                     NavigationLink(value: artist) {
@@ -67,7 +66,7 @@ struct FavoritesView: View {
                     }
 
                     if !visibleAlbums.isEmpty {
-                        FavoritesSection(title: tr("Albums", "Alben")) {
+                        FavoritesSection(title: String(localized: "albums")) {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 190), spacing: 16)], spacing: 20) {
                                 ForEach(visibleAlbums) { album in
                                     NavigationLink(value: album) {
@@ -82,7 +81,7 @@ struct FavoritesView: View {
                     }
 
                     if !visibleSongs.isEmpty {
-                        FavoritesSection(title: tr("Tracks", "Titel")) {
+                        FavoritesSection(title: String(localized: "tracks")) {
                             VStack(spacing: 0) {
                                 ForEach(Array(visibleSongs.enumerated()), id: \.element.id) { index, song in
                                     FavoriteSongRow(
@@ -94,10 +93,10 @@ struct FavoritesView: View {
                                         appState.player.play(songs: visibleSongs, startIndex: index)
                                     } onPlayNext: {
                                         appState.player.addPlayNext(song)
-                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                        NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                                     } onAddToQueue: {
                                         appState.player.addToUserQueue(song)
-                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                                        NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                                     } onRemoveFavorite: {
                                         Task { await libraryStore.toggleStarSong(song) }
                                     } onAddToPlaylist: {
@@ -111,7 +110,7 @@ struct FavoritesView: View {
                 .padding(20)
             }
         }
-        .navigationTitle(tr("Favorites", "Favoriten"))
+        .navigationTitle(String(localized: "favorites"))
         .task { await libraryStore.loadStarred() }
     }
 }
@@ -198,14 +197,14 @@ struct FavoriteSongRow: View {
         .onHover { isHovered = $0 }
         .gesture(TapGesture(count: 2).onEnded { onPlay() })
         .contextMenu {
-            Button(tr("Play", "Abspielen")) { onPlay() }
+            Button(String(localized: "play")) { onPlay() }
             Divider()
-            Button(tr("Play Next", "Als nächstes")) { onPlayNext() }
-            Button(tr("Add to Queue", "Zur Warteschlange")) { onAddToQueue() }
+            Button(String(localized: "play_next")) { onPlayNext() }
+            Button(String(localized: "add_to_queue")) { onAddToQueue() }
             Divider()
-            Button(tr("Remove from Favorites", "Aus Favoriten entfernen")) { onRemoveFavorite() }
+            Button(String(localized: "remove_from_favorites")) { onRemoveFavorite() }
             if showPlaylist {
-                Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) { onAddToPlaylist() }
+                Button(String(localized: "add_to_playlist")) { onAddToPlaylist() }
             }
         }
     }

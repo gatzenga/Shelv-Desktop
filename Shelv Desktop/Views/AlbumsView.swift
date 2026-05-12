@@ -34,11 +34,11 @@ struct AlbumsView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                TextField(tr("Filter…", "Filtern…"), text: $searchText)
+                TextField(String(localized: "filter"), text: $searchText)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 220)
                 Spacer()
-                Picker(tr("Sort", "Sortieren"), selection: $vm.sortOption) {
+                Picker(String(localized: "sort"), selection: $vm.sortOption) {
                     ForEach(LibrarySortOption.allCases.filter { !offlineMode.isOffline || !$0.requiresServer }, id: \.self) { opt in
                         Text(opt.label).tag(opt)
                     }
@@ -56,14 +56,14 @@ struct AlbumsView: View {
                             .font(.title3)
                     }
                     .buttonStyle(.borderless)
-                    .help(vm.albumSortDirection == .ascending ? tr("Ascending", "Aufsteigend") : tr("Descending", "Absteigend"))
+                    .help(vm.albumSortDirection == .ascending ? String(localized: "ascending") : String(localized: "descending"))
                 }
                 Button { isGrid.toggle() } label: {
                     Image(systemName: isGrid ? "list.bullet" : "square.grid.2x2")
                         .font(.title3)
                 }
                 .buttonStyle(.borderless)
-                .help(isGrid ? tr("List view", "Listenansicht") : tr("Grid view", "Rasteransicht"))
+                .help(isGrid ? String(localized: "list_view") : String(localized: "grid_view"))
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
@@ -72,7 +72,7 @@ struct AlbumsView: View {
             Divider()
 
             if vm.isLoadingAlbums {
-                ProgressView(tr("Loading albums…", "Alben laden…"))
+                ProgressView(String(localized: "loading_albums"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if isGrid {
                 ScrollView {
@@ -121,7 +121,7 @@ struct AlbumsView: View {
                     .padding()
             }
         }
-        .navigationTitle(tr("Albums (\(displayAlbums.count))", "Alben (\(displayAlbums.count))"))
+        .navigationTitle(String(format: String(localized: "albums_count_format"), displayAlbums.count))
         .onChange(of: offlineMode.isOffline) { _, isOffline in
             if isOffline && vm.sortOption.requiresServer {
                 vm.sortOption = .name

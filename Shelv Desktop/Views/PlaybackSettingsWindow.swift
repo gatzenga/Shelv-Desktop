@@ -6,17 +6,17 @@ struct PlaybackSettingsWindow: View {
             GaplessPanel()
                 .tabItem {
                     Image(systemName: "music.note.list")
-                    Text(tr("Gapless", "Gapless"))
+                    Text(String(localized: "gapless"))
                 }
             TranscodingPanel()
                 .tabItem {
                     Image(systemName: "waveform.badge.magnifyingglass")
-                    Text(tr("Transcoding", "Transcoding"))
+                    Text(String(localized: "transcoding"))
                 }
             LyricsSettingsPanel()
                 .tabItem {
                     Image(systemName: "text.quote")
-                    Text(tr("Lyrics", "Lyrics"))
+                    Text(String(localized: "lyrics"))
                 }
         }
         .frame(width: 820, height: 660)

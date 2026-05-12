@@ -12,41 +12,41 @@ struct AlbumContextMenuModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content.contextMenu {
-            Button(tr("Play", "Abspielen")) {
-                withAlbumSongs(errorMsg: tr("Playback failed", "Wiedergabe fehlgeschlagen")) { songs in
+            Button(String(localized: "play")) {
+                withAlbumSongs(errorMsg: String(localized: "playback_failed")) { songs in
                     AudioPlayerService.shared.play(songs: songs)
                 }
             }
-            Button(tr("Shuffle", "Zufällig abspielen")) {
-                withAlbumSongs(errorMsg: tr("Playback failed", "Wiedergabe fehlgeschlagen")) { songs in
+            Button(String(localized: "shuffle")) {
+                withAlbumSongs(errorMsg: String(localized: "playback_failed")) { songs in
                     AudioPlayerService.shared.playShuffled(songs: songs)
                 }
             }
             Divider()
-            Button(tr("Play Next", "Als nächstes")) {
-                withAlbumSongs(errorMsg: tr("Action failed", "Aktion fehlgeschlagen")) { songs in
+            Button(String(localized: "play_next")) {
+                withAlbumSongs(errorMsg: String(localized: "action_failed")) { songs in
                     AudioPlayerService.shared.addPlayNext(songs)
-                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                    NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                 }
             }
-            Button(tr("Add to Queue", "Zur Warteschlange")) {
-                withAlbumSongs(errorMsg: tr("Action failed", "Aktion fehlgeschlagen")) { songs in
+            Button(String(localized: "add_to_queue")) {
+                withAlbumSongs(errorMsg: String(localized: "action_failed")) { songs in
                     AudioPlayerService.shared.addToUserQueue(songs)
-                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                    NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                 }
             }
             if enableFavorites || enablePlaylists {
                 Divider()
                 if enableFavorites {
                     Button(libraryStore.isAlbumStarred(album)
-                           ? tr("Remove from Favorites", "Aus Favoriten entfernen")
-                           : tr("Add to Favorites", "Zu Favoriten hinzufügen")) {
+                           ? String(localized: "remove_from_favorites")
+                           : String(localized: "add_to_favorites")) {
                         Task { await libraryStore.toggleStarAlbum(album) }
                     }
                 }
                 if enablePlaylists {
-                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) {
-                        withAlbumSongs(errorMsg: tr("Action failed", "Aktion fehlgeschlagen")) { songs in
+                    Button(String(localized: "add_to_playlist")) {
+                        withAlbumSongs(errorMsg: String(localized: "action_failed")) { songs in
                             guard !songs.isEmpty else { return }
                             NotificationCenter.default.post(name: .addSongsToPlaylist, object: songs.map(\.id))
                         }
@@ -59,29 +59,29 @@ struct AlbumContextMenuModifier: ViewModifier {
                 switch status {
                 case .none:
                     if !offlineMode.isOffline {
-                        Button(tr("Download Album", "Album herunterladen")) {
+                        Button(String(localized: "download_album")) {
                             DownloadStore.shared.enqueueAlbum(album)
                         }
                     }
                 case .partial:
                     if !offlineMode.isOffline {
-                        Button(tr("Download Remaining", "Rest herunterladen")) {
+                        Button(String(localized: "download_remaining")) {
                             DownloadStore.shared.enqueueAlbum(album)
                         }
                     }
-                    Button(role: .destructive) { showDeleteConfirm = true } label: { Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) } }
+                    Button(role: .destructive) { showDeleteConfirm = true } label: { Label { Text(String(localized: "delete_downloads")) } icon: { DeleteDownloadIcon(tint: .red) } }
                 case .complete:
-                    Button(role: .destructive) { showDeleteConfirm = true } label: { Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) } }
+                    Button(role: .destructive) { showDeleteConfirm = true } label: { Label { Text(String(localized: "delete_downloads")) } icon: { DeleteDownloadIcon(tint: .red) } }
                 }
             }
         }
-        .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteConfirm) {
-            Button(tr("Delete", "Löschen"), role: .destructive) {
+        .alert(String(localized: "delete_downloads_2"), isPresented: $showDeleteConfirm) {
+            Button(String(localized: "delete"), role: .destructive) {
                 DownloadStore.shared.deleteAlbum(album.id)
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+            Button(String(localized: "cancel"), role: .cancel) {}
         } message: {
-            Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
+            Text(String(localized: "the_downloads_will_be_removed_from_this_device"))
         }
     }
 

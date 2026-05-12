@@ -62,7 +62,7 @@ struct SidebarView: View {
                     .padding(.vertical, 8)
 
                 HStack {
-                    Text(tr("Playlists", "Playlists"))
+                    Text(String(localized: "playlists"))
                         .font(.callout.bold())
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -75,7 +75,7 @@ struct SidebarView: View {
                             .foregroundStyle(themeColor)
                     }
                     .buttonStyle(.plain)
-                    .help(tr("New Playlist", "Neue Playlist"))
+                    .help(String(localized: "new_playlist"))
                 }
                 .padding(.horizontal, 10)
                 .padding(.bottom, 4)
@@ -85,7 +85,7 @@ struct SidebarView: View {
                         .scaleEffect(0.8)
                         .padding(.horizontal, 10)
                 } else if visiblePlaylists.isEmpty {
-                    Text(tr("No Playlists", "Keine Playlists"))
+                    Text(String(localized: "no_playlists"))
                         .font(.callout)
                         .foregroundStyle(.tertiary)
                         .padding(.horizontal, 10)
@@ -138,16 +138,16 @@ struct SidebarView: View {
         .onChange(of: selectedPlaylist) { _, _ in
             if enablePlaylists { Task { await libraryStore.loadPlaylists() } }
         }
-        .alert(tr("New Playlist", "Neue Playlist"), isPresented: $showCreatePlaylist) {
-            TextField(tr("Name", "Name"), text: $newPlaylistName)
-            Button(tr("Create", "Erstellen")) {
+        .alert(String(localized: "new_playlist"), isPresented: $showCreatePlaylist) {
+            TextField(String(localized: "name"), text: $newPlaylistName)
+            Button(String(localized: "create")) {
                 let name = newPlaylistName.trimmingCharacters(in: .whitespaces)
                 guard !name.isEmpty else { return }
                 Task { await libraryStore.createPlaylist(name: name) }
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) { }
+            Button(String(localized: "cancel"), role: .cancel) { }
         } message: {
-            Text(tr("Enter a name for the new playlist.", "Namen für die neue Playlist eingeben."))
+            Text(String(localized: "enter_a_name_for_the_new_playlist"))
         }
     }
 
@@ -157,7 +157,7 @@ struct SidebarView: View {
             HStack(spacing: 8) {
                 Image(systemName: "wifi.slash")
                     .foregroundStyle(themeColor)
-                Text(tr("Offline Mode", "Offline-Modus"))
+                Text(String(localized: "offline_mode"))
                     .font(.caption.bold())
                     .foregroundStyle(themeColor)
                 Spacer()
@@ -168,11 +168,11 @@ struct SidebarView: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help(tr("Exit offline mode", "Offline-Modus verlassen"))
+                .help(String(localized: "exit_offline_mode"))
             }
         } else {
             Toggle(isOn: $showDownloadsOnly) {
-                Label(tr("Downloads only", "Nur Downloads"), systemImage: "arrow.down.circle")
+                Label(String(localized: "downloads_only"), systemImage: "arrow.down.circle")
                     .font(.callout)
             }
             .toggleStyle(.checkbox)
@@ -202,7 +202,7 @@ private struct SidebarBatchProgress: View {
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
-                    .help(tr("Cancel download", "Download abbrechen"))
+                    .help(String(localized: "cancel_download"))
                 }
                 ProgressView(value: progress.fraction)
                     .tint(themeColor)

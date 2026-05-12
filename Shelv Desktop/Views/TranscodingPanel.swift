@@ -14,35 +14,29 @@ struct TranscodingPanel: View {
         Form {
             Section {
                 Toggle(isOn: $transcodingEnabled) {
-                    Label(tr("Transcoding", "Transcoding"), systemImage: "waveform.badge.magnifyingglass")
+                    Label(String(localized: "transcoding"), systemImage: "waveform.badge.magnifyingglass")
                 }
                 .tint(themeColor)
                 if transcodingEnabled {
-                    Text(tr(
-                        "Server transcodes to the format/bitrate below. \u{201C}Original\u{201D} requests unchanged source.",
-                        "Server liefert im eingestellten Format/Bitrate. „Original\u{201C} lädt unverändert."
-                    ))
+                    Text(String(localized: "server_transcodes_to_the_formatbitrate_below_u201c"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    Text(tr(
-                        "Transcoded songs play from a local copy, ensuring stable playback and seamless gapless transitions. The first song may take longer to load.\n\n• The current song is fully downloaded before playback\n• While it plays, the next song pre-fetches in the background\n• Every subsequent song starts instantly\n• Cached files are removed when the next song starts",
-                        "Transcodierte Songs werden lokal abgespielt – stabile Wiedergabe und nahtlose Gapless-Übergänge. Beim ersten Song kann es zu einer längeren Ladezeit kommen.\n\n• Der aktuelle Song wird vollständig vor der Wiedergabe geladen\n• Währenddessen wird der nächste Song im Hintergrund geladen\n• Ab dem zweiten Song startet die Wiedergabe sofort\n• Gecachte Dateien werden beim Start des nächsten Songs gelöscht"
-                    ))
+                    Text(String(localized: "transcoded_songs_play_from_a_local_copy_ensuring_s"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
             }
 
             if transcodingEnabled {
-                subsection(title: tr("WiFi", "WLAN"),
+                subsection(title: String(localized: "wifi"),
                            codecBinding: $wifiCodecRaw,
                            bitrateBinding: $wifiBitrate,
                            options: TranscodingCodec.streamingOptions)
-                subsection(title: tr("Data Saver", "Datensparmodus"),
+                subsection(title: String(localized: "data_saver"),
                            codecBinding: $cellularCodecRaw,
                            bitrateBinding: $cellularBitrate,
                            options: TranscodingCodec.streamingOptions)
-                subsection(title: tr("Downloads", "Downloads"),
+                subsection(title: String(localized: "downloads"),
                            codecBinding: $downloadCodecRaw,
                            bitrateBinding: $downloadBitrate,
                            options: TranscodingCodec.downloadOptions)
@@ -58,13 +52,13 @@ struct TranscodingPanel: View {
                             options: [TranscodingCodec]) -> some View {
         let codec = TranscodingCodec(rawValue: codecBinding.wrappedValue) ?? .raw
         Section(title) {
-            Picker(tr("Format", "Format"), selection: codecBinding) {
+            Picker(String(localized: "format"), selection: codecBinding) {
                 ForEach(options) { c in
                     Text(c.label).tag(c.rawValue)
                 }
             }
             if codec != .raw {
-                Picker(tr("Bitrate", "Bitrate"), selection: bitrateBinding) {
+                Picker(String(localized: "bitrate"), selection: bitrateBinding) {
                     ForEach(TranscodingBitrate.allCases) { b in
                         Text(b.label).tag(b.rawValue)
                     }

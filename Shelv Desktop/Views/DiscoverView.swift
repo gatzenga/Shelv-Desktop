@@ -20,7 +20,7 @@ struct DiscoverView: View {
                     offlineMixState
                 }
             }
-            .navigationTitle(tr("Discover", "Entdecken"))
+            .navigationTitle(String(localized: "discover"))
             .toolbar {
                 ToolbarItem(placement: .automatic) {
                     ThemePickerButton()
@@ -39,11 +39,11 @@ struct DiscoverView: View {
 
     private var offlineMixState: some View {
         VStack(spacing: 20) {
-            Text(tr("Offline Mixes", "Offline-Mixes"))
+            Text(String(localized: "offline_mixes"))
                 .font(.title2).bold()
             VStack(spacing: 10) {
                 MixButton(
-                    title: tr("Play: All Downloads", "Play: Alle Downloads"),
+                    title: String(localized: "play_all_downloads"),
                     icon: "play.fill",
                     color: .blue,
                     isLoading: mixLoading == "offline_play"
@@ -53,7 +53,7 @@ struct DiscoverView: View {
                     mixLoading = nil
                 }
                 MixButton(
-                    title: tr("Shuffle: All Downloads", "Shuffle: Alle Downloads"),
+                    title: String(localized: "shuffle_all_downloads"),
                     icon: "shuffle",
                     color: .orange,
                     isLoading: mixLoading == "offline_shuffle"
@@ -63,7 +63,7 @@ struct DiscoverView: View {
                     mixLoading = nil
                 }
                 MixButton(
-                    title: tr("Mix: Latest Downloads", "Mix: Neueste Downloads"),
+                    title: String(localized: "mix_latest_downloads"),
                     icon: "arrow.down.circle.fill",
                     color: .green,
                     isLoading: mixLoading == "offline_newest"
@@ -77,7 +77,7 @@ struct DiscoverView: View {
             Button {
                 offlineMode.exitOfflineMode()
             } label: {
-                Label(tr("Go Online", "Online gehen"), systemImage: "wifi")
+                Label(String(localized: "go_online"), systemImage: "wifi")
             }
             .buttonStyle(.borderedProminent)
             .padding(.top, 4)
@@ -124,19 +124,16 @@ struct DiscoverView: View {
             Image(systemName: "wifi.slash")
                 .font(.system(size: 64))
                 .foregroundStyle(.tertiary)
-            Text(tr("You are offline", "Du bist offline"))
+            Text(String(localized: "you_are_offline"))
                 .font(.title2.bold())
-            Text(tr(
-                "Switch to your downloads in the sidebar, or use search to find downloaded tracks.",
-                "Wechsle in der Seitenleiste zu deinen Downloads, oder nutze die Suche um Titel zu finden."
-            ))
+            Text(String(localized: "switch_to_your_downloads_in_the_sidebar_or_use_sea"))
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
             .frame(maxWidth: 420)
             Button {
                 offlineMode.exitOfflineMode()
             } label: {
-                Label(tr("Go Online", "Online gehen"), systemImage: "wifi")
+                Label(String(localized: "go_online"), systemImage: "wifi")
             }
             .buttonStyle(.borderedProminent)
         }
@@ -148,11 +145,11 @@ struct DiscoverView: View {
             VStack(alignment: .leading, spacing: 32) {
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(tr("Smart Mixes", "Smart Mixes"))
+                    Text(String(localized: "smart_mixes"))
                         .font(.title2).bold()
                     VStack(spacing: 10) {
                         MixButton(
-                            title: tr("Mix: Newest Tracks", "Mix: Neueste Titel"),
+                            title: String(localized: "mix_newest_tracks"),
                             icon: "sparkles",
                             color: .blue,
                             isLoading: mixLoading == "newest"
@@ -162,7 +159,7 @@ struct DiscoverView: View {
                             mixLoading = nil
                         }
                         MixButton(
-                            title: tr("Mix: Most Played", "Mix: Häufig gespielt"),
+                            title: String(localized: "mix_most_played"),
                             icon: "chart.bar.fill",
                             color: .orange,
                             isLoading: mixLoading == "frequent"
@@ -172,7 +169,7 @@ struct DiscoverView: View {
                             mixLoading = nil
                         }
                         MixButton(
-                            title: tr("Mix: Recently Played", "Mix: Kürzlich gespielt"),
+                            title: String(localized: "mix_recently_played"),
                             icon: "clock.fill",
                             color: .green,
                             isLoading: mixLoading == "recent"
@@ -185,22 +182,22 @@ struct DiscoverView: View {
                 }
 
                 if vm.isLoading {
-                    ProgressView(tr("Loading…", "Wird geladen…"))
+                    ProgressView(String(localized: "loading"))
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 40)
                 } else {
                     if !vm.recentlyAdded.isEmpty {
-                        AlbumShelfSection(title: tr("Recently Added", "Kürzlich hinzugefügt"), albums: vm.recentlyAdded)
+                        AlbumShelfSection(title: String(localized: "recently_added"), albums: vm.recentlyAdded)
                     }
                     if !vm.recentlyPlayed.isEmpty {
-                        AlbumShelfSection(title: tr("Recently Played", "Kürzlich gespielt"), albums: vm.recentlyPlayed)
+                        AlbumShelfSection(title: String(localized: "recently_played"), albums: vm.recentlyPlayed)
                     }
                     if !vm.frequentlyPlayed.isEmpty {
-                        AlbumShelfSection(title: tr("Frequently Played", "Häufig gespielt"), albums: vm.frequentlyPlayed)
+                        AlbumShelfSection(title: String(localized: "frequently_played"), albums: vm.frequentlyPlayed)
                     }
                     if !vm.randomAlbums.isEmpty {
                         AlbumShelfSection(
-                            title: tr("Random Albums", "Zufällige Alben"),
+                            title: String(localized: "random_albums"),
                             albums: vm.randomAlbums,
                             refreshAction: { await vm.refreshRandom() }
                         )
@@ -215,7 +212,7 @@ struct DiscoverView: View {
             }
             .padding(24)
         }
-        .navigationTitle(tr("Discover", "Entdecken"))
+        .navigationTitle(String(localized: "discover"))
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 ThemePickerButton()
@@ -232,7 +229,7 @@ struct DiscoverView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .disabled(vm.isLoading)
-                .help(tr("Reload", "Neu laden"))
+                .help(String(localized: "reload"))
             }
             ToolbarItem(placement: .automatic) {
                 Divider()
@@ -425,7 +422,7 @@ struct InsightsToolbarButton: View {
             Image(systemName: "chart.bar.xaxis")
                 .foregroundStyle(themeColor)
         }
-        .help(tr("Insights", "Insights"))
+        .help(String(localized: "insights"))
     }
 }
 
@@ -440,7 +437,7 @@ struct RecapToolbarButton: View {
             Image(systemName: "calendar.badge.clock")
                 .foregroundStyle(themeColor)
         }
-        .help(tr("Recap", "Recap"))
+        .help(String(localized: "recap"))
     }
 }
 
@@ -453,7 +450,7 @@ struct ThemePickerButton: View {
             Image(systemName: "paintpalette.fill")
                 .foregroundStyle(AppTheme.color(for: themeColorName))
         }
-        .help(tr("Choose color", "Farbe wählen"))
+        .help(String(localized: "choose_color"))
         .popover(isPresented: $showPicker, arrowEdge: .top) {
             ThemePickerPopover(themeColorName: $themeColorName)
         }
@@ -467,7 +464,7 @@ struct ThemePickerPopover: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(tr("Color", "Farbe"))
+            Text(String(localized: "color"))
                 .font(.headline)
 
             LazyVGrid(columns: columns, spacing: 10) {
@@ -490,7 +487,7 @@ struct ThemePickerPopover: View {
                             .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
                     }
                     .buttonStyle(.plain)
-                    .help(tr(option.nameEN, option.nameDE))
+                    .help(appLang == "de" ? option.nameDE : option.nameEN)
                 }
             }
         }

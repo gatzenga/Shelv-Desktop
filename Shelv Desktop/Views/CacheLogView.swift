@@ -11,7 +11,7 @@ struct CacheLogView: View {
                     Image(systemName: "clock")
                         .font(.largeTitle)
                         .foregroundStyle(.tertiary)
-                    Text(tr("No cache events yet.", "Noch keine Cache-Ereignisse."))
+                    Text(String(localized: "no_cache_events_yet"))
                         .foregroundStyle(.secondary)
                         .font(.subheadline)
                 }
@@ -32,14 +32,14 @@ struct CacheLogView: View {
                 }
             }
         }
-        .navigationTitle(tr("Cache Log", "Cache-Log"))
+        .navigationTitle(String(localized: "cache_log"))
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button(tr("Clear", "Leeren")) { StreamCacheLog.shared.clear() }
+                Button(String(localized: "clear")) { StreamCacheLog.shared.clear() }
                     .disabled(cacheLog.entries.isEmpty)
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("Done", "Fertig")) { dismiss() }
+                Button(String(localized: "done")) { dismiss() }
             }
         }
     }

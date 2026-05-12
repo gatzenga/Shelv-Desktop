@@ -156,7 +156,7 @@ class RecapStore: ObservableObject {
             await PlayLogService.shared.cleanupImportRollback()
 
             syncReports = [RecapSyncReport(
-                message: tr("Import finished", "Import abgeschlossen"),
+                message: String(localized: "import_finished"),
                 isError: false
             )]
             showSyncReport = true
@@ -291,13 +291,13 @@ class RecapStore: ObservableObject {
                         let notFound = expected.filter { !addedIds.contains($0) }
                         for songId in notFound {
                             reports.append(RecapSyncReport(
-                                message: tr("Song not found on server: \(songId)", "Song nicht gefunden: \(songId)"),
+                                message: String(format: String(localized: "song_not_found_format"), songId),
                                 isError: true
                             ))
                         }
                     }
                     reports.append(RecapSyncReport(
-                        message: tr("\"\(name)\" updated", "\"\(name)\" aktualisiert"),
+                        message: String(format: String(localized: "name_updated_format"), name),
                         isError: false
                     ))
                 } catch {
@@ -360,7 +360,7 @@ class RecapStore: ObservableObject {
 
                     await PlayLogService.shared.registerPlaylist(updatedEntry)
                     reports.append(RecapSyncReport(
-                        message: tr("\"\(name)\" recreated", "\"\(name)\" neu erstellt"),
+                        message: String(format: String(localized: "name_recreated_format"), name),
                         isError: false
                     ))
                 } catch {
@@ -371,7 +371,7 @@ class RecapStore: ObservableObject {
 
         if reports.isEmpty {
             reports.append(RecapSyncReport(
-                message: tr("All playlists up to date", "Alle Playlists aktuell"),
+                message: String(localized: "all_playlists_up_to_date"),
                 isError: false
             ))
         }

@@ -53,9 +53,9 @@ struct RecapDetailView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if songs.isEmpty {
                 ContentUnavailableView(
-                    tr("No Songs", "Keine Titel"),
+                    String(localized: "no_songs"),
                     systemImage: "music.note",
-                    description: Text(tr("No songs found for this period.", "Keine Titel für diesen Zeitraum gefunden."))
+                    description: Text(String(localized: "no_songs_found_for_this_period"))
                 )
             } else {
                 List {
@@ -64,7 +64,7 @@ struct RecapDetailView: View {
                             Button {
                                 AudioPlayerService.shared.play(songs: songs.map { $0.song }, startIndex: 0)
                             } label: {
-                                Label(tr("Play", "Abspielen"), systemImage: "play.fill")
+                                Label(String(localized: "play"), systemImage: "play.fill")
                                     .frame(minWidth: 100)
                             }
                             .buttonStyle(.borderedProminent)
@@ -74,7 +74,7 @@ struct RecapDetailView: View {
                             Button {
                                 AudioPlayerService.shared.playShuffled(songs: songs.map { $0.song })
                             } label: {
-                                Label(tr("Shuffle", "Zufällig abspielen"), systemImage: "shuffle")
+                                Label(String(localized: "shuffle"), systemImage: "shuffle")
                                     .frame(minWidth: 100)
                             }
                             .buttonStyle(.bordered)
@@ -101,27 +101,27 @@ struct RecapDetailView: View {
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
                         .contextMenu {
-                            Button(tr("Play", "Abspielen")) {
+                            Button(String(localized: "play")) {
                                 AudioPlayerService.shared.play(songs: songs.map { $0.song }, startIndex: idx)
                             }
                             Divider()
-                            Button(tr("Play Next", "Als nächstes")) {
+                            Button(String(localized: "play_next")) {
                                 AudioPlayerService.shared.addPlayNext(entry.song)
-                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                             }
-                            Button(tr("Add to Queue", "Zur Warteschlange")) {
+                            Button(String(localized: "add_to_queue")) {
                                 AudioPlayerService.shared.addToUserQueue(entry.song)
-                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                                NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                             }
                             if enableFavorites || enablePlaylists {
                                 Divider()
                                 if enableFavorites {
-                                    Button(tr("Add to Favorites", "Zu Favoriten hinzufügen")) {
+                                    Button(String(localized: "add_to_favorites")) {
                                         Task { await libraryStore.toggleStarSong(entry.song) }
                                     }
                                 }
                                 if enablePlaylists {
-                                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) {
+                                    Button(String(localized: "add_to_playlist")) {
                                         NotificationCenter.default.post(name: .addSongsToPlaylist, object: [entry.song.id])
                                     }
                                 }
@@ -137,18 +137,18 @@ struct RecapDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Button(tr("Play Next", "Als nächstes")) {
+                    Button(String(localized: "play_next")) {
                         AudioPlayerService.shared.addPlayNext(songs.map { $0.song })
-                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                        NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                     }
                     .disabled(songs.isEmpty)
-                    Button(tr("Add to Queue", "Zur Warteschlange")) {
+                    Button(String(localized: "add_to_queue")) {
                         AudioPlayerService.shared.addToUserQueue(songs.map { $0.song })
-                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                        NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                     }
                     .disabled(songs.isEmpty)
                     Divider()
-                    Button(tr("Delete Recap", "Recap löschen"), role: .destructive) {
+                    Button(String(localized: "delete_recap"), role: .destructive) {
                         showDeleteRecapConfirm = true
                     }
                 } label: {
@@ -158,33 +158,33 @@ struct RecapDetailView: View {
             }
         }
         .task { await load() }
-        .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteDownloadConfirm) {
-            Button(tr("Delete", "Löschen"), role: .destructive) {
+        .alert(String(localized: "delete_downloads_2"), isPresented: $showDeleteDownloadConfirm) {
+            Button(String(localized: "delete"), role: .destructive) {
                 let allSongs = songs.map { $0.song }
                 for song in allSongs {
                     downloadStore.deleteSong(song.id)
                 }
                 downloadStore.unmarkPlaylistDownloaded(id: entry.playlistId)
-                NotificationCenter.default.post(name: .showToast, object: tr("Downloads deleted", "Downloads gelöscht"))
+                NotificationCenter.default.post(name: .showToast, object: String(localized: "downloads_deleted"))
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+            Button(String(localized: "cancel"), role: .cancel) {}
         } message: {
-            Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
+            Text(String(localized: "the_downloads_will_be_removed_from_this_device"))
         }
-        .alert(tr("Delete Recap?", "Recap löschen?"), isPresented: $showDeleteRecapConfirm) {
-            Button(tr("Delete", "Löschen"), role: .destructive) {
+        .alert(String(localized: "delete_recap_2"), isPresented: $showDeleteRecapConfirm) {
+            Button(String(localized: "delete"), role: .destructive) {
                 Task {
                     do {
                         try await RecapStore.shared.deleteEntry(playlistId: entry.playlistId, serverId: serverId)
                         dismiss()
                     } catch {
                         if !(error is CancellationError) {
-                            NotificationCenter.default.post(name: .showToast, object: tr("Could not delete recap", "Recap konnte nicht gelöscht werden"))
+                            NotificationCenter.default.post(name: .showToast, object: String(localized: "could_not_delete_recap"))
                         }
                     }
                 }
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+            Button(String(localized: "cancel"), role: .cancel) {}
         } message: {
             Text(period.playlistName)
         }
@@ -260,9 +260,9 @@ struct RecapDetailView: View {
                 let missing = allSongs.filter { !downloadStore.isDownloaded(songId: $0.id) }
                 if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
                 downloadStore.markPlaylistDownloaded(id: entry.playlistId, name: period.playlistName, songIds: allSongs.map(\.id))
-                NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+                NotificationCenter.default.post(name: .showToast, object: String(localized: "download_started"))
             } label: {
-                Label(tr("Download", "Herunterladen"), systemImage: "arrow.down.circle")
+                Label(String(localized: "download"), systemImage: "arrow.down.circle")
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
@@ -272,9 +272,9 @@ struct RecapDetailView: View {
                 let allSongs = songs.map { $0.song }
                 let missing = allSongs.filter { !downloadStore.isDownloaded(songId: $0.id) }
                 if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
-                NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+                NotificationCenter.default.post(name: .showToast, object: String(localized: "download_started"))
             } label: {
-                Label(tr("Rest (\(remaining))", "Rest (\(remaining))"), systemImage: "arrow.down.circle")
+                Label("Rest (\(remaining))", systemImage: "arrow.down.circle")
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
@@ -283,7 +283,7 @@ struct RecapDetailView: View {
             Button {
                 showDeleteDownloadConfirm = true
             } label: {
-                Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                Label(String(localized: "delete_downloads"), systemImage: "arrow.down.circle")
                     .foregroundStyle(.red)
             }
             .buttonStyle(.bordered)
@@ -296,7 +296,7 @@ struct RecapDetailView: View {
         defer { isLoading = false }
 
         guard let playlist = await libraryStore.loadPlaylistDetail(id: entry.playlistId) else {
-            errorMessage = tr("Playlist could not be loaded.", "Playlist konnte nicht geladen werden.")
+            errorMessage = String(localized: "playlist_could_not_be_loaded")
             return
         }
         let playlistSongs = playlist.songs ?? []

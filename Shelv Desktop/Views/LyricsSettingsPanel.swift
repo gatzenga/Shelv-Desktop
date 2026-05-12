@@ -16,13 +16,13 @@ struct LyricsSettingsPanel: View {
         Form {
             Section {
                 Toggle(isOn: $autoFetchLyrics) {
-                    Label(tr("Auto-fetch on playback", "Beim Abspielen laden"), systemImage: "wand.and.stars")
+                    Label(String(localized: "autofetch_on_playback"), systemImage: "wand.and.stars")
                 }
                 .tint(themeColor)
             }
 
-            Section(tr("Database", "Datenbank")) {
-                LabeledContent(tr("Stored", "Gespeichert")) {
+            Section(String(localized: "database")) {
+                LabeledContent(String(localized: "stored")) {
                     if lyricsStore.isDownloading {
                         Text("\(lyricsStore.downloadFetched) / \(lyricsStore.downloadTotal)")
                             .foregroundStyle(.secondary)
@@ -41,7 +41,7 @@ struct LyricsSettingsPanel: View {
                             total: Double(max(lyricsStore.downloadTotal, 1))
                         )
                         .tint(themeColor)
-                        Button(tr("Cancel download", "Download abbrechen")) {
+                        Button(String(localized: "cancel_download")) {
                             lyricsStore.cancelBulkDownload()
                         }
                         .foregroundStyle(.red)
@@ -53,7 +53,7 @@ struct LyricsSettingsPanel: View {
                         guard !serverId.isEmpty else { return }
                         lyricsStore.startBulkDownload(serverId: serverId)
                     } label: {
-                        Label(tr("Download all lyrics", "Alle Lyrics laden"), systemImage: "arrow.down.circle")
+                        Label(String(localized: "download_all_lyrics"), systemImage: "arrow.down.circle")
                     }
                     .disabled(serverId.isEmpty)
                 }
@@ -61,23 +61,20 @@ struct LyricsSettingsPanel: View {
                 Button(role: .destructive) {
                     showResetConfirm = true
                 } label: {
-                    Label(tr("Reset lyrics database", "Lyrics zurücksetzen"), systemImage: "trash")
+                    Label(String(localized: "reset_lyrics_database"), systemImage: "trash")
                 }
                 .confirmationDialog(
-                    tr("Reset lyrics database?", "Lyrics-Datenbank zurücksetzen?"),
+                    String(localized: "reset_lyrics_database_2"),
                     isPresented: $showResetConfirm
                 ) {
-                    Button(tr("Reset", "Zurücksetzen"), role: .destructive) {
+                    Button(String(localized: "reset"), role: .destructive) {
                         Task {
                             await lyricsStore.reset(serverId: serverId)
                         }
                     }
-                    Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+                    Button(String(localized: "cancel"), role: .cancel) {}
                 } message: {
-                    Text(tr(
-                        "All stored lyrics for the active server will be deleted.",
-                        "Alle gespeicherten Lyrics für den aktiven Server werden gelöscht."
-                    ))
+                    Text(String(localized: "all_stored_lyrics_for_the_active_server_will_be_de"))
                 }
             }
         }

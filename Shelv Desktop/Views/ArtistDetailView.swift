@@ -58,7 +58,7 @@ struct ArtistDetailView: View {
     var body: some View {
         Group {
             if vm.isLoading {
-                ProgressView(tr("Loading albums…", "Alben laden…"))
+                ProgressView(String(localized: "loading_albums"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
@@ -71,7 +71,7 @@ struct ArtistDetailView: View {
                                 Text(vm.artist?.name ?? artistName)
                                     .font(.title.bold())
                                 if let count = vm.artist?.albumCount {
-                                    Text(tr("\(count) Albums", "\(count) Alben"))
+                                    Text(String(format: String(localized: "count_albums_format"), count))
                                         .foregroundStyle(.secondary)
                                 }
 
@@ -85,7 +85,7 @@ struct ArtistDetailView: View {
                                             if vm.isLoadingSongs {
                                                 ProgressView().controlSize(.small).tint(.white)
                                             } else {
-                                                Label(tr("Play", "Abspielen"), systemImage: "play.fill")
+                                                Label(String(localized: "play"), systemImage: "play.fill")
                                                     .frame(minWidth: 100)
                                             }
                                         }
@@ -98,7 +98,7 @@ struct ArtistDetailView: View {
                                     Button {
                                         Task { await vm.playAll(player: appState.player, albums: displayAlbums, shuffle: true) }
                                     } label: {
-                                        Label(tr("Shuffle", "Zufällig abspielen"), systemImage: "shuffle")
+                                        Label(String(localized: "shuffle"), systemImage: "shuffle")
                                             .frame(minWidth: 100)
                                     }
                                     .buttonStyle(.bordered)
@@ -110,10 +110,10 @@ struct ArtistDetailView: View {
                                             let songs = await vm.fetchSongs(albums: displayAlbums)
                                             guard !songs.isEmpty else { return }
                                             appState.player.addPlayNext(songs)
-                                            NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                            NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                                         }
                                     } label: {
-                                        Label(tr("Play Next", "Als nächstes"), systemImage: "text.insert")
+                                        Label(String(localized: "play_next"), systemImage: "text.insert")
                                     }
                                     .buttonStyle(.bordered)
                                     .controlSize(.large)
@@ -124,10 +124,10 @@ struct ArtistDetailView: View {
                                             let songs = await vm.fetchSongs(albums: displayAlbums)
                                             guard !songs.isEmpty else { return }
                                             appState.player.addToUserQueue(songs)
-                                            NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                                            NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                                         }
                                     } label: {
-                                        Label(tr("Add to Queue", "Zur Warteschlange"), systemImage: "text.badge.plus")
+                                        Label(String(localized: "add_to_queue"), systemImage: "text.badge.plus")
                                     }
                                     .buttonStyle(.bordered)
                                     .controlSize(.large)
@@ -154,8 +154,8 @@ struct ArtistDetailView: View {
                                         }
                                         .buttonStyle(.plain)
                                         .help(isStarred
-                                            ? tr("Remove from Favorites", "Aus Favoriten entfernen")
-                                            : tr("Add to Favorites", "Zu Favoriten hinzufügen"))
+                                            ? String(localized: "remove_from_favorites")
+                                            : String(localized: "add_to_favorites"))
                                     }
                                 }
                             }
@@ -167,7 +167,7 @@ struct ArtistDetailView: View {
 
                         if !vm.albums.isEmpty {
                             HStack(spacing: 8) {
-                                Picker(tr("Sort", "Sortieren"), selection: $sortRaw) {
+                                Picker(String(localized: "sort"), selection: $sortRaw) {
                                     ForEach(LibrarySortOption.allCases.filter { !offlineMode.isOffline || !$0.requiresServer }, id: \.self) { opt in
                                         Text(opt.label).tag(opt.rawValue)
                                     }
@@ -184,7 +184,7 @@ struct ArtistDetailView: View {
                                             .font(.title3)
                                     }
                                     .buttonStyle(.borderless)
-                                    .help(direction == .ascending ? tr("Ascending", "Aufsteigend") : tr("Descending", "Absteigend"))
+                                    .help(direction == .ascending ? String(localized: "ascending") : String(localized: "descending"))
                                 }
                                 Spacer()
                                 Button { isGrid.toggle() } label: {
@@ -192,7 +192,7 @@ struct ArtistDetailView: View {
                                         .font(.title3)
                                 }
                                 .buttonStyle(.borderless)
-                                .help(isGrid ? tr("List view", "Listenansicht") : tr("Grid view", "Rasteransicht"))
+                                .help(isGrid ? String(localized: "list_view") : String(localized: "grid_view"))
                             }
                             .padding(.horizontal, 20)
 
@@ -231,7 +231,7 @@ struct ArtistDetailView: View {
             }
         }
         .navigationTitle(vm.artist?.name ?? artistName)
-        .searchable(text: $searchQuery, prompt: tr("Search albums…", "Alben suchen…"))
+        .searchable(text: $searchQuery, prompt: String(localized: "search_albums"))
         .onChange(of: offlineMode.isOffline) { _, isOffline in
             if isOffline && sortOption.requiresServer {
                 sortRaw = LibrarySortOption.name.rawValue
@@ -243,15 +243,15 @@ struct ArtistDetailView: View {
             Task { await vm.load(artistId: artistId, artistName: artistName) }
         }
         .task(id: artistId) { await vm.load(artistId: artistId, artistName: artistName) }
-        .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteDownloadConfirm) {
-            Button(tr("Delete", "Löschen"), role: .destructive) {
+        .alert(String(localized: "delete_downloads_2"), isPresented: $showDeleteDownloadConfirm) {
+            Button(String(localized: "delete"), role: .destructive) {
                 if let match = downloadStore.artists.first(where: { $0.name == artistName }) {
                     downloadStore.deleteArtist(match.artistId)
                 }
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+            Button(String(localized: "cancel"), role: .cancel) {}
         } message: {
-            Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
+            Text(String(localized: "the_downloads_will_be_removed_from_this_device"))
         }
     }
 
@@ -288,7 +288,7 @@ struct ArtistDetailView: View {
                 Button {
                     downloadStore.enqueueArtist(artistModel)
                 } label: {
-                    Label(tr("Download", "Herunterladen"), systemImage: "arrow.down.circle")
+                    Label(String(localized: "download"), systemImage: "arrow.down.circle")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
@@ -298,7 +298,7 @@ struct ArtistDetailView: View {
                 Button {
                     downloadStore.enqueueArtist(artistModel)
                 } label: {
-                    Label(tr("Rest (\(tot - done))", "Rest (\(tot - done))"), systemImage: "arrow.down.circle")
+                    Label("Rest (\(tot - done))", systemImage: "arrow.down.circle")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
@@ -307,7 +307,7 @@ struct ArtistDetailView: View {
                 Button {
                     showDeleteDownloadConfirm = true
                 } label: {
-                    Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                    Label(String(localized: "delete_downloads"), systemImage: "arrow.down.circle")
                         .foregroundStyle(.red)
                 }
                 .buttonStyle(.bordered)
@@ -318,7 +318,7 @@ struct ArtistDetailView: View {
                 Button {
                     showDeleteDownloadConfirm = true
                 } label: {
-                    Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                    Label(String(localized: "delete_downloads"), systemImage: "arrow.down.circle")
                         .foregroundStyle(.red)
                 }
                 .buttonStyle(.bordered)
@@ -399,7 +399,7 @@ class ArtistDetailViewModel: ObservableObject {
                 return results.sorted { $0.0 < $1.0 }.flatMap { $0.1 }
             }
         } catch {
-            NotificationCenter.default.post(name: .showToast, object: tr("Playback failed", "Wiedergabe fehlgeschlagen"))
+            NotificationCenter.default.post(name: .showToast, object: String(localized: "playback_failed"))
             return []
         }
     }

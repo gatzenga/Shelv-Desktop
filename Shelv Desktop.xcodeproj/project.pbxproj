@@ -14,22 +14,9 @@
 		BC9C594F2F8E9FC800FF4D25 /* Shelv Desktop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Shelv Desktop.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		BC26D7502FB33A55007DAF69 /* Exceptions for "Shelv Desktop" folder in "Shelv Desktop" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"Shelv-Desktop-Info.plist",
-			);
-			target = BC9C594E2F8E9FC800FF4D25 /* Shelv Desktop */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		BC9C59512F8E9FC800FF4D25 /* Shelv Desktop */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				BC26D7502FB33A55007DAF69 /* Exceptions for "Shelv Desktop" folder in "Shelv Desktop" target */,
-			);
 			path = "Shelv Desktop";
 			sourceTree = "<group>";
 		};

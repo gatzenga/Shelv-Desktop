@@ -48,7 +48,7 @@ enum RecapMarkerSaveResult {
 enum CKSyncError: LocalizedError {
     case timeout
     var errorDescription: String? {
-        tr("iCloud sync timed out", "iCloud-Sync Timeout")
+        String(localized: "icloud_sync_timed_out")
     }
 }
 

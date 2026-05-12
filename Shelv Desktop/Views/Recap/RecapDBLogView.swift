@@ -9,8 +9,8 @@ struct RecapDBLogView: View {
         case playLog, lyrics
         var label: String {
             switch self {
-            case .playLog: return tr("Play Log DB", "Play-Log-DB")
-            case .lyrics:  return tr("Lyrics DB", "Lyrics-DB")
+            case .playLog: return String(localized: "play_log_db")
+            case .lyrics:  return String(localized: "lyrics_db")
             }
         }
     }
@@ -39,7 +39,7 @@ struct RecapDBLogView: View {
                     Image(systemName: "checkmark.circle")
                         .font(.largeTitle)
                         .foregroundStyle(.tertiary)
-                    Text(tr("No database errors.", "Keine Datenbank-Fehler."))
+                    Text(String(localized: "no_database_errors"))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -59,10 +59,10 @@ struct RecapDBLogView: View {
             }
         }
         .frame(width: 640, height: 520)
-        .navigationTitle(tr("Database errors", "Datenbank-Fehler"))
+        .navigationTitle(String(localized: "database_errors"))
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("Done", "Fertig")) { dismiss() }
+                Button(String(localized: "done")) { dismiss() }
             }
         }
     }

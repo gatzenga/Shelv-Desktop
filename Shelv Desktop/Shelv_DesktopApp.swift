@@ -1,7 +1,6 @@
 import SwiftUI
 
 let appLang: String = Locale.preferredLanguages.first?.hasPrefix("de") == true ? "de" : "en"
-func tr(_ en: String, _ de: String, _ lang: String = appLang) -> String { lang == "de" ? de : en }
 
 extension Notification.Name {
     static let addSongsToPlaylist = Notification.Name("shelv.addSongsToPlaylist")
@@ -111,52 +110,52 @@ struct Shelv_DesktopApp: App {
             SidebarCommands()
 
             CommandGroup(replacing: .appInfo) {
-                Button(tr("About Shelv", "Über Shelv")) {
+                Button(String(localized: "about_shelv")) {
                     NSApp.orderFrontStandardAboutPanel(nil)
                 }
             }
 
-            CommandMenu(tr("Profile", "Profil")) {
+            CommandMenu(String(localized: "profile")) {
                 if appState.isLoggedIn, let active = appState.serverStore.activeServer {
                     Text(active.displayName)
                     Text(appState.username)
                         .foregroundStyle(.secondary)
                 } else {
-                    Text(tr("Not logged in", "Nicht angemeldet"))
+                    Text(String(localized: "not_logged_in"))
                         .foregroundStyle(.secondary)
                 }
                 Divider()
                 ServerManagementMenuItem()
                 Divider()
-                Button(tr("Log Out", "Abmelden")) {
+                Button(String(localized: "log_out")) {
                     appState.logout()
                 }
                 .disabled(!appState.isLoggedIn)
             }
 
             CommandGroup(replacing: .help) {
-                Link(tr("Shelv on GitHub", "Shelv auf GitHub"), destination: URL(string: "https://github.com/gatzenga/Shelv-Desktop")!)
-                Link(tr("Navidrome Documentation", "Navidrome Dokumentation"), destination: URL(string: "https://www.navidrome.org/docs/")!)
+                Link(String(localized: "shelv_on_github"), destination: URL(string: "https://github.com/gatzenga/Shelv-Desktop")!)
+                Link(String(localized: "navidrome_documentation"), destination: URL(string: "https://www.navidrome.org/docs/")!)
                 Divider()
-                Link(tr("Developer Website", "Developer-Website"), destination: URL(string: "https://vkugler.app")!)
-                Link(tr("Privacy Policy", "Datenschutz"), destination: URL(string: "https://vkugler.app/shelv_privacy.html")!)
-                Link(tr("Contact", "Kontakt"), destination: URL(string: "mailto:contact@vkugler.app")!)
+                Link(String(localized: "developer_website"), destination: URL(string: "https://vkugler.app")!)
+                Link(String(localized: "privacy_policy"), destination: URL(string: "https://vkugler.app/shelv_privacy.html")!)
+                Link(String(localized: "contact"), destination: URL(string: "mailto:contact@vkugler.app")!)
                 Link("Discord", destination: URL(string: "https://discord.gg/UdJK5mpmZu")!)
                 Divider()
-                Link(tr("Support my work", "Support my work"), destination: URL(string: "https://ko-fi.com/Shelv")!)
+                Link(String(localized: "support_my_work"), destination: URL(string: "https://ko-fi.com/Shelv")!)
             }
 
-            CommandMenu(tr("Playback", "Wiedergabe")) {
-                Button(tr("Play / Pause", "Abspielen / Pause")) {
+            CommandMenu(String(localized: "playback")) {
+                Button(String(localized: "play_pause")) {
                     AppState.shared.player.togglePlayPause()
                 }
                 .keyboardShortcut(.space, modifiers: [])
                 Divider()
-                Button(tr("Next Track", "Nächster Titel")) {
+                Button(String(localized: "next_track")) {
                     AppState.shared.player.playNext()
                 }
                 .keyboardShortcut(.rightArrow, modifiers: .command)
-                Button(tr("Previous Track", "Vorheriger Titel")) {
+                Button(String(localized: "previous_track")) {
                     AppState.shared.player.playPrevious()
                 }
                 .keyboardShortcut(.leftArrow, modifiers: .command)
@@ -170,15 +169,15 @@ struct Shelv_DesktopApp: App {
             CommandGroup(after: .sidebar) {
                 Divider()
                 Toggle(isOn: Binding(get: { enableFavorites }, set: { enableFavorites = $0 })) {
-                    Text(tr("Show Favorites", "Favoriten anzeigen"))
+                    Text(String(localized: "show_favorites"))
                 }
                 Toggle(isOn: Binding(get: { enablePlaylists }, set: { enablePlaylists = $0 })) {
-                    Text(tr("Show Playlists", "Playlists anzeigen"))
+                    Text(String(localized: "show_playlists"))
                 }
             }
         }
 
-        Window(tr("Playback Settings", "Wiedergabe-Einstellungen"), id: "playback-settings") {
+        Window(String(localized: "playback_settings"), id: "playback-settings") {
             PlaybackSettingsWindow()
                 .environmentObject(appState)
                 .environmentObject(LyricsStore.shared)
@@ -187,7 +186,7 @@ struct Shelv_DesktopApp: App {
         }
         .defaultSize(width: 820, height: 660)
 
-        Window(tr("Insights", "Insights"), id: "insights") {
+        Window(String(localized: "insights"), id: "insights") {
             InsightsView()
                 .environmentObject(appState)
                 .tint(AppTheme.color(for: themeColorName))
@@ -195,7 +194,7 @@ struct Shelv_DesktopApp: App {
         }
         .windowResizability(.contentSize)
 
-        Window(tr("Recap", "Recap"), id: "recap") {
+        Window(String(localized: "recap"), id: "recap") {
             RecapView()
                 .environmentObject(appState)
                 .environmentObject(RecapStore.shared)
@@ -206,7 +205,7 @@ struct Shelv_DesktopApp: App {
         }
         .windowResizability(.contentSize)
 
-        Window(tr("Manage Servers", "Server verwalten"), id: "server-management") {
+        Window(String(localized: "manage_servers"), id: "server-management") {
             ServerManagementView()
                 .environmentObject(appState)
         }
@@ -226,7 +225,7 @@ struct PlaybackSettingsMenuItem: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button(tr("Playback Settings", "Wiedergabe-Einstellungen")) {
+        Button(String(localized: "playback_settings")) {
             openWindow(id: "playback-settings")
         }
     }
@@ -236,7 +235,7 @@ struct ServerManagementMenuItem: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button(tr("Manage Servers…", "Server verwalten…")) {
+        Button(String(localized: "manage_servers_2")) {
             openWindow(id: "server-management")
         }
     }
@@ -246,7 +245,7 @@ struct InsightsMenuItem: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button(tr("Insights…", "Insights…")) {
+        Button(String(localized: "insights_2")) {
             openWindow(id: "insights")
         }
     }
@@ -256,7 +255,7 @@ struct RecapMenuItem: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button(tr("Recap…", "Recap…")) {
+        Button(String(localized: "recap_2")) {
             openWindow(id: "recap")
         }
     }
@@ -267,7 +266,7 @@ struct DataSaverMenuItem: View {
     @AppStorage("transcodingEnabled") private var transcodingEnabled = false
 
     var body: some View {
-        Toggle(tr("Data Saver", "Datensparmodus"), isOn: $dataSaverEnabled)
+        Toggle(String(localized: "data_saver"), isOn: $dataSaverEnabled)
             .disabled(!transcodingEnabled)
     }
 }
@@ -278,7 +277,7 @@ struct OfflineModeMenuItem: View {
 
     var body: some View {
         Toggle(
-            tr("Offline Mode", "Offline-Modus"),
+            String(localized: "offline_mode"),
             isOn: Binding(
                 get: { offlineMode.isOffline },
                 set: { if $0 { offlineMode.enterOfflineMode() } else { offlineMode.exitOfflineMode() } }

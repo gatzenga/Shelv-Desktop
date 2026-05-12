@@ -8,13 +8,10 @@ struct GaplessPanel: View {
         Form {
             Section {
                 Toggle(isOn: $gaplessEnabled) {
-                    Label(tr("Gapless Playback", "Lückenloses Abspielen"), systemImage: "music.note.list")
+                    Label(String(localized: "gapless_playback"), systemImage: "music.note.list")
                 }
                 .tint(themeColor)
-                Text(tr(
-                    "Pre-cache Original File recommended.\nTranscoded streams are pre-cached automatically.",
-                    "Pre-cache Originaldatei empfohlen.\nTranskodierte Streams werden automatisch pre-gecached."
-                ))
+                Text(String(localized: "precache_original_file_recommendedntranscoded_stre"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }

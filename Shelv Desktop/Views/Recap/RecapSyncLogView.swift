@@ -11,7 +11,7 @@ struct RecapSyncLogView: View {
                     Image(systemName: "doc.text.magnifyingglass")
                         .font(.largeTitle)
                         .foregroundStyle(.tertiary)
-                    Text(tr("No log entries yet.", "Noch keine Log-Einträge."))
+                    Text(String(localized: "no_log_entries_yet"))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -31,10 +31,10 @@ struct RecapSyncLogView: View {
             }
         }
         .frame(width: 640, height: 520)
-        .navigationTitle(tr("Sync log", "Sync-Protokoll"))
+        .navigationTitle(String(localized: "sync_log"))
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("Done", "Fertig")) { dismiss() }
+                Button(String(localized: "done")) { dismiss() }
             }
         }
     }

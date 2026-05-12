@@ -77,7 +77,7 @@ struct AlbumDetailView: View {
                                         .foregroundStyle(themeColor)
                                 }
                                 .buttonStyle(.plain)
-                                .help(tr("Go to Artist", "Zum Künstler"))
+                                .help(String(localized: "go_to_artist"))
                                 .onHover { inside in
                                     if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
                                 }
@@ -91,7 +91,7 @@ struct AlbumDetailView: View {
                         HStack(spacing: 10) {
                             if let year  = vm.album?.year     { Text(String(year)) }
                             if let genre = vm.album?.genre    { Text("·"); Text(genre) }
-                            if let count = vm.album?.songCount { Text("·"); Text(tr("\(count) Tracks", "\(count) Titel")) }
+                            if let count = vm.album?.songCount { Text("·"); Text(String(format: String(localized: "count_tracks_format"), count)) }
                             if let dur   = vm.album?.duration  { Text("·"); Text(formatDuration(dur)) }
                         }
                         .font(.caption)
@@ -104,7 +104,7 @@ struct AlbumDetailView: View {
                             Button {
                                 appState.player.play(songs: displaySongs)
                             } label: {
-                                Label(tr("Play", "Abspielen"), systemImage: "play.fill")
+                                Label(String(localized: "play"), systemImage: "play.fill")
                                     .frame(minWidth: 110)
                             }
                             .buttonStyle(.borderedProminent)
@@ -115,7 +115,7 @@ struct AlbumDetailView: View {
                             Button {
                                 appState.player.playShuffled(songs: displaySongs)
                             } label: {
-                                Label(tr("Shuffle", "Zufällig abspielen"), systemImage: "shuffle")
+                                Label(String(localized: "shuffle"), systemImage: "shuffle")
                                     .frame(minWidth: 100)
                             }
                             .buttonStyle(.bordered)
@@ -124,9 +124,9 @@ struct AlbumDetailView: View {
 
                             Button {
                                 appState.player.addPlayNext(displaySongs)
-                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                             } label: {
-                                Label(tr("Play Next", "Als nächstes"), systemImage: "text.insert")
+                                Label(String(localized: "play_next"), systemImage: "text.insert")
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.large)
@@ -134,9 +134,9 @@ struct AlbumDetailView: View {
 
                             Button {
                                 appState.player.addToUserQueue(displaySongs)
-                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                                NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                             } label: {
-                                Label(tr("Add to Queue", "Zur Warteschlange"), systemImage: "text.badge.plus")
+                                Label(String(localized: "add_to_queue"), systemImage: "text.badge.plus")
                             }
                             .buttonStyle(.bordered)
                             .controlSize(.large)
@@ -163,8 +163,8 @@ struct AlbumDetailView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .help(isStarred
-                                      ? tr("Remove from Favorites", "Aus Favoriten entfernen")
-                                      : tr("Add to Favorites", "Zu Favoriten hinzufügen"))
+                                      ? String(localized: "remove_from_favorites")
+                                      : String(localized: "add_to_favorites"))
                             }
                         }
                     }
@@ -178,7 +178,7 @@ struct AlbumDetailView: View {
                     .padding(.bottom, 8)
 
                 if vm.isLoading {
-                    ProgressView(tr("Loading tracks…", "Titel laden…"))
+                    ProgressView(String(localized: "loading_tracks"))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 60)
                 } else {
@@ -186,7 +186,7 @@ struct AlbumDetailView: View {
                         if useDiscGrouping {
                             ForEach(discGroups, id: \.disc) { group in
                                 HStack {
-                                    Text(tr("Disc \(group.disc)", "Disc \(group.disc)"))
+                                    Text("Disc \(group.disc)")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                         .padding(.horizontal, 28)
@@ -210,10 +210,10 @@ struct AlbumDetailView: View {
                                         appState.player.play(songs: displaySongs, startIndex: globalIndex)
                                     } onPlayNext: {
                                         appState.player.addPlayNext(song)
-                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                        NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                                     } onAddToQueue: {
                                         appState.player.addToUserQueue(song)
-                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                                        NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                                     } onFavorite: {
                                         Task { await libraryStore.toggleStarSong(song) }
                                     } onAddToPlaylist: {
@@ -233,10 +233,10 @@ struct AlbumDetailView: View {
                                     appState.player.play(songs: displaySongs, startIndex: index)
                                 } onPlayNext: {
                                     appState.player.addPlayNext(song)
-                                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                                    NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                                 } onAddToQueue: {
                                     appState.player.addToUserQueue(song)
-                                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                                    NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                                 } onFavorite: {
                                     Task { await libraryStore.toggleStarSong(song) }
                                 } onAddToPlaylist: {
@@ -256,18 +256,18 @@ struct AlbumDetailView: View {
             }
         }
         .navigationTitle(vm.album?.name ?? albumName)
-        .searchable(text: $searchQuery, prompt: tr("Search songs…", "Titel suchen…"))
+        .searchable(text: $searchQuery, prompt: String(localized: "search_songs"))
         .task(id: albumId) {
             let local = downloadStore.albums.first(where: { $0.albumId == albumId })
             await vm.load(albumId: albumId, fallback: local)
         }
-        .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteDownloadConfirm) {
-            Button(tr("Delete", "Löschen"), role: .destructive) {
+        .alert(String(localized: "delete_downloads_2"), isPresented: $showDeleteDownloadConfirm) {
+            Button(String(localized: "delete"), role: .destructive) {
                 downloadStore.deleteAlbum(albumId)
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+            Button(String(localized: "cancel"), role: .cancel) {}
         } message: {
-            Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
+            Text(String(localized: "the_downloads_will_be_removed_from_this_device"))
         }
         .onChange(of: downloadStore.songs.count) { _, _ in
             guard offlineMode.isOffline else { return }
@@ -302,7 +302,7 @@ struct AlbumDetailView: View {
                 Button {
                     downloadStore.enqueueAlbum(albumModel)
                 } label: {
-                    Label(tr("Download", "Herunterladen"), systemImage: "arrow.down.circle")
+                    Label(String(localized: "download"), systemImage: "arrow.down.circle")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
@@ -312,7 +312,7 @@ struct AlbumDetailView: View {
                 Button {
                     downloadStore.enqueueAlbum(albumModel)
                 } label: {
-                    Label(tr("Rest (\(tot - done))", "Rest (\(tot - done))"), systemImage: "arrow.down.circle")
+                    Label("Rest (\(tot - done))", systemImage: "arrow.down.circle")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
@@ -320,7 +320,7 @@ struct AlbumDetailView: View {
             Button {
                 showDeleteDownloadConfirm = true
             } label: {
-                Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                Label(String(localized: "delete_downloads"), systemImage: "arrow.down.circle")
                     .foregroundStyle(.red)
             }
             .buttonStyle(.bordered)
@@ -329,7 +329,7 @@ struct AlbumDetailView: View {
             Button {
                 showDeleteDownloadConfirm = true
             } label: {
-                Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                Label(String(localized: "delete_downloads"), systemImage: "arrow.down.circle")
                     .foregroundStyle(.red)
             }
             .buttonStyle(.bordered)
@@ -411,21 +411,21 @@ struct TrackRow: View {
         .onHover { isHovered = $0 }
         .gesture(TapGesture(count: 2).onEnded { onPlay() })
         .contextMenu {
-            Button(tr("Play", "Abspielen")) { onPlay() }
+            Button(String(localized: "play")) { onPlay() }
             Divider()
-            Button(tr("Play Next", "Als nächstes")) { onPlayNext() }
-            Button(tr("Add to Queue", "Zur Warteschlange")) { onAddToQueue() }
+            Button(String(localized: "play_next")) { onPlayNext() }
+            Button(String(localized: "add_to_queue")) { onAddToQueue() }
             if showFavorite || showPlaylist {
                 Divider()
                 if showFavorite, let onFavorite {
                     Button(isStarred
-                           ? tr("Remove from Favorites", "Aus Favoriten entfernen")
-                           : tr("Add to Favorites", "Zu Favoriten hinzufügen")) {
+                           ? String(localized: "remove_from_favorites")
+                           : String(localized: "add_to_favorites")) {
                         onFavorite()
                     }
                 }
                 if showPlaylist, let onAddToPlaylist {
-                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) {
+                    Button(String(localized: "add_to_playlist")) {
                         onAddToPlaylist()
                     }
                 }

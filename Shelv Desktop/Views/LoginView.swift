@@ -25,7 +25,7 @@ struct LoginView: View {
                     }
                     Text("Shelv")
                         .font(.system(size: 28, weight: .bold))
-                    Text(tr("Navidrome Desktop Client", "Navidrome Desktop-Client"))
+                    Text(String(localized: "navidrome_desktop_client"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -34,23 +34,23 @@ struct LoginView: View {
 
                 // Form
                 VStack(alignment: .leading, spacing: 10) {
-                    formFieldLabel(tr("Server Name", "Servername"))
-                    TextField(tr("My Navidrome", "Mein Navidrome"), text: $serverName)
+                    formFieldLabel(String(localized: "server_name"))
+                    TextField(String(localized: "my_navidrome"), text: $serverName)
                         .textFieldStyle(.roundedBorder)
                         .autocorrectionDisabled()
 
-                    formFieldLabel(tr("Server URL", "Server-URL"))
+                    formFieldLabel(String(localized: "server_url"))
                     TextField("https://music.example.com", text: $serverURL)
                         .textFieldStyle(.roundedBorder)
                         .autocorrectionDisabled()
 
-                    formFieldLabel(tr("Username", "Benutzername"))
-                    TextField(tr("Username", "Benutzername"), text: $username)
+                    formFieldLabel(String(localized: "username"))
+                    TextField(String(localized: "username"), text: $username)
                         .textFieldStyle(.roundedBorder)
                         .autocorrectionDisabled()
 
-                    formFieldLabel(tr("Password", "Passwort"))
-                    SecureField(tr("Password", "Passwort"), text: $password)
+                    formFieldLabel(String(localized: "password"))
+                    SecureField(String(localized: "password"), text: $password)
                         .textFieldStyle(.roundedBorder)
                 }
                 .frame(maxWidth: 340)
@@ -71,7 +71,7 @@ struct LoginView: View {
                             .controlSize(.small)
                             .frame(maxWidth: .infinity)
                     } else {
-                        Text(tr("Connect", "Verbinden"))
+                        Text(String(localized: "connect"))
                             .frame(maxWidth: .infinity)
                     }
                 }
@@ -101,7 +101,7 @@ struct LoginView: View {
             password: password
         )
         if !success {
-            errorMessage = appState.errorMessage ?? tr("Connection failed.", "Verbindung fehlgeschlagen.")
+            errorMessage = appState.errorMessage ?? String(localized: "connection_failed")
         }
         isLoading = false
     }

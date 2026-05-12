@@ -249,11 +249,11 @@ enum SidebarItem: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .discover: return tr("Discover", "Entdecken")
-        case .albums:   return tr("Albums", "Alben")
-        case .artists:  return tr("Artists", "Künstler")
-        case .favorites: return tr("Favorites", "Favoriten")
-        case .search:   return tr("Search", "Suchen")
+        case .discover: return String(localized: "discover")
+        case .albums:   return String(localized: "albums")
+        case .artists:  return String(localized: "artists")
+        case .favorites: return String(localized: "favorites")
+        case .search:   return String(localized: "search")
         }
     }
 
@@ -276,10 +276,10 @@ enum LibrarySortOption: String, CaseIterable {
 
     var label: String {
         switch self {
-        case .name:          return tr("Name", "Name")
-        case .mostPlayed:    return tr("Most Played", "Meist gespielt")
-        case .recentlyAdded: return tr("Recently Added", "Kürzlich hinzugefügt")
-        case .year:          return tr("Year", "Jahr")
+        case .name:          return String(localized: "name")
+        case .mostPlayed:    return String(localized: "most_played")
+        case .recentlyAdded: return String(localized: "recently_added")
+        case .year:          return String(localized: "year")
         }
     }
 
@@ -296,8 +296,8 @@ enum ArtistSortOption: String, CaseIterable {
 
     var label: String {
         switch self {
-        case .name:       return tr("Name", "Name")
-        case .mostPlayed: return tr("Most Played", "Meist gespielt")
+        case .name:       return String(localized: "name")
+        case .mostPlayed: return String(localized: "most_played")
         }
     }
 
@@ -313,8 +313,8 @@ enum SortDirection: String, CaseIterable {
 
     var label: String {
         switch self {
-        case .ascending:  return tr("Ascending", "Aufsteigend")
-        case .descending: return tr("Descending", "Absteigend")
+        case .ascending:  return String(localized: "ascending")
+        case .descending: return String(localized: "descending")
         }
     }
 }

@@ -6,14 +6,14 @@ private struct BatchProgressSection: View {
 
     var body: some View {
         if let progress = downloadStore.batchProgress {
-            Section(tr("Active Downloads", "Aktive Downloads")) {
+            Section(String(localized: "active_downloads")) {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text("\(progress.completed) / \(progress.total)")
                             .monospacedDigit()
                         Spacer()
                         if progress.failed > 0 {
-                            Text(tr("\(progress.failed) failed", "\(progress.failed) fehlgeschlagen"))
+                            Text(String(format: String(localized: "failed_count_format"), progress.failed))
                                 .foregroundStyle(.red)
                         }
                     }
@@ -21,7 +21,7 @@ private struct BatchProgressSection: View {
                         .tint(themeColor)
                     HStack {
                         Spacer()
-                        Button(tr("Cancel download", "Download abbrechen")) {
+                        Button(String(localized: "cancel_download")) {
                             Task { await DownloadService.shared.cancelBatch() }
                         }
                         .buttonStyle(.borderless)
@@ -40,17 +40,17 @@ private struct DownloadStatsSection: View {
     @State private var stats: DownloadStorageStats?
 
     var body: some View {
-        Section(tr("Statistics", "Statistik")) {
+        Section(String(localized: "statistics")) {
             if let stats {
-                LabeledContent(tr("Used", "Belegt"),
+                LabeledContent(String(localized: "used"),
                                value: ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file))
                 if let free = stats.freeDiskBytes {
-                    LabeledContent(tr("Free on device", "Frei auf Gerät"),
+                    LabeledContent(String(localized: "free_on_device"),
                                    value: ByteCountFormatter.string(fromByteCount: free, countStyle: .file))
                 }
-                LabeledContent(tr("Songs", "Titel"), value: "\(stats.songCount)")
-                LabeledContent(tr("Albums", "Alben"), value: "\(stats.albumCount)")
-                LabeledContent(tr("Artists", "Künstler"), value: "\(stats.artistCount)")
+                LabeledContent(String(localized: "songs"), value: "\(stats.songCount)")
+                LabeledContent(String(localized: "albums"), value: "\(stats.albumCount)")
+                LabeledContent(String(localized: "artists"), value: "\(stats.artistCount)")
             } else {
                 ProgressView()
             }
@@ -97,8 +97,8 @@ struct DownloadsTab: View {
     var body: some View {
         Form {
             Section {
-                Toggle(tr("Enable Downloads", "Downloads aktivieren"), isOn: $enableDownloads)
-                Toggle(tr("Offline Mode", "Offline-Modus"),
+                Toggle(String(localized: "enable_downloads"), isOn: $enableDownloads)
+                Toggle(String(localized: "offline_mode"),
                        isOn: Binding(
                             get: { offlineMode.isOffline },
                             set: { newValue in
@@ -111,17 +111,17 @@ struct DownloadsTab: View {
             if enableDownloads {
                 BatchProgressSection()
 
-                Section(tr("Bulk Download", "Massen-Download")) {
+                Section(String(localized: "bulk_download")) {
                     Button {
                         showBulkSheet = true
                     } label: {
-                        Label(tr("Download Everything…", "Alles herunterladen…"),
+                        Label(String(localized: "download_everything"),
                               systemImage: "square.and.arrow.down.on.square")
                     }
                     .disabled(offlineMode.isOffline)
 
                     HStack {
-                        Text(tr("Max Storage", "Max. Speicher"))
+                        Text(String(localized: "max_storage"))
                         Spacer()
                         Stepper("\(maxBulkStorageGB) GB",
                                 value: $maxBulkStorageGB,
@@ -143,21 +143,21 @@ struct DownloadsTab: View {
                     Button(role: .destructive) {
                         showDeleteAllConfirm = true
                     } label: {
-                        Label(tr("Delete All Downloads", "Alle Downloads löschen"), systemImage: "trash")
+                        Label(String(localized: "delete_all_downloads"), systemImage: "trash")
                     }
                 }
             }
         }
         .formStyle(.grouped)
         .confirmationDialog(
-            tr("Delete all downloaded songs?", "Alle Downloads löschen?"),
+            String(localized: "delete_all_downloaded_songs"),
             isPresented: $showDeleteAllConfirm,
             titleVisibility: .visible
         ) {
-            Button(tr("Delete", "Löschen"), role: .destructive) {
+            Button(String(localized: "delete"), role: .destructive) {
                 DownloadStore.shared.deleteAll()
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+            Button(String(localized: "cancel"), role: .cancel) {}
         }
         .sheet(isPresented: $showBulkSheet) {
             BulkDownloadSheet(maxBytes: Int64(maxBulkStorageGB) * 1_000_000_000)
@@ -186,7 +186,7 @@ struct BulkDownloadSheet: View {
                 Image(systemName: "square.and.arrow.down.on.square")
                     .font(.title2)
                     .foregroundStyle(.secondary)
-                Text(tr("Download Everything", "Alles herunterladen"))
+                Text(String(localized: "download_everything_2"))
                     .font(.title3).bold()
                 Spacer()
             }
@@ -198,14 +198,14 @@ struct BulkDownloadSheet: View {
             Form {
                 if let plan {
                     Section {
-                        LabeledContent(tr("Songs to download", "Songs"),
+                        LabeledContent(String(localized: "songs_to_download"),
                                        value: "\(plan.planned.count)")
-                        LabeledContent(tr("Estimated size", "Geschätzte Grösse"),
+                        LabeledContent(String(localized: "estimated_size"),
                                        value: ByteCountFormatter.string(fromByteCount: plan.totalBytes, countStyle: .file))
-                        LabeledContent(tr("Storage limit", "Limit"),
+                        LabeledContent(String(localized: "storage_limit"),
                                        value: ByteCountFormatter.string(fromByteCount: plan.limitBytes, countStyle: .file))
                         if !plan.skipped.isEmpty {
-                            LabeledContent(tr("Skipped (over limit)", "Übersprungen (über Limit)"),
+                            LabeledContent(String(localized: "skipped_over_limit"),
                                            value: "\(plan.skipped.count)")
                                 .foregroundStyle(.secondary)
                         }
@@ -213,27 +213,24 @@ struct BulkDownloadSheet: View {
 
                     if plan.isEmpty {
                         Section {
-                            Text(tr(
-                                "Nothing new fits in the configured storage limit.",
-                                "Es passt nichts Neues in das konfigurierte Speicher-Limit."
-                            ))
+                            Text(String(localized: "nothing_new_fits_in_the_configured_storage_limit"))
                             .foregroundStyle(.secondary)
                         }
                     } else {
-                        Section(tr("Order", "Reihenfolge")) {
-                            Label(tr("Frequently played first", "Häufig gespielt zuerst"),
+                        Section(String(localized: "order")) {
+                            Label(String(localized: "frequently_played_first"),
                                   systemImage: "chart.line.uptrend.xyaxis")
-                            Label(tr("Then recently played", "Dann kürzlich gespielt"),
+                            Label(String(localized: "then_recently_played"),
                                   systemImage: "clock.arrow.circlepath")
                             if enableFavorites {
-                                Label(tr("Then favorites", "Dann Favoriten"),
+                                Label(String(localized: "then_favorites"),
                                       systemImage: "heart")
                             }
                             if recapEnabled && !recapStore.recapPlaylistIds.isEmpty {
-                                Label(tr("Then recap playlists", "Dann Recap-Playlists"),
+                                Label(String(localized: "then_recap_playlists"),
                                       systemImage: "calendar.badge.clock")
                             }
-                            Label(tr("Then alphabetical by artist", "Dann alphabetisch"),
+                            Label(String(localized: "then_alphabetical_by_artist"),
                                   systemImage: "textformat")
                         }
                         .labelStyle(.titleAndIcon)
@@ -244,7 +241,7 @@ struct BulkDownloadSheet: View {
                     Section {
                         HStack {
                             Spacer()
-                            ProgressView(tr("Calculating…", "Berechne…"))
+                            ProgressView(String(localized: "calculating"))
                             Spacer()
                         }
                         .padding(.vertical, 24)
@@ -257,10 +254,10 @@ struct BulkDownloadSheet: View {
             Divider()
 
             HStack {
-                Button(tr("Cancel", "Abbrechen")) { dismiss() }
+                Button(String(localized: "cancel")) { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Spacer()
-                Button(tr("Start", "Starten")) {
+                Button(String(localized: "start")) {
                     guard let plan else { return }
                     downloadStore.enqueueSongs(plan.planned)
                     let plannedIds = Set(plan.planned.map(\.id))

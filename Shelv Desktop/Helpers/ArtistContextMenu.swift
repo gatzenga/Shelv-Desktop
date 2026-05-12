@@ -13,54 +13,54 @@ struct ArtistContextMenuModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content.contextMenu {
-            Button(tr("Play", "Abspielen")) {
+            Button(String(localized: "play")) {
                 Task {
                     do {
                         let songs = try await fetchSongs()
                         guard !songs.isEmpty else { return }
                         await MainActor.run { AudioPlayerService.shared.play(songs: songs) }
                     } catch {
-                        NotificationCenter.default.post(name: .showToast, object: tr("Playback failed", "Wiedergabe fehlgeschlagen"))
+                        NotificationCenter.default.post(name: .showToast, object: String(localized: "playback_failed"))
                     }
                 }
             }
-            Button(tr("Shuffle", "Zufällig abspielen")) {
+            Button(String(localized: "shuffle")) {
                 Task {
                     do {
                         let songs = try await fetchSongs()
                         guard !songs.isEmpty else { return }
                         await MainActor.run { AudioPlayerService.shared.playShuffled(songs: songs) }
                     } catch {
-                        NotificationCenter.default.post(name: .showToast, object: tr("Playback failed", "Wiedergabe fehlgeschlagen"))
+                        NotificationCenter.default.post(name: .showToast, object: String(localized: "playback_failed"))
                     }
                 }
             }
             Divider()
-            Button(tr("Play Next", "Als nächstes")) {
+            Button(String(localized: "play_next")) {
                 Task {
                     do {
                         let songs = try await fetchSongs()
                         guard !songs.isEmpty else { return }
                         await MainActor.run {
                             AudioPlayerService.shared.addPlayNext(songs)
-                            NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                            NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                         }
                     } catch {
-                        NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
+                        NotificationCenter.default.post(name: .showToast, object: String(localized: "action_failed"))
                     }
                 }
             }
-            Button(tr("Add to Queue", "Zur Warteschlange")) {
+            Button(String(localized: "add_to_queue")) {
                 Task {
                     do {
                         let songs = try await fetchSongs()
                         guard !songs.isEmpty else { return }
                         await MainActor.run {
                             AudioPlayerService.shared.addToUserQueue(songs)
-                            NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                            NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                         }
                     } catch {
-                        NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
+                        NotificationCenter.default.post(name: .showToast, object: String(localized: "action_failed"))
                     }
                 }
             }
@@ -68,13 +68,13 @@ struct ArtistContextMenuModifier: ViewModifier {
                 Divider()
                 if enableFavorites {
                     Button(libraryStore.isArtistStarred(artist)
-                           ? tr("Remove from Favorites", "Aus Favoriten entfernen")
-                           : tr("Add to Favorites", "Zu Favoriten hinzufügen")) {
+                           ? String(localized: "remove_from_favorites")
+                           : String(localized: "add_to_favorites")) {
                         Task { await libraryStore.toggleStarArtist(artist) }
                     }
                 }
                 if enablePlaylists {
-                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) {
+                    Button(String(localized: "add_to_playlist")) {
                         Task {
                             do {
                                 let songs = try await fetchSongs()
@@ -84,7 +84,7 @@ struct ArtistContextMenuModifier: ViewModifier {
                                     NotificationCenter.default.post(name: .addSongsToPlaylist, object: ids)
                                 }
                             } catch {
-                                NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
+                                NotificationCenter.default.post(name: .showToast, object: String(localized: "action_failed"))
                             }
                         }
                     }
@@ -93,30 +93,30 @@ struct ArtistContextMenuModifier: ViewModifier {
             if enableDownloads {
                 Divider()
                 if !offlineMode.isOffline {
-                    Button(tr("Download Artist", "Künstler herunterladen")) {
+                    Button(String(localized: "download_artist")) {
                         let stable = appState.serverStore.activeServer?.stableId ?? ""
                         Task { await DownloadService.shared.enqueueArtist(artist: artist, serverId: stable) }
-                        NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+                        NotificationCenter.default.post(name: .showToast, object: String(localized: "download_started"))
                     }
                 }
                 if downloadStore.artists.contains(where: { $0.name == artist.name }) {
                     Button(role: .destructive) {
                         showDeleteConfirm = true
                     } label: {
-                        Label { Text(tr("Delete Downloads", "Downloads löschen")) } icon: { DeleteDownloadIcon(tint: .red) }
+                        Label { Text(String(localized: "delete_downloads")) } icon: { DeleteDownloadIcon(tint: .red) }
                     }
                 }
             }
         }
-        .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteConfirm) {
-            Button(tr("Delete", "Löschen"), role: .destructive) {
+        .alert(String(localized: "delete_downloads_2"), isPresented: $showDeleteConfirm) {
+            Button(String(localized: "delete"), role: .destructive) {
                 if let match = downloadStore.artists.first(where: { $0.name == artist.name }) {
                     downloadStore.deleteArtist(match.artistId)
                 }
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+            Button(String(localized: "cancel"), role: .cancel) {}
         } message: {
-            Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
+            Text(String(localized: "the_downloads_will_be_removed_from_this_device"))
         }
     }
 

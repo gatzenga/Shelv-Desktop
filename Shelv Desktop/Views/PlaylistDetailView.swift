@@ -21,9 +21,9 @@ struct PlaylistDetailView: View {
                 let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
                 if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
                 downloadStore.markPlaylistDownloaded(id: playlist.id, name: playlist.name, songIds: songs.map { $0.id })
-                NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+                NotificationCenter.default.post(name: .showToast, object: String(localized: "download_started"))
             } label: {
-                Label(tr("Download", "Herunterladen"), systemImage: "arrow.down.circle")
+                Label(String(localized: "download"), systemImage: "arrow.down.circle")
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
@@ -32,9 +32,9 @@ struct PlaylistDetailView: View {
             Button {
                 let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
                 if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
-                NotificationCenter.default.post(name: .showToast, object: tr("Download started", "Download gestartet"))
+                NotificationCenter.default.post(name: .showToast, object: String(localized: "download_started"))
             } label: {
-                Label(tr("Rest (\(remaining))", "Rest (\(remaining))"), systemImage: "arrow.down.circle")
+                Label("Rest (\(remaining))", systemImage: "arrow.down.circle")
             }
             .buttonStyle(.bordered)
             .controlSize(.large)
@@ -43,7 +43,7 @@ struct PlaylistDetailView: View {
             Button {
                 showDeleteDownloadConfirm = true
             } label: {
-                Label(tr("Delete Downloads", "Downloads löschen"), systemImage: "arrow.down.circle")
+                Label(String(localized: "delete_downloads"), systemImage: "arrow.down.circle")
                     .foregroundStyle(.red)
             }
             .buttonStyle(.bordered)
@@ -101,11 +101,11 @@ struct PlaylistDetailView: View {
                 onPlayAt: { index in appState.player.play(songs: displayedSongs, startIndex: index) },
                 onPlayNext: { song in
                     appState.player.addPlayNext(song)
-                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
+                    NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_play_next"))
                 },
                 onAddToQueue: { song in
                     appState.player.addToUserQueue(song)
-                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
+                    NotificationCenter.default.post(name: .showToast, object: String(localized: "added_to_queue"))
                 },
                 onRemoveAt: { index in removeSong(at: index) },
                 onMove: moveSongs,
@@ -115,28 +115,28 @@ struct PlaylistDetailView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .navigationTitle(displayName.isEmpty ? playlist.name : displayName)
-        .searchable(text: $searchQuery, prompt: tr("Search songs…", "Titel suchen…"))
+        .searchable(text: $searchQuery, prompt: String(localized: "search_songs"))
         .toolbar(content: toolbarContent)
-        .alert(tr("Delete Downloads?", "Downloads löschen?"), isPresented: $showDeleteDownloadConfirm) {
-            Button(tr("Delete", "Löschen"), role: .destructive) {
+        .alert(String(localized: "delete_downloads_2"), isPresented: $showDeleteDownloadConfirm) {
+            Button(String(localized: "delete"), role: .destructive) {
                 for song in songs { downloadStore.deleteSong(song.id) }
                 downloadStore.unmarkPlaylistDownloaded(id: playlist.id)
-                NotificationCenter.default.post(name: .showToast, object: tr("Downloads deleted", "Downloads gelöscht"))
+                NotificationCenter.default.post(name: .showToast, object: String(localized: "downloads_deleted"))
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+            Button(String(localized: "cancel"), role: .cancel) {}
         } message: {
-            Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
+            Text(String(localized: "the_downloads_will_be_removed_from_this_device"))
         }
-        .alert(tr("Delete Playlist?", "Playlist löschen?"), isPresented: $showDeleteConfirm) {
-            Button(tr("Delete", "Löschen"), role: .destructive) {
+        .alert(String(localized: "delete_playlist"), isPresented: $showDeleteConfirm) {
+            Button(String(localized: "delete"), role: .destructive) {
                 Task {
                     await libraryStore.deletePlaylist(playlist)
                     appState.selectedPlaylist = nil
                 }
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) { }
+            Button(String(localized: "cancel"), role: .cancel) { }
         } message: {
-            Text(tr("This action cannot be undone.", "Diese Aktion kann nicht rückgängig gemacht werden."))
+            Text(String(localized: "this_action_cannot_be_undone"))
         }
         .task(id: playlist.id) {
             displayName = playlist.name
@@ -171,20 +171,20 @@ struct PlaylistDetailView: View {
                 isEditMode.toggle()
             } label: {
                 Label(
-                    isEditMode ? tr("Done", "Fertig") : tr("Edit", "Bearbeiten"),
+                    isEditMode ? String(localized: "done") : String(localized: "edit"),
                     systemImage: isEditMode ? "checkmark" : "pencil"
                 )
             }
-            .help(isEditMode ? tr("Finish Editing", "Bearbeiten beenden") : tr("Edit Playlist", "Playlist bearbeiten"))
+            .help(isEditMode ? String(localized: "finish_editing") : String(localized: "edit_playlist"))
             .disabled(isLoading)
         }
         ToolbarItem(placement: .primaryAction) {
             Button(role: .destructive) {
                 showDeleteConfirm = true
             } label: {
-                Label(tr("Delete", "Löschen"), systemImage: "trash")
+                Label(String(localized: "delete"), systemImage: "trash")
             }
-            .help(tr("Delete Playlist", "Playlist löschen"))
+            .help(String(localized: "delete_playlist_2"))
             .tint(.red)
         }
     }
@@ -202,10 +202,10 @@ struct PlaylistDetailView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     if isEditMode {
-                        TextField(tr("Name", "Name"), text: $editName)
+                        TextField(String(localized: "name"), text: $editName)
                             .font(.title.bold())
                             .textFieldStyle(.roundedBorder)
-                        TextField(tr("Comment (optional)", "Kommentar (optional)"), text: $editComment, axis: .vertical)
+                        TextField(String(localized: "comment_optional"), text: $editComment, axis: .vertical)
                             .font(.body)
                             .textFieldStyle(.roundedBorder)
                             .lineLimit(1...3)
@@ -221,7 +221,7 @@ struct PlaylistDetailView: View {
                     }
 
                     HStack(spacing: 10) {
-                        Text(tr("\(songs.count) Tracks", "\(songs.count) Titel"))
+                        Text(String(format: String(localized: "count_tracks_format"), songs.count))
                         if let dur = playlist.duration, dur > 0 {
                             Text("·")
                             Text(formatDuration(dur))
@@ -237,7 +237,7 @@ struct PlaylistDetailView: View {
                         Button {
                             if !songs.isEmpty { appState.player.play(songs: songs) }
                         } label: {
-                            Label(tr("Play", "Abspielen"), systemImage: "play.fill")
+                            Label(String(localized: "play"), systemImage: "play.fill")
                                 .frame(minWidth: 110)
                         }
                         .buttonStyle(.borderedProminent)
@@ -248,7 +248,7 @@ struct PlaylistDetailView: View {
                         Button {
                             if !songs.isEmpty { appState.player.playShuffled(songs: songs) }
                         } label: {
-                            Label(tr("Shuffle", "Zufällig abspielen"), systemImage: "shuffle")
+                            Label(String(localized: "shuffle"), systemImage: "shuffle")
                                 .frame(minWidth: 100)
                         }
                         .buttonStyle(.bordered)
@@ -335,7 +335,7 @@ struct PlaylistDetailView: View {
             } catch {
                 NotificationCenter.default.post(
                     name: .showToast,
-                    object: tr("Changes could not be saved", "Änderungen konnten nicht gespeichert werden")
+                    object: String(localized: "changes_could_not_be_saved")
                 )
                 await loadDetail()
             }
@@ -356,7 +356,7 @@ struct PlaylistDetailView: View {
         } catch {
             NotificationCenter.default.post(
                 name: .showToast,
-                object: tr("Order could not be saved", "Reihenfolge konnte nicht gespeichert werden")
+                object: String(localized: "order_could_not_be_saved")
             )
             await loadDetail()
         }
@@ -486,25 +486,25 @@ struct PlaylistTrackRow: View {
         .onHover { isHovered = $0 }
         .gesture(TapGesture(count: 2).onEnded { onPlay() })
         .contextMenu {
-            Button(tr("Play", "Abspielen")) { onPlay() }
+            Button(String(localized: "play")) { onPlay() }
             Divider()
-            Button(tr("Play Next", "Als nächstes")) { onPlayNext() }
-            Button(tr("Add to Queue", "Zur Warteschlange")) { onAddToQueue() }
+            Button(String(localized: "play_next")) { onPlayNext() }
+            Button(String(localized: "add_to_queue")) { onAddToQueue() }
             Divider()
-            Button(tr("Remove from Playlist", "Aus Playlist entfernen"), role: .destructive) {
+            Button(String(localized: "remove_from_playlist"), role: .destructive) {
                 onRemoveFromPlaylist()
             }
             if showFavorite || showPlaylist {
                 Divider()
                 if showFavorite {
                     Button(isStarred
-                           ? tr("Remove from Favorites", "Aus Favoriten entfernen")
-                           : tr("Add to Favorites", "Zu Favoriten hinzufügen")) {
+                           ? String(localized: "remove_from_favorites")
+                           : String(localized: "add_to_favorites")) {
                         onFavorite()
                     }
                 }
                 if showPlaylist {
-                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) {
+                    Button(String(localized: "add_to_playlist")) {
                         onAddToPlaylist()
                     }
                 }
@@ -536,7 +536,7 @@ struct PlaylistTracksList: View {
 
     var body: some View {
         if isLoading {
-            ProgressView(tr("Loading tracks…", "Titel laden…"))
+            ProgressView(String(localized: "loading_tracks"))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 60)
                 .listRowBackground(Color.clear)
@@ -545,9 +545,9 @@ struct PlaylistTracksList: View {
                 .deleteDisabled(true)
         } else if songs.isEmpty {
             ContentUnavailableView(
-                tr("Empty Playlist", "Leere Playlist"),
+                String(localized: "empty_playlist"),
                 systemImage: "music.note.list",
-                description: Text(tr("Add songs to this playlist.", "Füge Titel zu dieser Playlist hinzu."))
+                description: Text(String(localized: "add_songs_to_this_playlist"))
             )
             .padding(.vertical, 40)
             .listRowBackground(Color.clear)
@@ -556,7 +556,7 @@ struct PlaylistTracksList: View {
             .deleteDisabled(true)
         } else if tracksToShow.isEmpty {
             ContentUnavailableView(
-                tr("No Results", "Keine Ergebnisse"),
+                String(localized: "no_results"),
                 systemImage: "magnifyingglass"
             )
             .padding(.vertical, 40)

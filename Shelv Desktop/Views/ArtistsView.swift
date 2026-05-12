@@ -31,11 +31,11 @@ struct ArtistsView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                TextField(tr("Filter…", "Filtern…"), text: $searchText)
+                TextField(String(localized: "filter"), text: $searchText)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 220)
                 Spacer()
-                Picker(tr("Sort", "Sortieren"), selection: $vm.artistSortOption) {
+                Picker(String(localized: "sort"), selection: $vm.artistSortOption) {
                     ForEach(ArtistSortOption.allCases.filter { !offlineMode.isOffline || !$0.requiresServer }, id: \.self) { opt in
                         Text(opt.label).tag(opt)
                     }
@@ -50,14 +50,14 @@ struct ArtistsView: View {
                             .font(.title3)
                     }
                     .buttonStyle(.borderless)
-                    .help(vm.artistSortDirection == .ascending ? tr("Ascending", "Aufsteigend") : tr("Descending", "Absteigend"))
+                    .help(vm.artistSortDirection == .ascending ? String(localized: "ascending") : String(localized: "descending"))
                 }
                 Button { isGrid.toggle() } label: {
                     Image(systemName: isGrid ? "list.bullet" : "square.grid.2x2")
                         .font(.title3)
                 }
                 .buttonStyle(.borderless)
-                .help(isGrid ? tr("List view", "Listenansicht") : tr("Grid view", "Rasteransicht"))
+                .help(isGrid ? String(localized: "list_view") : String(localized: "grid_view"))
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 10)
@@ -66,7 +66,7 @@ struct ArtistsView: View {
             Divider()
 
             if vm.isLoadingArtists {
-                ProgressView(tr("Loading artists…", "Künstler laden…"))
+                ProgressView(String(localized: "loading_artists"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if isGrid {
                 ScrollView {
@@ -115,7 +115,7 @@ struct ArtistsView: View {
                     .padding()
             }
         }
-        .navigationTitle(tr("Artists (\(displayArtists.count))", "Künstler (\(displayArtists.count))"))
+        .navigationTitle(String(format: String(localized: "artists_count_format"), displayArtists.count))
         .onChange(of: offlineMode.isOffline) { _, isOffline in
             if isOffline && vm.artistSortOption.requiresServer {
                 vm.artistSortOption = .name
@@ -157,7 +157,7 @@ struct ArtistGridItem: View {
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
             if let count = artist.albumCount {
-                Text(tr("\(count) Albums", "\(count) Alben"))
+                Text(String(format: String(localized: "count_albums_format"), count))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -186,7 +186,7 @@ struct ArtistListRow: View {
                     .font(.body)
                     .lineLimit(1)
                 if let count = artist.albumCount {
-                    Text(tr("\(count) Albums", "\(count) Alben"))
+                    Text(String(format: String(localized: "count_albums_format"), count))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

@@ -20,7 +20,7 @@ struct LyricsPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(tr("Lyrics", "Lyrics"))
+                Text(String(localized: "lyrics"))
                     .font(.headline)
                 Spacer()
                 if let source = lyricsStore.currentLyrics?.source, source != "none" {
@@ -66,16 +66,16 @@ struct LyricsPanel: View {
             placeholderView(icon: nil, isLoading: true, text: "")
         } else if let record = lyricsStore.currentLyrics {
             if record.isInstrumental {
-                placeholderView(icon: "pianokeys", isLoading: false, text: tr("Instrumental", "Instrumental"))
+                placeholderView(icon: "pianokeys", isLoading: false, text: String(localized: "instrumental"))
             } else if record.isSynced, !parsedLines.isEmpty {
                 syncedView
             } else if let plain = record.plainText, !plain.isEmpty {
                 plainView(plain)
             } else {
-                placeholderView(icon: "text.page.slash", isLoading: false, text: tr("No lyrics available", "Keine Lyrics verfügbar"))
+                placeholderView(icon: "text.page.slash", isLoading: false, text: String(localized: "no_lyrics_available"))
             }
         } else {
-            placeholderView(icon: "text.page.slash", isLoading: false, text: tr("No lyrics available", "Keine Lyrics verfügbar"))
+            placeholderView(icon: "text.page.slash", isLoading: false, text: String(localized: "no_lyrics_available"))
         }
     }
 

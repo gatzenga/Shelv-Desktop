@@ -8,9 +8,9 @@ struct RecapRegistryView: View {
 
     var body: some View {
         Form {
-            Section(tr("Registry", "Registry")) {
+            Section(String(localized: "registry")) {
                 if recapStore.entries.isEmpty {
-                    Text(tr("No recap playlists yet.", "Noch keine Recap-Playlists."))
+                    Text(String(localized: "no_recap_playlists_yet"))
                         .foregroundStyle(.secondary).font(.subheadline)
                 } else {
                     ForEach(recapStore.entries, id: \.playlistId) { entry in
@@ -36,7 +36,7 @@ struct RecapRegistryView: View {
                             }
                             .buttonStyle(.borderless)
                             .foregroundStyle(.red)
-                            .help(tr("Delete", "Löschen"))
+                            .help(String(localized: "delete"))
                         }
                         .padding(.vertical, 2)
                     }
@@ -46,7 +46,7 @@ struct RecapRegistryView: View {
         .formStyle(.grouped)
         .padding()
         .frame(width: 540, height: 580)
-        .navigationTitle(tr("Registry", "Registry"))
+        .navigationTitle(String(localized: "registry"))
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button {
@@ -56,7 +56,7 @@ struct RecapRegistryView: View {
                 }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("Done", "Fertig")) { dismiss() }
+                Button(String(localized: "done")) { dismiss() }
             }
         }
         .task { await recapStore.refreshWithCleanup(serverId: serverId) }

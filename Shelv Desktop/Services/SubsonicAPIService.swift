@@ -82,7 +82,7 @@ class SubsonicAPIService: ObservableObject {
             if body.error?.code == 70 {
                 throw APIError.notFound
             }
-            throw APIError.serverError(body.error?.message ?? tr("Unknown error", "Unbekannter Fehler"))
+            throw APIError.serverError(body.error?.message ?? String(localized: "unknown_error"))
         }
         return body
     }
@@ -435,19 +435,19 @@ enum APIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConfigured:
-            return tr("No server configured.", "Kein Server konfiguriert.")
+            return String(localized: "no_server_configured")
         case .invalidURL:
-            return tr("Invalid server URL.", "Ungültige Server-URL.")
+            return String(localized: "invalid_server_url")
         case .httpError:
-            return tr("HTTP error from server.", "HTTP-Fehler beim Server.")
+            return String(localized: "http_error_from_server")
         case .decodingError(let e):
-            return tr("Could not read response: \(e.localizedDescription)", "Antwort konnte nicht gelesen werden: \(e.localizedDescription)")
+            return String(format: String(localized: "could_not_read_response_format"), e.localizedDescription)
         case .serverError(let msg):
-            return tr("Server error: \(msg)", "Server-Fehler: \(msg)")
+            return String(format: String(localized: "server_error_format"), msg)
         case .notFound:
-            return tr("Not found.", "Nicht gefunden.")
+            return String(localized: "not_found")
         case .missingData:
-            return tr("Unexpected empty response.", "Unerwartete leere Antwort.")
+            return String(localized: "unexpected_empty_response")
         }
     }
 }

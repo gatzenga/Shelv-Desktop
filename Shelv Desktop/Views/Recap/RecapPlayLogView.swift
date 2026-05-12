@@ -17,14 +17,14 @@ struct RecapPlayLogView: View {
     var body: some View {
         Form {
             Section {
-                LabeledContent(tr("Total plays", "Gesamte Plays")) {
+                LabeledContent(String(localized: "total_plays")) {
                     Text("\(logCount)").foregroundStyle(.secondary).monospacedDigit()
                 }
             }
 
-            Section(tr("Recent plays", "Letzte Plays")) {
+            Section(String(localized: "recent_plays")) {
                 if logs.isEmpty {
-                    Text(tr("No plays recorded yet.", "Noch keine Plays aufgezeichnet."))
+                    Text(String(localized: "no_plays_recorded_yet"))
                         .foregroundStyle(.secondary).font(.subheadline)
                 } else {
                     ForEach(logs, id: \.uuid) { log in
@@ -53,7 +53,7 @@ struct RecapPlayLogView: View {
                                 }
                                 .buttonStyle(.borderless)
                                 .foregroundStyle(.red)
-                                .help(tr("Delete", "Löschen"))
+                                .help(String(localized: "delete"))
                             }
                         }
                         .padding(.vertical, 2)
@@ -64,7 +64,7 @@ struct RecapPlayLogView: View {
         .formStyle(.grouped)
         .padding()
         .frame(width: 540, height: 580)
-        .navigationTitle(tr("Recent plays", "Letzte Plays"))
+        .navigationTitle(String(localized: "recent_plays"))
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button { Task { await refresh() } } label: {
@@ -72,7 +72,7 @@ struct RecapPlayLogView: View {
                 }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(tr("Done", "Fertig")) { dismiss() }
+                Button(String(localized: "done")) { dismiss() }
             }
         }
         .task { await refresh() }

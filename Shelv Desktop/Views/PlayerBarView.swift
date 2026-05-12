@@ -93,7 +93,7 @@ struct PlayerBarView: View {
                             .lineLimit(1)
                         }
                     } else {
-                        Text(tr("No track", "Kein Titel"))
+                        Text(String(localized: "no_track"))
                             .font(.body)
                             .foregroundStyle(.secondary)
                     }
@@ -113,7 +113,7 @@ struct PlayerBarView: View {
                                         .foregroundStyle(AnyShapeStyle(.primary.opacity(0.35)))
                                 }
                                 .buttonStyle(.plain)
-                                .help(tr("Add to Playlist…", "Zur Playlist hinzufügen…"))
+                                .help(String(localized: "add_to_playlist"))
                             } else {
                                 Image(systemName: "music.note.list")
                                     .hidden()
@@ -127,7 +127,7 @@ struct PlayerBarView: View {
                         }
                         .buttonStyle(.plain)
                         .font(.title2)
-                        .help(player.isShuffled ? tr("Shuffle off", "Zufallsmodus aus") : tr("Shuffle on", "Zufallsmodus an"))
+                        .help(player.isShuffled ? String(localized: "shuffle_off") : String(localized: "shuffle_on"))
 
                         Button { player.playPrevious() } label: {
                             Image(systemName: "backward.fill")
@@ -181,8 +181,8 @@ struct PlayerBarView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .help(isStarred
-                                      ? tr("Remove from Favorites", "Aus Favoriten entfernen")
-                                      : tr("Add to Favorites", "Zu Favoriten hinzufügen"))
+                                      ? String(localized: "remove_from_favorites")
+                                      : String(localized: "add_to_favorites"))
                             } else {
                                 Image(systemName: "heart")
                                     .hidden()
@@ -231,7 +231,7 @@ struct PlayerBarView: View {
                                 .controlSize(.mini)
                                 .frame(width: 14, height: 14)
                         }
-                        Text(player.showBufferingIndicator ? tr("Loading…", "Lädt…") : (audioBadge ?? ""))
+                        Text(player.showBufferingIndicator ? String(localized: "loading_2") : (audioBadge ?? ""))
                             .monospacedDigit()
                     }
                     .font(.caption)
@@ -246,7 +246,7 @@ struct PlayerBarView: View {
                     }
                     .buttonStyle(.plain)
                     .frame(width: 20, height: 20)
-                    .help(tr("Lyrics", "Lyrics"))
+                    .help(String(localized: "lyrics"))
                     .popover(isPresented: $showLyrics) {
                         LyricsPanel()
                             .environmentObject(lyricsStore)
@@ -255,7 +255,7 @@ struct PlayerBarView: View {
 
                     AVRoutePickerViewRepresentable()
                         .frame(width: 20, height: 20)
-                        .help(tr("AirPlay", "AirPlay"))
+                        .help(String(localized: "airplay"))
 
                     Image(systemName: player.volume < 0.01 ? "speaker.slash.fill"
                                     : player.volume < 0.5  ? "speaker.wave.1.fill"
@@ -300,9 +300,9 @@ struct PlayerBarView: View {
 
     private var repeatHelpText: String {
         switch player.repeatMode {
-        case .off: return tr("Repeat: Off", "Wiederholen: Aus")
-        case .all: return tr("Repeat: All", "Wiederholen: Alle")
-        case .one: return tr("Repeat: One", "Wiederholen: Einer")
+        case .off: return String(localized: "repeat_off")
+        case .all: return String(localized: "repeat_all")
+        case .one: return String(localized: "repeat_one")
         }
     }
 
@@ -365,7 +365,7 @@ struct QueuePopover: View {
         VStack(spacing: 0) {
             HStack {
                 HStack(spacing: 6) {
-                    Text(tr("Queue", "Warteschlange")).font(.headline)
+                    Text(String(localized: "queue")).font(.headline)
                     if totalCount > 0 {
                         Text("\(totalCount)")
                             .font(.caption.monospacedDigit())
@@ -377,7 +377,7 @@ struct QueuePopover: View {
                 }
                 Spacer()
                 if hasUpcoming {
-                    Button(tr("Clear", "Leeren")) { showClearConfirm = true }
+                    Button(String(localized: "clear")) { showClearConfirm = true }
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .buttonStyle(.plain)
@@ -391,33 +391,33 @@ struct QueuePopover: View {
             if !hasUpcoming {
                 VStack(spacing: 10) {
                     Image(systemName: "list.bullet").font(.title2).foregroundStyle(.tertiary)
-                    Text(tr("No upcoming tracks", "Keine weiteren Titel")).font(.callout).foregroundStyle(.secondary)
+                    Text(String(localized: "no_upcoming_tracks")).font(.callout).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
                     if player.isShuffled {
-                        queueSection(tr("Play Next", "Als nächstes"), entries: playNextEntries,
+                        queueSection(String(localized: "play_next"), entries: playNextEntries,
                             onTap:   { player.jumpToPlayNextTrack(at: $0.index) },
                             onDelete: { player.removeFromPlayNextQueue(at: $0.index) },
                             onMove:  { player.moveInPlayNextQueue(from: $0, to: $1) })
 
-                        queueSection(tr("Shuffled Queue", "Gemischte Warteschlange"), entries: albumEntries,
+                        queueSection(String(localized: "shuffled_queue"), entries: albumEntries,
                             onTap:   { player.jumpToAlbumTrack(at: $0.index) },
                             onDelete: { player.removeFromQueue(at: $0.index) },
                             onMove:  { player.moveInAlbumQueue(from: $0, to: $1) })
                     } else {
-                        queueSection(tr("Play Next", "Als nächstes"), entries: playNextEntries,
+                        queueSection(String(localized: "play_next"), entries: playNextEntries,
                             onTap:   { player.jumpToPlayNextTrack(at: $0.index) },
                             onDelete: { player.removeFromPlayNextQueue(at: $0.index) },
                             onMove:  { player.moveInPlayNextQueue(from: $0, to: $1) })
 
-                        queueSection(tr("Up Next", "Nächste Titel"), entries: albumEntries,
+                        queueSection(String(localized: "up_next"), entries: albumEntries,
                             onTap:   { player.jumpToAlbumTrack(at: $0.index) },
                             onDelete: { player.removeFromQueue(at: $0.index) },
                             onMove:  { player.moveInAlbumQueue(from: $0, to: $1) })
 
-                        queueSection(tr("Your Queue", "Deine Warteschlange"), entries: userQueueEntries,
+                        queueSection(String(localized: "your_queue"), entries: userQueueEntries,
                             onTap:   { player.jumpToUserQueueTrack(at: $0.index) },
                             onDelete: { player.removeFromUserQueue(at: $0.index) },
                             onMove:  { player.moveInUserQueue(from: $0, to: $1) })
@@ -426,16 +426,13 @@ struct QueuePopover: View {
                 .listStyle(.inset)
             }
         }
-        .alert(tr("Clear Queue?", "Warteschlange leeren?"), isPresented: $showClearConfirm) {
-            Button(tr("Clear", "Leeren"), role: .destructive) {
+        .alert(String(localized: "clear_queue"), isPresented: $showClearConfirm) {
+            Button(String(localized: "clear"), role: .destructive) {
                 player.clearAllQueues()
             }
-            Button(tr("Cancel", "Abbrechen"), role: .cancel) {}
+            Button(String(localized: "cancel"), role: .cancel) {}
         } message: {
-            Text(tr(
-                "All upcoming songs will be removed from the queue.",
-                "Alle kommenden Songs werden aus der Warteschlange entfernt."
-            ))
+            Text(String(localized: "all_upcoming_songs_will_be_removed_from_the_queue"))
         }
     }
 

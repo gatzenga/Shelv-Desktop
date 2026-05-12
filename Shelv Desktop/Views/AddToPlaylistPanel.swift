@@ -17,7 +17,7 @@ struct AddToPlaylistPanel: View {
         VStack(spacing: 0) {
             // Title bar
             HStack {
-                Text(tr("Add to Playlist", "Zu Playlist hinzufügen"))
+                Text(String(localized: "add_to_playlist_2"))
                     .font(.headline)
                 Spacer()
                 Button {
@@ -35,7 +35,7 @@ struct AddToPlaylistPanel: View {
             List {
                 // Existing playlists
                 if !nonRecapPlaylists.isEmpty {
-                    Section(tr("Existing Playlists", "Bestehende Playlists")) {
+                    Section(String(localized: "existing_playlists")) {
                         ForEach(nonRecapPlaylists) { playlist in
                             Button {
                                 Task {
@@ -56,7 +56,7 @@ struct AddToPlaylistPanel: View {
                                             .font(.callout)
                                             .foregroundStyle(.primary)
                                         if let count = playlist.songCount {
-                                            Text(tr("\(count) Tracks", "\(count) Titel"))
+                                            Text(String(format: String(localized: "count_tracks_format"), count))
                                                 .font(.caption2)
                                                 .foregroundStyle(.secondary)
                                         }
@@ -71,11 +71,11 @@ struct AddToPlaylistPanel: View {
                 }
 
                 // Create new
-                Section(tr("Create New", "Neu erstellen")) {
+                Section(String(localized: "create_new")) {
                     HStack {
-                        TextField(tr("Playlist name", "Name der Playlist"), text: $newPlaylistName)
+                        TextField(String(localized: "playlist_name"), text: $newPlaylistName)
                             .textFieldStyle(.plain)
-                        Button(tr("Create", "Erstellen")) {
+                        Button(String(localized: "create")) {
                             let name = newPlaylistName.trimmingCharacters(in: .whitespaces)
                             guard !name.isEmpty else { return }
                             Task {
