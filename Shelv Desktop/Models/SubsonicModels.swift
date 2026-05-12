@@ -253,7 +253,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .albums:   return tr("Albums", "Alben")
         case .artists:  return tr("Artists", "Künstler")
         case .favorites: return tr("Favorites", "Favoriten")
-        case .search:   return tr("Search", "Suche")
+        case .search:   return tr("Search", "Suchen")
         }
     }
 
@@ -278,7 +278,7 @@ enum LibrarySortOption: String, CaseIterable {
         switch self {
         case .name:          return tr("Name", "Name")
         case .mostPlayed:    return tr("Most Played", "Meist gespielt")
-        case .recentlyAdded: return tr("Recently Added", "Zuletzt hinzugefügt")
+        case .recentlyAdded: return tr("Recently Added", "Kürzlich hinzugefügt")
         case .year:          return tr("Year", "Jahr")
         }
     }

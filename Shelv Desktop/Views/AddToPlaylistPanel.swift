@@ -17,7 +17,7 @@ struct AddToPlaylistPanel: View {
         VStack(spacing: 0) {
             // Title bar
             HStack {
-                Text(tr("Add to Playlist", "Zu Wiedergabeliste hinzufügen"))
+                Text(tr("Add to Playlist", "Zu Playlist hinzufügen"))
                     .font(.headline)
                 Spacer()
                 Button {
@@ -35,7 +35,7 @@ struct AddToPlaylistPanel: View {
             List {
                 // Existing playlists
                 if !nonRecapPlaylists.isEmpty {
-                    Section(tr("Existing Playlists", "Bestehende Wiedergabelisten")) {
+                    Section(tr("Existing Playlists", "Bestehende Playlists")) {
                         ForEach(nonRecapPlaylists) { playlist in
                             Button {
                                 Task {
@@ -73,7 +73,7 @@ struct AddToPlaylistPanel: View {
                 // Create new
                 Section(tr("Create New", "Neu erstellen")) {
                     HStack {
-                        TextField(tr("Playlist name", "Name der Wiedergabeliste"), text: $newPlaylistName)
+                        TextField(tr("Playlist name", "Name der Playlist"), text: $newPlaylistName)
                             .textFieldStyle(.plain)
                         Button(tr("Create", "Erstellen")) {
                             let name = newPlaylistName.trimmingCharacters(in: .whitespaces)

@@ -97,7 +97,7 @@ struct FavoritesView: View {
                                         NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
                                     } onAddToQueue: {
                                         appState.player.addToUserQueue(song)
-                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                                     } onRemoveFavorite: {
                                         Task { await libraryStore.toggleStarSong(song) }
                                     } onAddToPlaylist: {
@@ -200,12 +200,12 @@ struct FavoriteSongRow: View {
         .contextMenu {
             Button(tr("Play", "Abspielen")) { onPlay() }
             Divider()
-            Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
-            Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) { onAddToQueue() }
+            Button(tr("Play Next", "Als nächstes")) { onPlayNext() }
+            Button(tr("Add to Queue", "Zur Warteschlange")) { onAddToQueue() }
             Divider()
             Button(tr("Remove from Favorites", "Aus Favoriten entfernen")) { onRemoveFavorite() }
             if showPlaylist {
-                Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) { onAddToPlaylist() }
+                Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) { onAddToPlaylist() }
             }
         }
     }

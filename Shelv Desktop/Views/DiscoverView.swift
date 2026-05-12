@@ -185,7 +185,7 @@ struct DiscoverView: View {
                 }
 
                 if vm.isLoading {
-                    ProgressView(tr("Loading…", "Laden…"))
+                    ProgressView(tr("Loading…", "Wird geladen…"))
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 40)
                 } else {

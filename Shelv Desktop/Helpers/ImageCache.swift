@@ -55,7 +55,7 @@ struct CoverArtView: View {
         .task(id: stableKey) { await loadImage() }
     }
 
-    // Stabiler Schlüssel aus Cover-ID + Größe + Host — ohne rotierende Auth-Tokens.
+    // Stabiler Schlüssel aus Cover-ID + Grösse + Host — ohne rotierende Auth-Tokens.
     private var stableKey: String {
         guard let url else { return "" }
         return ImageCacheService.stableCacheKey(for: url)
@@ -155,7 +155,7 @@ actor ImageCacheService {
                 mem.setObject(img, forKey: nsKey, cost: cost)
                 return img
             }
-            // Fallback: gleiche Cover-ID, andere gecachte Größe
+            // Fallback: gleiche Cover-ID, andere gecachte Grösse
             guard let lastUnderscore = key.lastIndex(of: "_") else { return nil }
             let idPrefix = String(key[key.startIndex..<lastUnderscore]) + "_"
             let fallbackSizes = [200, 320, 160, 120, 240, 80, 100, 50]

@@ -98,7 +98,7 @@ struct ArtistDetailView: View {
                                     Button {
                                         Task { await vm.playAll(player: appState.player, albums: displayAlbums, shuffle: true) }
                                     } label: {
-                                        Label(tr("Shuffle", "Zufall"), systemImage: "shuffle")
+                                        Label(tr("Shuffle", "Zufällig abspielen"), systemImage: "shuffle")
                                             .frame(minWidth: 100)
                                     }
                                     .buttonStyle(.bordered)
@@ -124,7 +124,7 @@ struct ArtistDetailView: View {
                                             let songs = await vm.fetchSongs(albums: displayAlbums)
                                             guard !songs.isEmpty else { return }
                                             appState.player.addToUserQueue(songs)
-                                            NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                            NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                                         }
                                     } label: {
                                         Label(tr("Add to Queue", "Zur Warteschlange"), systemImage: "text.badge.plus")

@@ -74,7 +74,7 @@ struct RecapDetailView: View {
                             Button {
                                 AudioPlayerService.shared.playShuffled(songs: songs.map { $0.song })
                             } label: {
-                                Label(tr("Shuffle", "Zufällig"), systemImage: "shuffle")
+                                Label(tr("Shuffle", "Zufällig abspielen"), systemImage: "shuffle")
                                     .frame(minWidth: 100)
                             }
                             .buttonStyle(.bordered)
@@ -105,13 +105,13 @@ struct RecapDetailView: View {
                                 AudioPlayerService.shared.play(songs: songs.map { $0.song }, startIndex: idx)
                             }
                             Divider()
-                            Button(tr("Play Next", "Als nächstes abspielen")) {
+                            Button(tr("Play Next", "Als nächstes")) {
                                 AudioPlayerService.shared.addPlayNext(entry.song)
                                 NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
                             }
-                            Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) {
+                            Button(tr("Add to Queue", "Zur Warteschlange")) {
                                 AudioPlayerService.shared.addToUserQueue(entry.song)
-                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                             }
                             if enableFavorites || enablePlaylists {
                                 Divider()
@@ -144,7 +144,7 @@ struct RecapDetailView: View {
                     .disabled(songs.isEmpty)
                     Button(tr("Add to Queue", "Zur Warteschlange")) {
                         AudioPlayerService.shared.addToUserQueue(songs.map { $0.song })
-                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                     }
                     .disabled(songs.isEmpty)
                     Divider()

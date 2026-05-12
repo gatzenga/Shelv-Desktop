@@ -105,7 +105,7 @@ struct PlaylistDetailView: View {
                 },
                 onAddToQueue: { song in
                     appState.player.addToUserQueue(song)
-                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                 },
                 onRemoveAt: { index in removeSong(at: index) },
                 onMove: moveSongs,
@@ -127,7 +127,7 @@ struct PlaylistDetailView: View {
         } message: {
             Text(tr("The downloads will be removed from this device.", "Die Downloads werden von diesem Gerät entfernt."))
         }
-        .alert(tr("Delete Playlist?", "Wiedergabeliste löschen?"), isPresented: $showDeleteConfirm) {
+        .alert(tr("Delete Playlist?", "Playlist löschen?"), isPresented: $showDeleteConfirm) {
             Button(tr("Delete", "Löschen"), role: .destructive) {
                 Task {
                     await libraryStore.deletePlaylist(playlist)
@@ -175,7 +175,7 @@ struct PlaylistDetailView: View {
                     systemImage: isEditMode ? "checkmark" : "pencil"
                 )
             }
-            .help(isEditMode ? tr("Finish Editing", "Bearbeiten beenden") : tr("Edit Playlist", "Wiedergabeliste bearbeiten"))
+            .help(isEditMode ? tr("Finish Editing", "Bearbeiten beenden") : tr("Edit Playlist", "Playlist bearbeiten"))
             .disabled(isLoading)
         }
         ToolbarItem(placement: .primaryAction) {
@@ -184,7 +184,7 @@ struct PlaylistDetailView: View {
             } label: {
                 Label(tr("Delete", "Löschen"), systemImage: "trash")
             }
-            .help(tr("Delete Playlist", "Wiedergabeliste löschen"))
+            .help(tr("Delete Playlist", "Playlist löschen"))
             .tint(.red)
         }
     }
@@ -248,7 +248,7 @@ struct PlaylistDetailView: View {
                         Button {
                             if !songs.isEmpty { appState.player.playShuffled(songs: songs) }
                         } label: {
-                            Label(tr("Shuffle", "Zufall"), systemImage: "shuffle")
+                            Label(tr("Shuffle", "Zufällig abspielen"), systemImage: "shuffle")
                                 .frame(minWidth: 100)
                         }
                         .buttonStyle(.bordered)
@@ -488,10 +488,10 @@ struct PlaylistTrackRow: View {
         .contextMenu {
             Button(tr("Play", "Abspielen")) { onPlay() }
             Divider()
-            Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
-            Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) { onAddToQueue() }
+            Button(tr("Play Next", "Als nächstes")) { onPlayNext() }
+            Button(tr("Add to Queue", "Zur Warteschlange")) { onAddToQueue() }
             Divider()
-            Button(tr("Remove from Playlist", "Aus Wiedergabeliste entfernen"), role: .destructive) {
+            Button(tr("Remove from Playlist", "Aus Playlist entfernen"), role: .destructive) {
                 onRemoveFromPlaylist()
             }
             if showFavorite || showPlaylist {
@@ -504,7 +504,7 @@ struct PlaylistTrackRow: View {
                     }
                 }
                 if showPlaylist {
-                    Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) {
+                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) {
                         onAddToPlaylist()
                     }
                 }
@@ -545,9 +545,9 @@ struct PlaylistTracksList: View {
                 .deleteDisabled(true)
         } else if songs.isEmpty {
             ContentUnavailableView(
-                tr("Empty Playlist", "Leere Wiedergabeliste"),
+                tr("Empty Playlist", "Leere Playlist"),
                 systemImage: "music.note.list",
-                description: Text(tr("Add songs to this playlist.", "Füge Titel zu dieser Wiedergabeliste hinzu."))
+                description: Text(tr("Add songs to this playlist.", "Füge Titel zu dieser Playlist hinzu."))
             )
             .padding(.vertical, 40)
             .listRowBackground(Color.clear)

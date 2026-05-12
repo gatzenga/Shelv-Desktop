@@ -113,7 +113,7 @@ struct PlayerBarView: View {
                                         .foregroundStyle(AnyShapeStyle(.primary.opacity(0.35)))
                                 }
                                 .buttonStyle(.plain)
-                                .help(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…"))
+                                .help(tr("Add to Playlist…", "Zur Playlist hinzufügen…"))
                             } else {
                                 Image(systemName: "music.note.list")
                                     .hidden()

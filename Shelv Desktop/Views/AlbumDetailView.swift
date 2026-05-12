@@ -115,7 +115,7 @@ struct AlbumDetailView: View {
                             Button {
                                 appState.player.playShuffled(songs: displaySongs)
                             } label: {
-                                Label(tr("Shuffle", "Zufall"), systemImage: "shuffle")
+                                Label(tr("Shuffle", "Zufällig abspielen"), systemImage: "shuffle")
                                     .frame(minWidth: 100)
                             }
                             .buttonStyle(.bordered)
@@ -134,7 +134,7 @@ struct AlbumDetailView: View {
 
                             Button {
                                 appState.player.addToUserQueue(displaySongs)
-                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                             } label: {
                                 Label(tr("Add to Queue", "Zur Warteschlange"), systemImage: "text.badge.plus")
                             }
@@ -213,7 +213,7 @@ struct AlbumDetailView: View {
                                         NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
                                     } onAddToQueue: {
                                         appState.player.addToUserQueue(song)
-                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                                     } onFavorite: {
                                         Task { await libraryStore.toggleStarSong(song) }
                                     } onAddToPlaylist: {
@@ -236,7 +236,7 @@ struct AlbumDetailView: View {
                                     NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
                                 } onAddToQueue: {
                                     appState.player.addToUserQueue(song)
-                                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                                 } onFavorite: {
                                     Task { await libraryStore.toggleStarSong(song) }
                                 } onAddToPlaylist: {
@@ -413,8 +413,8 @@ struct TrackRow: View {
         .contextMenu {
             Button(tr("Play", "Abspielen")) { onPlay() }
             Divider()
-            Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
-            Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) { onAddToQueue() }
+            Button(tr("Play Next", "Als nächstes")) { onPlayNext() }
+            Button(tr("Add to Queue", "Zur Warteschlange")) { onAddToQueue() }
             if showFavorite || showPlaylist {
                 Divider()
                 if showFavorite, let onFavorite {
@@ -425,7 +425,7 @@ struct TrackRow: View {
                     }
                 }
                 if showPlaylist, let onAddToPlaylist {
-                    Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) {
+                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) {
                         onAddToPlaylist()
                     }
                 }

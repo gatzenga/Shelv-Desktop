@@ -42,7 +42,7 @@ struct RecapMarkersLogView: View {
         Form {
             Section {
                 if weekly.isEmpty {
-                    Text(tr("Loading…", "Lade…"))
+                    Text(tr("Loading…", "Wird geladen…"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {

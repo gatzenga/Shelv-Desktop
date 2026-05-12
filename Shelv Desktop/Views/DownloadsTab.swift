@@ -48,7 +48,7 @@ private struct DownloadStatsSection: View {
                     LabeledContent(tr("Free on device", "Frei auf Gerät"),
                                    value: ByteCountFormatter.string(fromByteCount: free, countStyle: .file))
                 }
-                LabeledContent(tr("Songs", "Songs"), value: "\(stats.songCount)")
+                LabeledContent(tr("Songs", "Titel"), value: "\(stats.songCount)")
                 LabeledContent(tr("Albums", "Alben"), value: "\(stats.albumCount)")
                 LabeledContent(tr("Artists", "Künstler"), value: "\(stats.artistCount)")
             } else {
@@ -200,7 +200,7 @@ struct BulkDownloadSheet: View {
                     Section {
                         LabeledContent(tr("Songs to download", "Songs"),
                                        value: "\(plan.planned.count)")
-                        LabeledContent(tr("Estimated size", "Geschätzte Größe"),
+                        LabeledContent(tr("Estimated size", "Geschätzte Grösse"),
                                        value: ByteCountFormatter.string(fromByteCount: plan.totalBytes, countStyle: .file))
                         LabeledContent(tr("Storage limit", "Limit"),
                                        value: ByteCountFormatter.string(fromByteCount: plan.limitBytes, countStyle: .file))

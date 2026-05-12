@@ -36,7 +36,7 @@ struct ArtistContextMenuModifier: ViewModifier {
                 }
             }
             Divider()
-            Button(tr("Play Next", "Als nächstes abspielen")) {
+            Button(tr("Play Next", "Als nächstes")) {
                 Task {
                     do {
                         let songs = try await fetchSongs()
@@ -50,14 +50,14 @@ struct ArtistContextMenuModifier: ViewModifier {
                     }
                 }
             }
-            Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) {
+            Button(tr("Add to Queue", "Zur Warteschlange")) {
                 Task {
                     do {
                         let songs = try await fetchSongs()
                         guard !songs.isEmpty else { return }
                         await MainActor.run {
                             AudioPlayerService.shared.addToUserQueue(songs)
-                            NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                            NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                         }
                     } catch {
                         NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
@@ -74,7 +74,7 @@ struct ArtistContextMenuModifier: ViewModifier {
                     }
                 }
                 if enablePlaylists {
-                    Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) {
+                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) {
                         Task {
                             do {
                                 let songs = try await fetchSongs()

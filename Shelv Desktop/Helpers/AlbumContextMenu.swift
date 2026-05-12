@@ -23,16 +23,16 @@ struct AlbumContextMenuModifier: ViewModifier {
                 }
             }
             Divider()
-            Button(tr("Play Next", "Als nächstes abspielen")) {
+            Button(tr("Play Next", "Als nächstes")) {
                 withAlbumSongs(errorMsg: tr("Action failed", "Aktion fehlgeschlagen")) { songs in
                     AudioPlayerService.shared.addPlayNext(songs)
                     NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
                 }
             }
-            Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) {
+            Button(tr("Add to Queue", "Zur Warteschlange")) {
                 withAlbumSongs(errorMsg: tr("Action failed", "Aktion fehlgeschlagen")) { songs in
                     AudioPlayerService.shared.addToUserQueue(songs)
-                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                    NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                 }
             }
             if enableFavorites || enablePlaylists {
@@ -45,7 +45,7 @@ struct AlbumContextMenuModifier: ViewModifier {
                     }
                 }
                 if enablePlaylists {
-                    Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) {
+                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) {
                         withAlbumSongs(errorMsg: tr("Action failed", "Aktion fehlgeschlagen")) { songs in
                             guard !songs.isEmpty else { return }
                             NotificationCenter.default.post(name: .addSongsToPlaylist, object: songs.map(\.id))

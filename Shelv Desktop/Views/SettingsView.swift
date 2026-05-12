@@ -15,7 +15,7 @@ struct SettingsView: View {
             AppearanceTab(colorScheme: $colorScheme)
                 .tabItem {
                     Image(systemName: "paintpalette")
-                    Text(tr("Appearance", "Darstellung"))
+                    Text(tr("Appearance", "Erscheinungsbild"))
                 }
             RecapTab()
                 .tabItem {

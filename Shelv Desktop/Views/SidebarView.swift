@@ -62,7 +62,7 @@ struct SidebarView: View {
                     .padding(.vertical, 8)
 
                 HStack {
-                    Text(tr("Playlists", "Wiedergabelisten"))
+                    Text(tr("Playlists", "Playlists"))
                         .font(.callout.bold())
                         .foregroundStyle(.secondary)
                     Spacer()
@@ -75,7 +75,7 @@ struct SidebarView: View {
                             .foregroundStyle(themeColor)
                     }
                     .buttonStyle(.plain)
-                    .help(tr("New Playlist", "Neue Wiedergabeliste"))
+                    .help(tr("New Playlist", "Neue Playlist"))
                 }
                 .padding(.horizontal, 10)
                 .padding(.bottom, 4)
@@ -85,7 +85,7 @@ struct SidebarView: View {
                         .scaleEffect(0.8)
                         .padding(.horizontal, 10)
                 } else if visiblePlaylists.isEmpty {
-                    Text(tr("No Playlists", "Keine Wiedergabelisten"))
+                    Text(tr("No Playlists", "Keine Playlists"))
                         .font(.callout)
                         .foregroundStyle(.tertiary)
                         .padding(.horizontal, 10)
@@ -138,7 +138,7 @@ struct SidebarView: View {
         .onChange(of: selectedPlaylist) { _, _ in
             if enablePlaylists { Task { await libraryStore.loadPlaylists() } }
         }
-        .alert(tr("New Playlist", "Neue Wiedergabeliste"), isPresented: $showCreatePlaylist) {
+        .alert(tr("New Playlist", "Neue Playlist"), isPresented: $showCreatePlaylist) {
             TextField(tr("Name", "Name"), text: $newPlaylistName)
             Button(tr("Create", "Erstellen")) {
                 let name = newPlaylistName.trimmingCharacters(in: .whitespaces)
@@ -147,7 +147,7 @@ struct SidebarView: View {
             }
             Button(tr("Cancel", "Abbrechen"), role: .cancel) { }
         } message: {
-            Text(tr("Enter a name for the new playlist.", "Namen für die neue Wiedergabeliste eingeben."))
+            Text(tr("Enter a name for the new playlist.", "Namen für die neue Playlist eingeben."))
         }
     }
 

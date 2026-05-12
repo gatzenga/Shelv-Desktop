@@ -91,7 +91,7 @@ struct SearchView: View {
                                         NotificationCenter.default.post(name: .showToast, object: tr("Added to Play Next", "Als nächstes hinzugefügt"))
                                     } onAddToQueue: {
                                         appState.player.addToUserQueue(song)
-                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                        NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                                     } onFavorite: {
                                         Task { await libraryStore.toggleStarSong(song) }
                                     } onAddToPlaylist: {
@@ -117,7 +117,7 @@ struct SearchView: View {
                                         onAddToQueue: {
                                             withLyricsSong(item) { song in
                                                 appState.player.addToUserQueue(song)
-                                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                                             }
                                         },
                                         onFavorite: {
@@ -137,7 +137,7 @@ struct SearchView: View {
                 }
             }
         }
-        .navigationTitle(tr("Search", "Suche"))
+        .navigationTitle(tr("Search", "Suchen"))
         .onAppear { isSearchFocused = true }
         .onChange(of: vm.query) { _, newValue in
             if newValue.count >= 2 {
@@ -349,10 +349,10 @@ struct SearchSongRow: View {
             Button(tr("Play", "Abspielen")) { onPlay() }
             Divider()
             if let onPlayNext {
-                Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
+                Button(tr("Play Next", "Als nächstes")) { onPlayNext() }
             }
             if let onAddToQueue {
-                Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) { onAddToQueue() }
+                Button(tr("Add to Queue", "Zur Warteschlange")) { onAddToQueue() }
             }
             if showFavorite || showPlaylist {
                 Divider()
@@ -364,7 +364,7 @@ struct SearchSongRow: View {
                     }
                 }
                 if showPlaylist, let onAddToPlaylist {
-                    Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) {
+                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) {
                         onAddToPlaylist()
                     }
                 }
@@ -499,10 +499,10 @@ struct LyricsSearchRow: View {
             Button(tr("Play", "Abspielen")) { onPlay() }
             Divider()
             if let onPlayNext {
-                Button(tr("Play Next", "Als nächstes abspielen")) { onPlayNext() }
+                Button(tr("Play Next", "Als nächstes")) { onPlayNext() }
             }
             if let onAddToQueue {
-                Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) { onAddToQueue() }
+                Button(tr("Add to Queue", "Zur Warteschlange")) { onAddToQueue() }
             }
             if showFavorite || showPlaylist {
                 Divider()
@@ -510,7 +510,7 @@ struct LyricsSearchRow: View {
                     Button(tr("Add to Favorites", "Zu Favoriten hinzufügen")) { onFavorite() }
                 }
                 if showPlaylist, let onAddToPlaylist {
-                    Button(tr("Add to Playlist…", "Zur Wiedergabeliste hinzufügen…")) { onAddToPlaylist() }
+                    Button(tr("Add to Playlist…", "Zur Playlist hinzufügen…")) { onAddToPlaylist() }
                 }
             }
         }

@@ -94,7 +94,7 @@ struct RecapView: View {
                                         }
                                     }
                                     Divider()
-                                    Button(tr("Play Next", "Als nächstes abspielen")) {
+                                    Button(tr("Play Next", "Als nächstes")) {
                                         Task {
                                             if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
                                                let songs = detail.songs, !songs.isEmpty {
@@ -105,12 +105,12 @@ struct RecapView: View {
                                             }
                                         }
                                     }
-                                    Button(tr("Add to Queue", "Zur Warteschlange hinzufügen")) {
+                                    Button(tr("Add to Queue", "Zur Warteschlange")) {
                                         Task {
                                             if let detail = await libraryStore.loadPlaylistDetail(id: entry.playlistId),
                                                let songs = detail.songs, !songs.isEmpty {
                                                 AudioPlayerService.shared.addToUserQueue(songs)
-                                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange hinzugefügt"))
+                                                NotificationCenter.default.post(name: .showToast, object: tr("Added to Queue", "Zur Warteschlange"))
                                             } else {
                                                 NotificationCenter.default.post(name: .showToast, object: tr("Action failed", "Aktion fehlgeschlagen"))
                                             }

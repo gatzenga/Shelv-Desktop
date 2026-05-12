@@ -173,7 +173,7 @@ struct Shelv_DesktopApp: App {
                     Text(tr("Show Favorites", "Favoriten anzeigen"))
                 }
                 Toggle(isOn: Binding(get: { enablePlaylists }, set: { enablePlaylists = $0 })) {
-                    Text(tr("Show Playlists", "Wiedergabelisten anzeigen"))
+                    Text(tr("Show Playlists", "Playlists anzeigen"))
                 }
             }
         }
