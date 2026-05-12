@@ -162,7 +162,6 @@ struct AddServerSheet: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @Environment(\.themeColor) private var themeColor
-
     @State private var name = ""
     @State private var url = ""
     @State private var username = ""
@@ -243,7 +242,6 @@ struct EditServerSheet: View {
     let server: SubsonicServer
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
-
     @State private var name: String
     @State private var url: String
     @State private var username: String

@@ -347,7 +347,7 @@ struct QueuePopover: View {
 
     private var hasUpcoming: Bool {
         if player.isShuffled {
-            return player.currentIndex + 1 < player.queue.count
+            return !player.playNextQueue.isEmpty || player.currentIndex + 1 < player.queue.count
         }
         return !player.playNextQueue.isEmpty
             || player.currentIndex + 1 < player.queue.count
@@ -356,7 +356,7 @@ struct QueuePopover: View {
 
     private var totalCount: Int {
         if player.isShuffled {
-            return albumEntries.count
+            return playNextEntries.count + albumEntries.count
         }
         return playNextEntries.count + albumEntries.count + userQueueEntries.count
     }
@@ -397,6 +397,11 @@ struct QueuePopover: View {
             } else {
                 List {
                     if player.isShuffled {
+                        queueSection(tr("Play Next", "Als nächstes"), entries: playNextEntries,
+                            onTap:   { player.jumpToPlayNextTrack(at: $0.index) },
+                            onDelete: { player.removeFromPlayNextQueue(at: $0.index) },
+                            onMove:  { player.moveInPlayNextQueue(from: $0, to: $1) })
+
                         queueSection(tr("Shuffled Queue", "Gemischte Warteschlange"), entries: albumEntries,
                             onTap:   { player.jumpToAlbumTrack(at: $0.index) },
                             onDelete: { player.removeFromQueue(at: $0.index) },

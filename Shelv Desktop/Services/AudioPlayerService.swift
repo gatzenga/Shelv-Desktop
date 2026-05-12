@@ -433,21 +433,13 @@ class AudioPlayerService: ObservableObject {
 
     func addPlayNext(_ song: Song) {
         truthPlayNextQueue.append(song)
-        if isShuffled {
-            insertRandomlyInShuffledQueue(song)
-        } else {
-            playNextQueue.append(song)
-        }
+        playNextQueue.append(song)
         saveState()
     }
 
     func addPlayNext(_ songs: [Song]) {
         truthPlayNextQueue.append(contentsOf: songs)
-        if isShuffled {
-            songs.forEach { insertRandomlyInShuffledQueue($0) }
-        } else {
-            playNextQueue.append(contentsOf: songs)
-        }
+        playNextQueue.append(contentsOf: songs)
         saveState()
     }
 
@@ -685,11 +677,9 @@ class AudioPlayerService: ObservableObject {
             }
             isShuffled = false
         } else {
-            let upcoming = playNextQueue.map { QueueItem(song: $0) }
-                + Array(queue[(currentIndex + 1)...])
+            let upcoming = Array(queue[(currentIndex + 1)...])
                 + userQueue.map { QueueItem(song: $0) }
             queue.replaceSubrange((currentIndex + 1)..., with: upcoming.shuffled())
-            playNextQueue = []
             userQueue = []
             isShuffled = true
         }
