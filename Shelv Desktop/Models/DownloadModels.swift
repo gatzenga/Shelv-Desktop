@@ -62,7 +62,8 @@ struct DownloadedSong: Identifiable, Hashable {
             playCount: nil,
             bitRate: nil,
             contentType: nil,
-            suffix: fileExtension
+            suffix: fileExtension,
+            replayGain: nil
         )
     }
 }

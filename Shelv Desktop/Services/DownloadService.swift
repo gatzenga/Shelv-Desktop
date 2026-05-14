@@ -217,7 +217,8 @@ actor DownloadService {
                     playCount: song.playCount,
                     bitRate: song.bitRate,
                     contentType: song.contentType,
-                    suffix: song.suffix
+                    suffix: song.suffix,
+                    replayGain: song.replayGain
                 )
             }
             await enqueue(songs: songs, serverId: serverId, albumArtistOverride: albumArtist,

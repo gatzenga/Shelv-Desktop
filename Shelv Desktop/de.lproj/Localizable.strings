@@ -375,3 +375,7 @@
 "extra_songs_format" = "Zusätzliche Songs (%d)";
 "failed_count_format" = "%d fehlgeschlagen";
 "delete_count_period_format" = "%d %@ löschen?";
+"replay_gain" = "ReplayGain";
+"replay_gain_mode" = "Modus";
+"track_gain" = "Track Gain";
+"album_gain" = "Album Gain";

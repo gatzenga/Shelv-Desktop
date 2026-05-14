@@ -160,6 +160,13 @@ struct AlbumDetail: Codable, Identifiable {
     var isStarred: Bool { starred != nil }
 }
 
+struct ReplayGain: Codable, Hashable {
+    let trackGain: Float?
+    let albumGain: Float?
+    let trackPeak: Float?
+    let albumPeak: Float?
+}
+
 struct Song: Codable, Identifiable, Hashable {
     let id: String
     let title: String
@@ -178,6 +185,7 @@ struct Song: Codable, Identifiable, Hashable {
     let bitRate: Int?
     let contentType: String?
     let suffix: String?
+    let replayGain: ReplayGain?
 
     var isStarred: Bool { starred != nil }
 

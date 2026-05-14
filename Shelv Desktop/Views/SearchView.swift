@@ -193,7 +193,7 @@ struct SearchView: View {
                     artist: item.artistName, artistId: nil, album: nil, albumId: nil,
                     coverArt: item.coverArt, duration: nil, track: nil, discNumber: nil,
                     year: nil, genre: nil, starred: nil, playCount: nil,
-                    bitRate: nil, contentType: nil, suffix: nil
+                    bitRate: nil, contentType: nil, suffix: nil, replayGain: nil
                 )
                 await MainActor.run { action(fallback) }
             }
@@ -220,7 +220,7 @@ struct SearchView: View {
                     artist: item.artistName, artistId: nil, album: nil, albumId: nil,
                     coverArt: item.coverArt, duration: nil, track: nil, discNumber: nil,
                     year: nil, genre: nil, starred: nil, playCount: nil,
-                    bitRate: nil, contentType: nil, suffix: nil
+                    bitRate: nil, contentType: nil, suffix: nil, replayGain: nil
                 )
                 appState.player.play(songs: [fallback], startIndex: 0)
             }

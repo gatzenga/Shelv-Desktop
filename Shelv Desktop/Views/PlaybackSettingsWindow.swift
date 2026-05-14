@@ -13,6 +13,11 @@ struct PlaybackSettingsWindow: View {
                     Image(systemName: "waveform.badge.magnifyingglass")
                     Text(String(localized: "transcoding"))
                 }
+            ReplayGainPanel()
+                .tabItem {
+                    Image(systemName: "dial.medium")
+                    Text(String(localized: "replay_gain"))
+                }
             LyricsSettingsPanel()
                 .tabItem {
                     Image(systemName: "text.quote")

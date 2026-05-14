@@ -489,7 +489,7 @@ class RecapStore: ObservableObject {
             album: nil, albumId: nil, coverArt: nil,
             duration: nil, track: nil, discNumber: nil,
             year: nil, genre: nil, starred: nil, playCount: nil,
-            bitRate: nil, contentType: nil, suffix: nil
+            bitRate: nil, contentType: nil, suffix: nil, replayGain: nil
         )
     }
 

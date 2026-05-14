@@ -729,6 +729,7 @@ class AudioPlayerService: ObservableObject {
             Task { await StreamCacheService.shared.cancel(songId: prev.id) }
         }
         currentSong = song
+        applyReplayGain(for: song)
         hasScrobbledCurrent = false
         guard let url = resolveURL(songId: song.id) else {
             if OfflineModeService.shared.isOffline {
@@ -896,6 +897,7 @@ class AudioPlayerService: ObservableObject {
 
                     self.advanceQueueState()
                     self.currentSong = song
+                    self.applyReplayGain(for: song)
                     self.hasScrobbledCurrent = false
                     self.currentTime = 0
                     self.isSeeking = false
@@ -1237,5 +1239,23 @@ class AudioPlayerService: ObservableObject {
         }
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    }
+
+    private func applyReplayGain(for song: Song) {
+        let enabled = UserDefaults.standard.bool(forKey: "replayGainEnabled")
+        guard enabled, let rg = song.replayGain else {
+            engine.volume = 1.0
+            return
+        }
+        let useTrack = (UserDefaults.standard.string(forKey: "replayGainMode") ?? "track") == "track"
+        let gain: Float? = useTrack ? (rg.trackGain ?? rg.albumGain) : (rg.albumGain ?? rg.trackGain)
+        guard let gain else {
+            engine.volume = 1.0
+            return
+        }
+        let linear = pow(10.0, gain / 20.0)
+        let peak: Float? = useTrack ? rg.trackPeak : rg.albumPeak
+        let vol: Float = peak.map { $0 > 0 ? min(linear, 1.0 / $0) : linear } ?? min(linear, 1.0)
+        engine.volume = vol
     }
 }
