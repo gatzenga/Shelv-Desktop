@@ -13,9 +13,7 @@ struct PlaylistDetailView: View {
     @ViewBuilder
     private var playlistDownloadButtons: some View {
         let isMarked = downloadStore.downloadedPlaylistIds.contains(playlist.id)
-        let totalCount = downloadStore.playlistSongIds[playlist.id]?.count ?? songs.count
-        let downloadedCount = isMarked ? (downloadStore.playlistSongIds[playlist.id]?.filter { downloadStore.isDownloaded(songId: $0) }.count ?? 0) : 0
-        let remaining = max(0, totalCount - downloadedCount)
+        let remaining = isMarked ? songs.filter { !downloadStore.isDownloaded(songId: $0.id) }.count : 0
         if !isMarked && !offlineMode.isOffline {
             Button {
                 let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
