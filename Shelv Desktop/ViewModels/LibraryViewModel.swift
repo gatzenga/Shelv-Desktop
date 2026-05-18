@@ -308,6 +308,12 @@ class LibraryViewModel: ObservableObject {
         do {
             let detail = try await api.getPlaylist(id: id)
             savePlaylistDetailCache(detail)
+            let freshCount = detail.songs?.count ?? detail.songCount
+            if let idx = playlists.firstIndex(where: { $0.id == id }) {
+                let p = playlists[idx]
+                playlists[idx] = Playlist(id: p.id, name: p.name, comment: p.comment,
+                                          songCount: freshCount, duration: detail.duration, coverArt: p.coverArt)
+            }
             return detail
         } catch {
             errorMessage = error.localizedDescription
@@ -446,6 +452,12 @@ class LibraryViewModel: ObservableObject {
     func removeSongsFromPlaylist(_ playlist: Playlist, indices: [Int]) async {
         do {
             try await api.updatePlaylist(id: playlist.id, songIndicesToRemove: indices)
+            if let idx = playlists.firstIndex(where: { $0.id == playlist.id }) {
+                let p = playlists[idx]
+                playlists[idx] = Playlist(id: p.id, name: p.name, comment: p.comment,
+                                          songCount: max(0, (p.songCount ?? 0) - indices.count),
+                                          duration: p.duration, coverArt: p.coverArt)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
