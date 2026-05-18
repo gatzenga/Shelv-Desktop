@@ -437,15 +437,17 @@ class LibraryViewModel: ObservableObject {
         }
     }
 
-    func addSongsToPlaylist(_ playlist: Playlist, songIds: [String]) async {
+    @discardableResult
+    func addSongsToPlaylist(_ playlist: Playlist, songIds: [String]) async -> Bool {
         do {
             try await api.updatePlaylist(id: playlist.id, songIdsToAdd: songIds)
-            // Refresh the playlist in the list
             if let refreshed = try? await api.getPlaylists() {
                 playlists = refreshed
             }
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 

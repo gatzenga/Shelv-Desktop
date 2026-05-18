@@ -270,6 +270,7 @@ struct RecapDetailView: View {
                 let allSongs = songs.map { $0.song }
                 let missing = allSongs.filter { !downloadStore.isDownloaded(songId: $0.id) }
                 if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
+                downloadStore.syncPlaylistSongIds(entry.playlistId, songIds: allSongs.map(\.id))
                 NotificationCenter.default.post(name: .showToast, object: String(localized: "download_started"))
             } label: {
                 Label("Rest (\(remaining))", systemImage: "arrow.down.circle")
@@ -314,5 +315,8 @@ struct RecapDetailView: View {
             ? ranked.filter { downloadStore.isDownloaded(songId: $0.song.id) }
             : ranked
         songs = filtered.map { SongWithCount(id: $0.song.id, song: $0.song, playCount: $0.playCount, originalRank: $0.rank) }
+        if !offlineMode.isOffline {
+            downloadStore.syncPlaylistSongIds(entry.playlistId, songIds: playlistSongs.map(\.id))
+        }
     }
 }

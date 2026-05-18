@@ -39,8 +39,8 @@ struct AddToPlaylistPanel: View {
                         ForEach(nonRecapPlaylists) { playlist in
                             Button {
                                 Task {
-                                    await libraryStore.addSongsToPlaylist(playlist, songIds: songIds)
-                                    dismiss()
+                                    let success = await libraryStore.addSongsToPlaylist(playlist, songIds: songIds)
+                                    if success { dismiss() }
                                 }
                             } label: {
                                 HStack(spacing: 12) {
