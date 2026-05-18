@@ -30,6 +30,7 @@ struct PlaylistDetailView: View {
             Button {
                 let missing = songs.filter { !downloadStore.isDownloaded(songId: $0.id) }
                 if !missing.isEmpty { downloadStore.enqueueSongs(missing) }
+                downloadStore.syncPlaylistSongIds(playlist.id, songIds: songs.map(\.id))
                 NotificationCenter.default.post(name: .showToast, object: String(localized: "download_started"))
             } label: {
                 Label("Rest (\(remaining))", systemImage: "arrow.down.circle")
@@ -274,12 +275,15 @@ struct PlaylistDetailView: View {
         if let loaded = await libraryStore.loadPlaylistDetail(id: playlist.id) {
             detail = loaded
             let allSongs = loaded.songs ?? []
-            songOriginalRanks = Dictionary(uniqueKeysWithValues: allSongs.enumerated().map { ($1.id, $0 + 1) })
+            songOriginalRanks = Dictionary(allSongs.enumerated().map { ($1.id, $0 + 1) }, uniquingKeysWith: { first, _ in first })
             songs = offlineMode.isOffline
                 ? allSongs.filter { downloadStore.isDownloaded(songId: $0.id) }
                 : allSongs
             displayName = loaded.name
             displayComment = loaded.comment ?? ""
+            if !offlineMode.isOffline {
+                downloadStore.syncPlaylistSongIds(playlist.id, songIds: allSongs.map(\.id))
+            }
         }
         if songs.isEmpty && !offlineMode.isOffline && downloadStore.downloadedPlaylistIds.contains(playlist.id) {
             let ids = downloadStore.playlistSongIds[playlist.id] ?? []

@@ -466,6 +466,15 @@ final class DownloadStore: ObservableObject {
         Task { await DownloadDatabase.shared.markPlaylistDownloaded(id: id, name: name) }
     }
 
+    func syncPlaylistSongIds(_ id: String, songIds: [String]) {
+        guard downloadedPlaylistIds.contains(id) else { return }
+        playlistSongIds[id] = songIds
+        let key = "shelv_mac_playlist_song_ids_\(serverId)"
+        var current = UserDefaults.standard.dictionary(forKey: key) as? [String: [String]] ?? [:]
+        current[id] = songIds
+        UserDefaults.standard.set(current, forKey: key)
+    }
+
     func unmarkPlaylistDownloaded(id: String) {
         downloadedPlaylistIds.remove(id)
         protectedPlaylistIds.remove(id)
