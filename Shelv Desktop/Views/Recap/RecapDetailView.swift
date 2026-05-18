@@ -251,9 +251,7 @@ struct RecapDetailView: View {
     @ViewBuilder
     private var recapDownloadContentButtons: some View {
         let isMarked = downloadStore.downloadedPlaylistIds.contains(entry.playlistId)
-        let totalCount = downloadStore.playlistSongIds[entry.playlistId]?.count ?? songs.count
-        let downloadedCount = isMarked ? (downloadStore.playlistSongIds[entry.playlistId]?.filter { downloadStore.isDownloaded(songId: $0) }.count ?? 0) : 0
-        let remaining = max(0, totalCount - downloadedCount)
+        let remaining = isMarked ? songs.filter { !downloadStore.isDownloaded(songId: $0.song.id) }.count : 0
         if !isMarked && !offlineMode.isOffline {
             Button {
                 let allSongs = songs.map { $0.song }
